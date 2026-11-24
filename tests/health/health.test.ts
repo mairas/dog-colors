@@ -227,11 +227,27 @@ describe('analyseHealth: X-linked modes', () => {
     });
     expect([...fromDam.warnings, ...fromSire.warnings]).toEqual([]);
   });
+
+  it('XD, both parents with the variant: no warning, since one copy is enough', () => {
+    const analysis = analyseHealth(parent('female', [condition('XD', 1)]), parent('male', [condition('XD', 1)]));
+    expect(onlyRow(analysis).odds).toEqual({
+      kind: 'by-sex',
+      sons: { atRisk: fraction(1, 2), carrier: null },
+      daughters: { atRisk: ONE, carrier: null },
+    });
+    expect(analysis.warnings).toEqual([]);
+  });
 });
 
 describe('analyseHealth: mitochondrial mode', () => {
   it('dam at risk × clear sire: every puppy at risk', () => {
     const analysis = analyseHealth(parent('male', [condition('MT', 0)]), parent('female', [condition('MT', 1)]));
+    expect(onlyRow(analysis).odds).toEqual({ kind: 'puppies', puppies: { atRisk: ONE, carrier: null } });
+    expect(analysis.warnings).toEqual([]);
+  });
+
+  it('dam and sire both at risk: every puppy at risk from the dam alone, no warning', () => {
+    const analysis = analyseHealth(parent('male', [condition('MT', 1)]), parent('female', [condition('MT', 1)]));
     expect(onlyRow(analysis).odds).toEqual({ kind: 'puppies', puppies: { atRisk: ONE, carrier: null } });
     expect(analysis.warnings).toEqual([]);
   });
@@ -267,6 +283,14 @@ describe('analyseHealth: parent sex', () => {
         ['A', { kind: 'puppies', puppies: { atRisk: fraction(1, 4), carrier: fraction(1, 2) } }],
       ]);
       expect(names(analysis.clearInBoth)).toEqual(['Y']);
+    }
+  });
+
+  it('same-sex parents that both carry an XR variant: unknown odds and no warning', () => {
+    for (const sex of ['male', 'female'] as const) {
+      const analysis = analyseHealth(parent(sex, [condition('XR', 1)]), parent(sex, [condition('XR', 2)]));
+      expect(onlyRow(analysis).odds).toEqual({ kind: 'unknown', reason: 'same-sex-parents' });
+      expect(analysis.warnings).toEqual([]);
     }
   });
 
