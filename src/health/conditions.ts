@@ -26,7 +26,8 @@ function sameName(a: ConditionKey, b: ConditionKey): boolean {
   return a.name.toLowerCase() === b.name.toLowerCase();
 }
 
-function isWithheld(key: ConditionKey): boolean {
+/** The report withholds the gene or, in the older format, the variant. */
+export function isWithheld(key: ConditionKey): boolean {
   return key.gene === CONFIDENTIAL_GENE || key.variant === WITHHELD_VARIANT;
 }
 
