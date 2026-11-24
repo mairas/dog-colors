@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { FIXTURE_LETTERS } from '../../scripts/extract-fixtures.ts';
+import { COLOUR_VARIANTS } from '../../src/report/loci.ts';
 import { parseReport } from '../../src/report/parse.ts';
 import type { DocumentInfo, Line, PdfText } from '../../src/report/pdfText.ts';
 import type { ReadResult, Report } from '../../src/report/types.ts';
+import { fixtureText } from './fixtures.ts';
 import { line } from './lines.ts';
 
 const NO_INFO: DocumentInfo = { creator: null, producer: null };
@@ -312,6 +315,139 @@ describe('parseReport: health rows', () => {
       CURRENT_FOOTER,
     ]);
     expect(report.health).toEqual([]);
+  });
+});
+
+/** Every catalogue code at 0 copies, except the given ones. */
+function colourWith(overrides: Readonly<Record<string, number>>): Record<string, Record<string, number>> {
+  const colour: Record<string, Record<string, number>> = {};
+  for (const { gene, code } of COLOUR_VARIANTS) {
+    colour[gene] = { ...colour[gene], [code]: overrides[`${gene} ${code}`] ?? 0 };
+  }
+  return colour;
+}
+
+const sample = async (letter: string, edit = (lines: readonly Line[]): readonly Line[] => lines) =>
+  parsed(edit(fixtureText(letter).lines));
+
+function withCopies(gene: string, code: string, copies: number) {
+  return (lines: readonly Line[]): Line[] =>
+    lines.map((original) => {
+      const index = original.cells.findIndex((cell, i) => cell.text === gene && original.cells[i + 1]?.text === code);
+      if (index === -1) {
+        return original;
+      }
+      return {
+        ...original,
+        cells: original.cells.map((cell, i) => (i === index + 2 ? { ...cell, text: String(copies) } : cell)),
+      };
+    });
+}
+
+describe('parseReport: sample reports', () => {
+  it('reads Sample A (Wisdom PDF server)', async () => {
+    const report = await sample('a');
+    expect(report.format).toBe('current');
+    expect(report.colour).toEqual(
+      colourWith({ 'ASIP at': 1, 'CBD103 KB': 2, 'MC1R e1': 1, 'TYRP1 bc': 1, 'TYRP1 bs': 1, 'MFSD12 i': 2, 'MITF sp': 2 }),
+    );
+    expect(report.missingLoci).toEqual([]);
+    expect(report.shortTail).toBe(0);
+    expect(report.sex).toBe('male');
+    expect(report.name).toBe('Sample A');
+    expect(report.breed).toBe('Spanish Water Dog');
+  });
+
+  it('reads Sample B (iOS print)', async () => {
+    const report = await sample('b');
+    expect(report.colour).toEqual(
+      colourWith({ 'ASIP at': 2, 'CBD103 KB': 1, 'MC1R Em': 1, 'TYRP1 bc': 2, 'TYRP1 bd': 1, 'MFSD12 i': 1, 'MITF sp': 1 }),
+    );
+    expect(report.missingLoci).toEqual([]);
+    expect(report.sex).toBe('female');
+    expect(report.name).toBe('Sample B');
+  });
+
+  it('reads Sample C (macOS print)', async () => {
+    const report = await sample('c');
+    expect(report.colour).toEqual(
+      colourWith({ 'ASIP at': 2, 'CBD103 KB': 1, 'TYRP1 bc': 1, 'TYRP1 bs': 1, 'MFSD12 i': 1 }),
+    );
+    expect(report.missingLoci).toEqual([]);
+    expect(report.shortTail).toBe(0);
+    expect(report.sex).toBe('male');
+  });
+
+  it.each([
+    ['d', 'female'],
+    ['e', 'male'],
+  ] as const)('reads older-format Sample %s, counting the confidential Cocker sable row as tested', async (letter, sex) => {
+    const report = await sample(letter);
+    expect(report.format).toBe('mydogdna');
+    expect(report.colour.ASIP).toEqual({ ay: 0, a: 0, at: 2 });
+    expect(report.colour.CBD103).toEqual({ KB: 1 });
+    expect(report.colour.TYRP1).toEqual({ basd: 0, bc: 1, bd: 0, be: 0, bh: 0, bs: 1 });
+    expect(report.colour.MC1R?.eH).toBe(0);
+    expect(report.missingLoci).toEqual([]);
+    expect(report.shortTail).toBe(0);
+    expect(report.sex).toBe(sex);
+    expect(report.name).toBe(`Sample ${letter.toUpperCase()}`);
+    expect(report.health).toEqual([]);
+  });
+
+  it('assigns one older-format eA copy to eA, with the Cocker sable row before Mask', async () => {
+    const report = await sample('d', withCopies('MC1R', 'eA', 1));
+    expect(report.colour.MC1R).toEqual({ eH: 0, Em: 0, e1: 1, e2: 0, e3: 0, eA: 1, eG: 0 });
+  });
+
+  it('lists TYRP1 as missing when its rows are removed, and still reads the other loci', async () => {
+    const report = await sample('a', (lines) => lines.filter((kept) => !kept.cells.some((cell) => cell.text === 'TYRP1')));
+    expect(report.missingLoci).toEqual(['TYRP1']);
+    expect(report.colour.TYRP1).toBeUndefined();
+    expect(report.colour.ASIP).toEqual({ ay: 0, a: 0, at: 1 });
+  });
+
+  it('keeps the two confidential conditions and the two VWF G>A conditions apart, each with its own name', async () => {
+    const { health } = await sample('a');
+    const confidential = health.filter((row) => row.gene === 'Confidential').map((row) => row.name);
+    expect(confidential).toEqual([
+      'Amelogenesis Imperfecta (Discovered in the Lancashire Heeler)',
+      'Hypophosphatasia',
+    ]);
+    const vwf = health
+      .filter((row) => row.gene === 'VWF' && row.variant === 'G>A')
+      .map(({ name, inheritance }) => [name, inheritance]);
+    expect(vwf).toEqual([
+      ["von Willebrand's Disease, type 1", 'AD'],
+      ["von Willebrand's Disease, type 3 (Discovered in the Kooiker Hound)", 'AR'],
+    ]);
+  });
+
+  it('reads the "known in the breed" CDDY block and a carrier', async () => {
+    const a = await sample('a');
+    expect(a.health.find((row) => row.gene === 'FGF4 retrogene')).toEqual({
+      name: 'Chondrodystrophy (CDDY) and Intervertebral Disc Disease (IVDD) Risk',
+      gene: 'FGF4 retrogene',
+      variant: 'Insertion',
+      copies: 2,
+      result: 'At Risk',
+      inheritance: 'AD',
+      knownInBreed: true,
+    });
+    const b = await sample('b');
+    expect(b.health.find((row) => row.name === 'Degenerative Myelopathy')).toMatchObject({
+      gene: 'SOD1',
+      copies: 1,
+      result: 'Carrier',
+      inheritance: 'AR',
+      knownInBreed: false,
+    });
+  });
+
+  it('gives each report its own kit-ID hash, and the same report the same hash', async () => {
+    const hashes = await Promise.all(FIXTURE_LETTERS.map(async (letter) => (await sample(letter)).kitIdHash));
+    expect(new Set(hashes).size).toBe(FIXTURE_LETTERS.length);
+    expect((await sample('a')).kitIdHash).toBe(hashes[0]);
   });
 });
 
