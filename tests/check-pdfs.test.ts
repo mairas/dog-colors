@@ -10,6 +10,9 @@ const SCRIPT = fileURLToPath(new URL('../scripts/check-pdfs.sh', import.meta.url
 // Synthetic content only: a PDF header followed by filler, never a real report.
 const PDF_CONTENT = '%PDF-1.7\n%synthetic test content\n';
 
+// Larger than a pipe buffer, so git is still writing when the check stops reading.
+const LARGE_FILE_BYTES = 1024 * 1024;
+
 // Isolate the throwaway repositories from the developer's git configuration
 // (signing, hooks, global excludes that ignore *.pdf).
 const GIT_ENV = {
@@ -87,33 +90,91 @@ describe('check-pdfs', () => {
     expect(check()).toMatchObject({ status: 0 });
   });
 
-  it('fails when a merged branch added and deleted a PDF', () => {
+  // Each case is caught by one scan only: by name, or by content.
+  const pdfFiles = [
+    { found: 'by name', path: 'report.pdf', content: 'not really a PDF\n' },
+    { found: 'by content', path: 'report.bin', content: PDF_CONTENT },
+  ];
+
+  it.each(pdfFiles)('fails when a merged branch added and deleted a PDF $found', ({ path, content }) => {
     git('switch', '-q', '-c', 'side', 'base');
-    commitFile('report.pdf', PDF_CONTENT);
-    deleteFile('report.pdf');
+    commitFile(path, content);
+    deleteFile(path);
     git('switch', '-q', 'main');
     commitFile('src/main.ts', 'export {};\n');
     git('merge', '-q', '--no-edit', 'side');
 
     const result = check('base');
     expect(result.status).toBe(1);
-    expect(result.output).toContain('report.pdf');
+    expect(result.output).toContain(path);
   });
 
-  it('fails when a merge commit itself added a PDF that was later deleted', () => {
-    git('switch', '-q', '-c', 'side', 'base');
-    commitFile('src/side.ts', 'export {};\n');
-    git('switch', '-q', 'main');
-    commitFile('src/main.ts', 'export {};\n');
-    git('merge', '-q', '--no-commit', 'side');
-    write('merged.pdf', PDF_CONTENT);
-    git('add', '-f', '--', 'merged.pdf');
-    git('commit', '-q', '--no-edit');
-    deleteFile('merged.pdf');
+  it.each(pdfFiles)(
+    'fails when a merge commit itself added a PDF $found that was later deleted',
+    ({ path, content }) => {
+      git('switch', '-q', '-c', 'side', 'base');
+      commitFile('src/side.ts', 'export {};\n');
+      git('switch', '-q', 'main');
+      commitFile('src/main.ts', 'export {};\n');
+      git('merge', '-q', '--no-commit', 'side');
+      write(path, content);
+      git('add', '-f', '--', path);
+      git('commit', '-q', '--no-edit');
+      deleteFile(path);
+
+      const result = check('base');
+      expect(result.status).toBe(1);
+      expect(result.output).toContain(path);
+    },
+  );
+
+  it('fails when a file under another name with PDF content was added and deleted', () => {
+    commitFile('notes.txt', PDF_CONTENT);
+    deleteFile('notes.txt');
 
     const result = check('base');
     expect(result.status).toBe(1);
-    expect(result.output).toContain('merged.pdf');
+    expect(result.output).toContain('notes.txt');
+  });
+
+  it('passes a range that adds a file larger than a pipe buffer', () => {
+    commitFile('data/large.bin', 'x'.repeat(LARGE_FILE_BYTES));
+
+    expect(check('base')).toMatchObject({ status: 0 });
+  });
+
+  it('fails when a file was changed to PDF content and then deleted', () => {
+    commitFile('README.md', PDF_CONTENT);
+    deleteFile('README.md');
+
+    const result = check('base');
+    expect(result.status).toBe(1);
+    expect(result.output).toContain('README.md');
+  });
+
+  it('fails when a renamed file gained PDF content and was then deleted', () => {
+    const body = 'synthetic filler line\n'.repeat(50);
+    commitFile('notes.txt', body);
+    git('branch', '-f', 'base');
+    git('mv', '--', 'notes.txt', 'renamed.txt');
+    write('renamed.txt', `${PDF_CONTENT}${body}`);
+    git('add', '--', 'renamed.txt');
+    git('commit', '-q', '-m', 'rename notes.txt');
+    deleteFile('renamed.txt');
+
+    const result = check('base');
+    expect(result.status).toBe(1);
+    expect(result.output).toContain('renamed.txt');
+  });
+
+  it('fails when a file was renamed to a PDF name and then deleted', () => {
+    git('mv', '--', 'README.md', 'report.pdf');
+    git('commit', '-q', '-m', 'rename README.md');
+    deleteFile('report.pdf');
+
+    const result = check('base');
+    expect(result.status).toBe(1);
+    expect(result.output).toContain('report.pdf');
   });
 
   it('fails when a tracked file under another name holds PDF content', () => {

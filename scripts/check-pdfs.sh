@@ -5,7 +5,8 @@
 # Fails if the git repository in the current directory tracks a PDF file, by
 # name (case-insensitive) or by content (a file that starts with %PDF-). Given
 # <base-ref>, also fails if any commit in <base-ref>..HEAD added a path named
-# like a PDF, even if a later commit deleted it.
+# like a PDF, or added or changed a file to start with %PDF-, even if a later
+# commit deleted it. Fails closed: if git fails, so does the check.
 #
 
 set -o nounset
@@ -19,6 +20,7 @@ fi
 readonly BASE=${1:-}
 readonly PDF_PATHS=':(icase)*.pdf'
 readonly PDF_SIGNATURE='%PDF-'
+readonly SIGPIPE_STATUS=141
 
 found=0
 
@@ -56,18 +58,53 @@ if [[ -n $BASE ]]; then
     echo "Base ref '$BASE' does not name a commit" >&2
     exit 2
   fi
-  # --full-history keeps merged side branches that a path filter would
-  # otherwise simplify away; --diff-merges=separate shows files added in a
-  # merge itself; --no-renames reports a rename to *.pdf as an addition.
+  readonly PUBLIC="Once pushed they are public: tell the owner now. Rewriting the
+branch only keeps them out of main and clears this check; GitHub serves the
+pushed commits until GitHub Support purges them:"
+
+  # --diff-merges=separate lists what each merge commit changed against each of
+  # its parents, so a file added in the merge itself is seen. It also keeps the
+  # path-limited name scan walking a merged side branch whose merge leaves the
+  # PDF paths unchanged; --full-history only states that explicitly.
+  # --no-renames lists a renamed file as an addition under its new name, so the
+  # --diff-filter options below see it.
+  function range_log {
+    git log --full-history --diff-merges=separate --no-renames --format= \
+      "$BASE..HEAD" "$@"
+  }
+
   added_names=$(
-    git log --full-history --diff-merges=separate --no-renames \
-      --diff-filter=A --name-only --format= "$BASE..HEAD" -- "$PDF_PATHS" |
-      sed '/^$/d' | sort -u
+    range_log --diff-filter=A --name-only -- "$PDF_PATHS" | sed '/^$/d' | sort -u
   )
-  report "Commits in $BASE..HEAD added PDF files. Once pushed they are public:
-tell the owner now. Rewriting the branch only keeps them out of main and clears
-this check; GitHub serves the pushed commits until GitHub Support purges them:" \
-    "$added_names"
+  report "Commits in $BASE..HEAD added PDF files. $PUBLIC" "$added_names"
+
+  # Every regular-file blob a commit in the range added or changed, as
+  # "<blob><tab><path>". Symlinks (mode 120000) store a target path and gitlinks
+  # (160000) name a commit, so neither holds file content.
+  added_blobs=$(
+    range_log --diff-filter=AMT --raw --no-abbrev |
+      awk -F '\t' '{ split($1, meta, " ") } meta[2] ~ /^100/ { print meta[4] "\t" $2 }' |
+      sort -u
+  )
+  # The list is sorted by blob, so each blob is read once. head stops reading
+  # after the signature, so git cat-file may be killed by SIGPIPE on a large
+  # blob; that status is expected, any other failure is not.
+  added_content=$(
+    checked_blob=''
+    while IFS=$'\t' read -r blob path; do
+      [[ -n $blob ]] || continue
+      if [[ $blob != "$checked_blob" ]]; then
+        checked_blob=$blob
+        signature=$(git cat-file blob "$blob" | head -c ${#PDF_SIGNATURE}) ||
+          [[ $? -eq $SIGPIPE_STATUS ]] || exit
+      fi
+      if [[ $signature == "$PDF_SIGNATURE" ]]; then
+        printf '%s\n' "$path"
+      fi
+    done <<<"$added_blobs" | sort -u
+  )
+  report "Commits in $BASE..HEAD added files with PDF content. $PUBLIC" \
+    "$added_content"
 fi
 
 if [[ $found -ne 0 ]]; then
