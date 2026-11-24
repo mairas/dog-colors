@@ -6,6 +6,7 @@
 // lack. The browser entry point sets its bundled worker; Node uses pdf.js's
 // in-process fallback.
 import { getDocument, VerbosityLevel } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import type { RejectionKind } from './types.ts';
 
 export interface TextItem {
   readonly str: string;
@@ -150,7 +151,7 @@ export interface PdfText {
   readonly info: DocumentInfo;
 }
 
-export type PdfRejectionKind = 'not-pdf' | 'encrypted' | 'too-large';
+export type PdfRejectionKind = Extract<RejectionKind, 'not-pdf' | 'encrypted' | 'too-large'>;
 
 export type PdfTextResult =
   | { readonly ok: true; readonly text: PdfText }
