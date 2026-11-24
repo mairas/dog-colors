@@ -1,0 +1,805 @@
+[
+  {
+    "id": "ee-B-black-nose",
+    "genotype": {
+      "MC1R": "e/e",
+      "TYRP1": "B/B"
+    },
+    "expected": {
+      "base": "beige",
+      "nose": "black",
+      "flags": []
+    },
+    "citation": {
+      "source": "Dreger 2019",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6816562",
+      "locator": "Results, 'Allele frequency is influenced by within-breed selection…' (Labrador lines: e/e yellow with black noses, TYRP1 B/_)"
+    },
+    "note": "Labradors are near-fixed for KB (Results, 'Cladistic patterns'), so KB does not change e/e."
+  },
+  {
+    "id": "ee-bb-brown-nose",
+    "genotype": {
+      "MC1R": "e/e",
+      "TYRP1": "b/b"
+    },
+    "expected": {
+      "base": "beige",
+      "nose": "brown",
+      "flags": []
+    },
+    "citation": {
+      "source": "OMIA 001249-9615",
+      "url": "https://omia.org/OMIA001249/9615/",
+      "locator": "Species summary (Brancalion 2021 quoting Schmutz 2002): e/e with two b alleles, nose and pads brown or self-coloured; coat unaffected"
+    },
+    "note": "Source says 'brown or self-coloured'. Dreger 2019 Methods 'Probability of phenotype expression' also: b/b gives a nose fault regardless of hair pigment."
+  },
+  {
+    "id": "ee-KB-pheo",
+    "genotype": {
+      "MC1R": "e/e",
+      "CBD103": "KB/ky",
+      "ASIP": "at/at",
+      "TYRP1": "B/B"
+    },
+    "expected": {
+      "base": "beige",
+      "nose": "black",
+      "flags": []
+    },
+    "citation": {
+      "source": "Dreger 2019",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6816562",
+      "locator": "Introduction, paragraph 2 (KB with e/e gives solid phaeomelanin; e/e and KB epistatic to ASIP)"
+    },
+    "note": "e/e wins over KB."
+  },
+  {
+    "id": "KB-E-black",
+    "genotype": {
+      "MC1R": "E/E",
+      "CBD103": "KB/ky",
+      "ASIP": "ay/ay",
+      "TYRP1": "B/B"
+    },
+    "expected": {
+      "base": "black",
+      "pattern": "one-colour",
+      "flags": [
+        "brindle-possible"
+      ]
+    },
+    "citation": {
+      "source": "Anderson 2020",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7643265",
+      "locator": "Table 2, 'Expected phenotype (in the absence of eA)' for KB/*: black (or brindle)"
+    },
+    "note": "KB dominant over ay. Dreger 2019 Introduction: KB epistatic to all ASIP alleles."
+  },
+  {
+    "id": "KB-bb-brown",
+    "genotype": {
+      "MC1R": "E/E",
+      "CBD103": "KB/KB",
+      "TYRP1": "b/b"
+    },
+    "expected": {
+      "base": "brown",
+      "pattern": "one-colour",
+      "nose": "brown",
+      "flags": [
+        "brindle-possible"
+      ]
+    },
+    "citation": {
+      "source": "Dreger 2019",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6816562",
+      "locator": "Results, 'Allele frequency is influenced by within-breed selection…' (brown = MC1R E/_, TYRP1 b/b)"
+    },
+    "note": "Also Anderson 2020 Fig. 3 legend (c): KB solid eumelanin shade brown due to TYRP1 variants.",
+    "adaptation": "Brindle caveat added: the plan attaches it to every KB one-colour pattern, because the KB test also marks brindle haplotypes."
+  },
+  {
+    "id": "eAeA-KB-ay",
+    "genotype": {
+      "MC1R": "eA/eA",
+      "CBD103": "KB/ky",
+      "ASIP": "ay/ay"
+    },
+    "expected": {
+      "base": "black",
+      "pattern": "sable",
+      "flags": [
+        "not-modelled-eA"
+      ]
+    },
+    "citation": {
+      "source": "Anderson 2020",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7643265",
+      "locator": "Table 2 row 1 (eA/eA or eA/e1, KB/*, ay/-: observed fawn, n=5); Results text: 5 clear-fawn dogs ay/ay"
+    },
+    "note": "K skipped. Observed phenotype is clear fawn, close to e/e, so 'fawn/sable' is the A pattern the plan would show."
+  },
+  {
+    "id": "eAe-KB-at",
+    "genotype": {
+      "MC1R": "eA/e",
+      "CBD103": "KB/ky",
+      "ASIP": "at/a"
+    },
+    "expected": {
+      "base": "black",
+      "pattern": "tan-points",
+      "flags": [
+        "not-modelled-eA"
+      ]
+    },
+    "citation": {
+      "source": "Anderson 2020",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7643265",
+      "locator": "Table 2 (KB/*, at/-: tan point/saddle tan, n=1); Results text gives this dog as at/a"
+    },
+    "note": "K skipped, A pattern shows."
+  },
+  {
+    "id": "eAe-KB-aw",
+    "genotype": {
+      "MC1R": "eA/e",
+      "CBD103": "KB/ky",
+      "ASIP": "aw/at"
+    },
+    "expected": {
+      "base": "black",
+      "pattern": "wolf-sable",
+      "flags": [
+        "not-modelled-eA"
+      ]
+    },
+    "citation": {
+      "source": "Anderson 2020",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7643265",
+      "locator": "Table 2 (KB/*, aw/-: wolf sable, n=1); Results text: Siberian Husky aw/at"
+    }
+  },
+  {
+    "id": "EmeA-KB-black",
+    "genotype": {
+      "MC1R": "Em/eA",
+      "CBD103": "KB/ky",
+      "ASIP": "ay/ay"
+    },
+    "expected": {
+      "base": "black",
+      "pattern": "one-colour",
+      "flags": [
+        "brindle-possible"
+      ]
+    },
+    "citation": {
+      "source": "Anderson 2020",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7643265",
+      "locator": "Table 2 row EM/eA (any K, any A: no change, n=16); Results: no change in EM/eA or E/eA dogs"
+    },
+    "note": "KB still expressed. The plan flags eA only in eA/eA and eA/e."
+  },
+  {
+    "id": "EeA-KB-black",
+    "genotype": {
+      "MC1R": "E/eA",
+      "CBD103": "KB/ky",
+      "ASIP": "at/at"
+    },
+    "expected": {
+      "base": "black",
+      "pattern": "one-colour",
+      "flags": [
+        "brindle-possible"
+      ]
+    },
+    "citation": {
+      "source": "Anderson 2020",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7643265",
+      "locator": "Table 2 row E/eA (no change, n=39)"
+    },
+    "note": "KB still expressed. The plan flags eA only in eA/eA and eA/e."
+  },
+  {
+    "id": "eAeA-ky-a",
+    "genotype": {
+      "MC1R": "eA/eA",
+      "CBD103": "ky/ky",
+      "ASIP": "a/a"
+    },
+    "expected": {
+      "flags": [
+        "not-modelled-eA"
+      ]
+    },
+    "citation": {
+      "source": "Anderson 2020",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7643265",
+      "locator": "Table 2 (ky/ky, a/a: expected recessive black, observed wolf sable/tan point, n=7); Fig. 3 (u–w)"
+    },
+    "note": "Observed coats differ from the plan rule, which gives recessive black; the flag's caveat says observed coats vary.",
+    "adaptation": "Only the flag is asserted: observed coats vary (Anderson 2020). The plan rule gives recessive black, flagged."
+  },
+  {
+    "id": "eAe-ky-at",
+    "genotype": {
+      "MC1R": "eA/e",
+      "CBD103": "ky/ky",
+      "ASIP": "at/at"
+    },
+    "expected": {
+      "flags": [
+        "not-modelled-eA"
+      ]
+    },
+    "citation": {
+      "source": "Anderson 2020",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7643265",
+      "locator": "Table 2 (ky/ky, at/-: observed domino/pied/grizzle/red, n=12)"
+    },
+    "note": "Observed coat ranges up to near-red. Only the flag can be asserted; 'black and tan' is the plan's own Unit 4 expectation.",
+    "adaptation": "Only the flag is asserted: observed coats vary (Anderson 2020). The plan expects black and tan."
+  },
+  {
+    "id": "ky-ay",
+    "genotype": {
+      "MC1R": "E/E",
+      "CBD103": "ky/ky",
+      "ASIP": "ay/ay"
+    },
+    "expected": {
+      "base": "black",
+      "pattern": "sable",
+      "flags": []
+    },
+    "citation": {
+      "source": "Anderson 2020",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7643265",
+      "locator": "Table 2, expected-phenotype column (ky/ky, ay/-: fawn)"
+    }
+  },
+  {
+    "id": "ky-ay-at",
+    "genotype": {
+      "MC1R": "E/E",
+      "CBD103": "ky/ky",
+      "ASIP": "ay/at"
+    },
+    "expected": {
+      "base": "black",
+      "pattern": "sable",
+      "flags": []
+    },
+    "citation": {
+      "source": "Dreger 2019",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6816562",
+      "locator": "Introduction, paragraph 2 (ASIP hierarchy ay > aw > at > a)"
+    },
+    "note": "ay and at on separate chromosomes; contrast with the ayt row."
+  },
+  {
+    "id": "ky-aw",
+    "genotype": {
+      "MC1R": "E/E",
+      "CBD103": "ky/ky",
+      "ASIP": "aw/aw"
+    },
+    "expected": {
+      "base": "black",
+      "pattern": "wolf-sable",
+      "flags": []
+    },
+    "citation": {
+      "source": "Anderson 2020",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7643265",
+      "locator": "Table 2, expected-phenotype column (ky/ky, aw/-: wolf sable)"
+    }
+  },
+  {
+    "id": "ky-at-at",
+    "genotype": {
+      "MC1R": "E/E",
+      "CBD103": "ky/ky",
+      "ASIP": "at/at",
+      "TYRP1": "B/B"
+    },
+    "expected": {
+      "base": "black",
+      "pattern": "tan-points",
+      "flags": []
+    },
+    "citation": {
+      "source": "Anderson 2020",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7643265",
+      "locator": "Table 2, expected-phenotype column (ky/ky, at/-: tan point)"
+    },
+    "note": "Plan name: black and tan."
+  },
+  {
+    "id": "ky-a-a",
+    "genotype": {
+      "MC1R": "E/E",
+      "CBD103": "ky/ky",
+      "ASIP": "a/a"
+    },
+    "expected": {
+      "base": "black",
+      "pattern": "recessive-solid",
+      "flags": []
+    },
+    "citation": {
+      "source": "Anderson 2020",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7643265",
+      "locator": "Table 2, expected-phenotype column (ky/ky, a/a: recessive black)"
+    },
+    "note": "Also Bannasch 2021 Fig. 1 legend: ASIP loss-of-function homozygotes are completely black. Plan copy counts: at 2 + a 2."
+  },
+  {
+    "id": "ayt-aw",
+    "genotype": {
+      "MC1R": "E/E",
+      "CBD103": "ky/ky",
+      "ASIP": "ayt/aw"
+    },
+    "expected": {
+      "base": "black",
+      "pattern": "sable",
+      "flags": [
+        "ayt-unknown"
+      ]
+    },
+    "citation": {
+      "source": "Dreger 2019",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6816562",
+      "locator": "Results, 'Unexpectedly broad distribution…' (ayt phenotype unknown); Discussion, 'Unexpected breed distribution of low frequency alleles' (ayt/aw and ay/at would appear the same)"
+    },
+    "note": "The Discussion speculates ayt may be fully phaeomelanic. Low confidence."
+  },
+  {
+    "id": "mask-fawn",
+    "genotype": {
+      "MC1R": "Em/E",
+      "CBD103": "ky/ky",
+      "ASIP": "ay/ay"
+    },
+    "expected": {
+      "base": "black",
+      "pattern": "sable",
+      "flags": [
+        "mask"
+      ]
+    },
+    "citation": {
+      "source": "OMIA 001590-9615",
+      "url": "https://omia.org/OMIA001590/9615/",
+      "locator": "Mode of inheritance: autosomal dominant; Molecular basis: every masked dog had at least one EM (Schmutz 2003)"
+    },
+    "note": "Dreger 2019 Methods 'Probability of phenotype expression': EM phenotypes need suitable ASIP and ky/ky."
+  },
+  {
+    "id": "mask-KB-hidden",
+    "genotype": {
+      "MC1R": "Em/Em",
+      "CBD103": "KB/ky",
+      "ASIP": "ay/ay"
+    },
+    "expected": {
+      "base": "black",
+      "pattern": "one-colour",
+      "flags": [
+        "brindle-possible"
+      ]
+    },
+    "citation": {
+      "source": "Dreger 2019",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6816562",
+      "locator": "Results, 'Unexpectedly broad distribution…' (mask not observable with solid eumelanin or solid white); Methods 'Probability of phenotype expression' (EM needs ky/ky)"
+    },
+    "note": "No mask flag."
+  },
+  {
+    "id": "bb-tan-points",
+    "genotype": {
+      "MC1R": "E/E",
+      "CBD103": "ky/ky",
+      "ASIP": "at/at",
+      "TYRP1": "b/b"
+    },
+    "expected": {
+      "base": "brown",
+      "pattern": "tan-points",
+      "nose": "brown",
+      "flags": []
+    },
+    "citation": {
+      "source": "Dreger 2019",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6816562",
+      "locator": "Introduction, paragraph 3 (TYRP1 turns all eumelanin in hair and skin from black to brown)"
+    },
+    "note": "Liver and tan. No source states this exact genotype."
+  },
+  {
+    "id": "dd-blue",
+    "genotype": {
+      "MC1R": "E/E",
+      "CBD103": "KB/ky",
+      "TYRP1": "B/B",
+      "MLPH": "d/d"
+    },
+    "expected": {
+      "base": "blue",
+      "pattern": "one-colour",
+      "flags": [
+        "brindle-possible"
+      ]
+    },
+    "citation": {
+      "source": "Kiener 2020",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7349258",
+      "locator": "Section 2.1 Animal Selection (blue = dilute black)"
+    },
+    "note": "MLPH genotype not stated by Kiener. OMIA 000031-9615 gives d as autosomal recessive and the alias 'Blue Doberman Syndrome'."
+  },
+  {
+    "id": "bb-dd-lilac",
+    "genotype": {
+      "MC1R": "E/E",
+      "CBD103": "KB/ky",
+      "TYRP1": "b/b",
+      "MLPH": "d/d"
+    },
+    "expected": {
+      "base": "lilac",
+      "pattern": "one-colour",
+      "flags": [
+        "brindle-possible"
+      ]
+    },
+    "citation": {
+      "source": "Kiener 2020",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7349258",
+      "locator": "Section 2.1 Animal Selection (lilac = dilute brown)"
+    },
+    "note": "A definition, not a genotyped cohort. Weakest eumelanin row."
+  },
+  {
+    "id": "coco-B-cocoa",
+    "genotype": {
+      "MC1R": "E/E",
+      "TYRP1": "B/B",
+      "HPS3": "co/co"
+    },
+    "expected": {
+      "base": "cocoa",
+      "flags": []
+    },
+    "citation": {
+      "source": "Kiener 2020",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7349258",
+      "locator": "Table 2 (TYRP1 B/- dogs: 47 of 48 brown/lilac cases A/A, 0 of 111 black/blue); Fig. 1D (cocoa slightly darker than TYRP1 brown)"
+    },
+    "note": "pattern null: only the locus that matters is given."
+  },
+  {
+    "id": "coco-bb-brown",
+    "genotype": {
+      "MC1R": "E/E",
+      "TYRP1": "b/b",
+      "HPS3": "co/co"
+    },
+    "expected": {
+      "base": "brown",
+      "flags": []
+    },
+    "citation": {
+      "source": "OMIA 002275-9615",
+      "url": "https://omia.org/OMIA002275/9615/",
+      "locator": "History (Laukner 2021: HPS3, MLPH and TYRP1 combinations give subtly different shades of brown)"
+    },
+    "note": "Kiener 2020 excluded b/b dogs, so it says nothing on this combination."
+  },
+  {
+    "id": "albino",
+    "genotype": {
+      "SLC45A2": "cal/cal",
+      "MC1R": "E/E",
+      "CBD103": "KB/ky",
+      "TYRP1": "B/B"
+    },
+    "expected": {
+      "base": "albino",
+      "flags": []
+    },
+    "citation": {
+      "source": "OMIA 001821-9615",
+      "url": "https://omia.org/OMIA001821/9615/",
+      "locator": "Mode of inheritance: autosomal recessive; Clinical features (white/cream coat, blue eyes, pink nose and lips)"
+    },
+    "note": "Described in Dobermans, normally black or brown with tan. No source tests 'regardless of others' with e/e or merle."
+  },
+  {
+    "id": "ii-ee-cream",
+    "genotype": {
+      "MC1R": "e/e",
+      "MFSD12": "i/i"
+    },
+    "expected": {
+      "base": "beige-light",
+      "flags": []
+    },
+    "citation": {
+      "source": "Hédan 2019",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6562630",
+      "locator": "Discussion, paragraph 1 (e/e plus i/i gives cream to white); Results 3.3 (i/i not always extreme white)"
+    },
+    "note": "OMIA 002197-9615: I locus autosomal recessive."
+  },
+  {
+    "id": "ii-E-pheo-only",
+    "genotype": {
+      "MC1R": "E/E",
+      "CBD103": "ky/ky",
+      "ASIP": "aw/aw",
+      "MFSD12": "i/i"
+    },
+    "expected": {
+      "base": "black",
+      "pattern": "wolf-sable",
+      "flags": [
+        "pheomelanin-light"
+      ]
+    },
+    "citation": {
+      "source": "Hédan 2019",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6562630",
+      "locator": "Results 3.3 (E/E wolves: eumelanin kept, phaeomelanin diluted to cream); same section: EM mask not diluted"
+    },
+    "note": "i/i does not change eumelanin."
+  },
+  {
+    "id": "merle-black",
+    "genotype": {
+      "MC1R": "E/E",
+      "CBD103": "KB/ky",
+      "TYRP1": "B/B",
+      "PMEL": "M/m"
+    },
+    "expected": {
+      "base": "black",
+      "pattern": "one-colour",
+      "traits": {
+        "merle": "yes"
+      },
+      "flags": [
+        "brindle-possible"
+      ]
+    },
+    "citation": {
+      "source": "Clark 2006",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/16407134/",
+      "locator": "Abstract (incompletely dominant; patches of diluted pigment); full text PMC1360527 Fig. 1B (Mm blue merle)"
+    },
+    "note": "Fig. 1 locator obtained through a summarising fetch; spot-check it."
+  },
+  {
+    "id": "merle-ee-hidden",
+    "genotype": {
+      "MC1R": "e/e",
+      "PMEL": "M/m"
+    },
+    "expected": {
+      "base": "beige",
+      "flags": [
+        "merle-hidden"
+      ]
+    },
+    "citation": {
+      "source": "OMIA 000211-9615",
+      "url": "https://omia.org/OMIA000211/9615/",
+      "locator": "Molecular basis (Ballif 2021: hidden merle in red dachshunds); Genetic testing (Pelles 2019: merle covered by phaeomelanin)"
+    }
+  },
+  {
+    "id": "double-merle",
+    "genotype": {
+      "MC1R": "E/E",
+      "CBD103": "KB/ky",
+      "PMEL": "M/M"
+    },
+    "expected": {
+      "base": "black",
+      "pattern": "one-colour",
+      "traits": {
+        "doubleMerle": "yes"
+      },
+      "flags": [
+        "mostly-white",
+        "brindle-possible"
+      ]
+    },
+    "citation": {
+      "source": "Clark 2006",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/16407134/",
+      "locator": "Full text PMC1360527, Introduction and Fig. 1C (MM double merles predominantly white)"
+    },
+    "note": "OMIA 000211 Clinical features: MM deafness 10% unilateral, 15% bilateral. Locator obtained through a summarising fetch.",
+    "adaptation": "Brindle caveat added: the plan attaches it to every KB one-colour pattern, because the KB test also marks brindle haplotypes."
+  },
+  {
+    "id": "harlequin",
+    "genotype": {
+      "PMEL": "M/m",
+      "PSMB7": "H/h",
+      "MC1R": "E/E",
+      "CBD103": "KB/ky"
+    },
+    "expected": {
+      "base": "black",
+      "pattern": "one-colour",
+      "traits": {
+        "harlequin": "yes"
+      },
+      "flags": [
+        "brindle-possible"
+      ]
+    },
+    "citation": {
+      "source": "Clark 2011",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/21256207/",
+      "locator": "Abstract (SILV insertion plus H heterozygous gives black patches on white)"
+    },
+    "note": "OMIA 001454-9615: autosomal dominant."
+  },
+  {
+    "id": "harlequin-no-merle",
+    "genotype": {
+      "PMEL": "m/m",
+      "PSMB7": "H/h"
+    },
+    "expected": {
+      "flags": []
+    },
+    "citation": {
+      "source": "Dreger 2019",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6816562",
+      "locator": "Introduction, paragraph 3 (harlequin only with merle); Discussion, 'Unexpected breed distribution…' (Yorkshire Terrier: no harlequin without merle)"
+    },
+    "note": "No harlequin or merle flag."
+  },
+  {
+    "id": "harlequin-HH",
+    "genotype": {
+      "PSMB7": "H/H",
+      "PMEL": "M/m"
+    },
+    "expected": {
+      "lethal": "yes",
+      "flags": []
+    },
+    "citation": {
+      "source": "Clark 2011",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/21256207/",
+      "locator": "Abstract (H homozygosity embryonic lethal)"
+    },
+    "note": "Also Dreger 2019 Introduction paragraph 3. The oracle expects the cross to drop H/H and renormalise.",
+    "adaptation": "The phenotype marks H/H lethal; removing it and renormalising is the cross's job."
+  },
+  {
+    "id": "piebald-spsp",
+    "genotype": {
+      "MITF": "sp/sp"
+    },
+    "expected": {
+      "white": "extensive",
+      "flags": []
+    },
+    "citation": {
+      "source": "OMIA 000214-9615",
+      "url": "https://omia.org/OMIA000214/9615/",
+      "locator": "Inheritance (Little via Körberg 2014: piebald, limited to extensive white); Molecular basis (SINE only in sw/sw or sp/sp)"
+    },
+    "note": "White group only."
+  },
+  {
+    "id": "roan-in-white",
+    "genotype": {
+      "MITF": "sp/sp",
+      "USH2A": "R/R"
+    },
+    "expected": {
+      "white": "extensive",
+      "traits": {
+        "roan": "yes"
+      },
+      "flags": []
+    },
+    "citation": {
+      "source": "Brancalion 2021",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7986734",
+      "locator": "Results, 'Haplotype refinement' (TR/TR in 8 English Cocker Spaniels); Summary (TR incompletely dominant, pigment in white areas)"
+    },
+    "note": "R = TR (roan) haplotype."
+  },
+  {
+    "id": "roan-no-white",
+    "genotype": {
+      "MITF": "+/+",
+      "USH2A": "R/R"
+    },
+    "expected": {
+      "flags": []
+    },
+    "citation": {
+      "source": "Brancalion 2021",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7986734",
+      "locator": "Results, 'Structural variants' (roan not observable without MITF white); Methods, 'Samples used in genome-wide association' (self-coloured dogs excluded for this reason)"
+    },
+    "note": "No roan flag."
+  },
+  {
+    "id": "saddle-possible",
+    "genotype": {
+      "MC1R": "E/E",
+      "CBD103": "ky/ky",
+      "ASIP": "at/at",
+      "RALY": "+/dup"
+    },
+    "expected": {
+      "base": "black",
+      "pattern": "tan-points",
+      "flags": [
+        "possible-saddle"
+      ]
+    },
+    "citation": {
+      "source": "Dreger 2013",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/23519866/",
+      "locator": "Abstract (saddle tan +/+ or +/dup; black-and-tan dup/dup; + ancestral)"
+    },
+    "note": "'+' is the non-duplicated allele, the one the plan assumes Wisdom counts (1 copy). Dreger 2013 also gives saddle dogs as at/_, so at/a qualifies. Low confidence."
+  },
+  {
+    "id": "saddle-dupdup",
+    "genotype": {
+      "MC1R": "E/E",
+      "CBD103": "ky/ky",
+      "ASIP": "at/at",
+      "RALY": "dup/dup"
+    },
+    "expected": {
+      "base": "black",
+      "pattern": "tan-points",
+      "flags": []
+    },
+    "citation": {
+      "source": "Dreger 2013",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/23519866/",
+      "locator": "Abstract (black-and-tan dogs homozygous for the duplication)"
+    },
+    "note": "Plan copy count 0 under its assumption."
+  },
+  {
+    "id": "saddle-ay-epistatic",
+    "genotype": {
+      "MC1R": "E/E",
+      "CBD103": "ky/ky",
+      "ASIP": "ay/at",
+      "RALY": "+/+"
+    },
+    "expected": {
+      "base": "black",
+      "pattern": "sable",
+      "flags": []
+    },
+    "citation": {
+      "source": "Dreger 2013",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/23519866/",
+      "locator": "Abstract (ay/_ and e/e epistatic to +/_ saddle tan); OMIA 001806-9615 Markers"
+    },
+    "note": "No saddle flag."
+  }
+]
