@@ -45,8 +45,6 @@ function singleVariant<G extends ColourGene>(variant: Allele<G>, wild: Allele<G>
   return { documented: atMostOne, decode: (chromosome) => (chromosome.size > 0 ? variant : wild) };
 }
 
-const has = (chromosome: Chromosome, code: string): boolean => chromosome.has(code);
-
 export const GENE_RULES: { readonly [G in ColourGene]: GeneRule<G> } = {
   ASIP: {
     // ay+at is the ayt haplotype (Dreger 2019). The tan-points marker sits on
@@ -56,40 +54,40 @@ export const GENE_RULES: { readonly [G in ColourGene]: GeneRule<G> } = {
       return ['', 'ay', 'at', 'at+ay', 'a+at'].includes(codes);
     },
     decode: (chromosome) => {
-      if (has(chromosome, 'a')) {
+      if (chromosome.has('a')) {
         return 'a';
       }
-      if (has(chromosome, 'ay')) {
-        return has(chromosome, 'at') ? 'ayt' : 'ay';
+      if (chromosome.has('ay')) {
+        return chromosome.has('at') ? 'ayt' : 'ay';
       }
-      return has(chromosome, 'at') ? 'at' : 'aw';
+      return chromosome.has('at') ? 'at' : 'aw';
     },
   },
   CBD103: singleVariant('KB', 'ky'),
   MC1R: {
     documented: atMostOne,
     decode: (chromosome) => {
-      if (['e1', 'e2', 'e3'].some((code) => has(chromosome, code))) {
+      if (['e1', 'e2', 'e3'].some((code) => chromosome.has(code))) {
         return 'e';
       }
-      if (has(chromosome, 'Em')) {
+      if (chromosome.has('Em')) {
         return 'Em';
       }
-      if (has(chromosome, 'eA')) {
+      if (chromosome.has('eA')) {
         return 'eA';
       }
-      if (has(chromosome, 'eH')) {
+      if (chromosome.has('eH')) {
         return 'eH';
       }
-      return has(chromosome, 'eG') ? 'eG' : 'E';
+      return chromosome.has('eG') ? 'eG' : 'E';
     },
   },
   HPS3: singleVariant('co', '+'),
   MFSD12: singleVariant('i', '+'),
-  MLPH: { documented: atMostOne, decode: (chromosome) => (chromosome.size > 0 ? 'd' : 'D') },
+  MLPH: singleVariant('d', 'D'),
   TYRP1: {
     // MyDogDNA: bd "can be co-inherited (on the same half of the chromosome)" with another b allele.
-    documented: (chromosome) => chromosome.size <= 1 || (chromosome.size === 2 && has(chromosome, 'bd')),
+    documented: (chromosome) => chromosome.size <= 1 || (chromosome.size === 2 && chromosome.has('bd')),
     decode: (chromosome) => (chromosome.size > 0 ? 'b' : 'B'),
   },
   MITF: singleVariant('sp', '+'),
