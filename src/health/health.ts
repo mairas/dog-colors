@@ -5,7 +5,7 @@
 // parents' sexes, which come from the reports, never from the slot order.
 import type { HealthRow, Inheritance, Report } from '../report/types.ts';
 import { catalogueInheritance, findCondition, isWithheld, type ConditionKey } from './conditions.ts';
-import { add, fraction, multiply, ONE, subtract, ZERO, type Fraction } from './fraction.ts';
+import { add, fraction, multiply, ONE, subtract, toNumber, ZERO, type Fraction } from './fraction.ts';
 
 export type HealthParent = Pick<Report, 'sex' | 'shortTail' | 'health'>;
 
@@ -57,13 +57,20 @@ export interface OneParentCondition extends Condition {
   readonly tested: ParentResult;
 }
 
+/** A chance that depends on which parent is the dam, when a report's sex could not be read; `low` < `high`. */
+export interface ChanceRange {
+  readonly low: Fraction;
+  readonly high: Fraction;
+}
+
 export type HealthWarning =
   /** Affected puppies that need the variant from both parents (AR; XR daughters). */
   | {
       readonly kind: 'affected-puppies';
       readonly condition: Condition;
       readonly among: 'puppies' | 'daughters';
-      readonly chance: Fraction;
+      /** A range only for XR with a sex unread, and only when the two possible dams give different chances. */
+      readonly chance: Fraction | ChanceRange;
     }
   /** Both parents carry a variant whose inheritance mode is unknown. */
   | { readonly kind: 'inheritance-unknown'; readonly condition: Condition }
@@ -86,6 +93,11 @@ export interface HealthAnalysis {
 /** Chance that a parent with `copies` passes the variant on one chromosome. */
 function transmits(copies: number): Fraction {
   return fraction(Math.min(copies, 2), 2);
+}
+
+/** Chance that a sire passes an X-linked variant to a daughter: he has one X, so any reported copy means every daughter. */
+function sireTransmits(copies: number): Fraction {
+  return copies > 0 ? ONE : ZERO;
 }
 
 function either(a: Fraction, b: Fraction): Fraction {
@@ -153,8 +165,7 @@ function sexLinkedOdds(inheritance: 'XR' | 'XD' | 'MT', damCopies: number, sireC
     return { kind: 'puppies', puppies: { atRisk: damCopies > 0 ? ONE : ZERO, carrier: null } };
   }
   const fromDam = transmits(damCopies);
-  // A male has one X: any reported copy means every daughter gets the variant.
-  const fromSire = sireCopies > 0 ? ONE : ZERO;
+  const fromSire = sireTransmits(sireCopies);
   const sons = { atRisk: fromDam, carrier: null };
   const daughters =
     inheritance === 'XR'
@@ -180,6 +191,16 @@ function oddsOf(mode: Inheritance | 'conflict' | null, copies: readonly [number,
   return sexLinkedOdds(mode, copies[dam], copies[dam === 0 ? 1 : 0]);
 }
 
+/** XR daughters affected with either parent as the dam: one chance when both give the same. */
+function xrDaughtersOverBothDams(copies: readonly [number, number]): Fraction | ChanceRange {
+  const daughters = (dam: ParentIndex, sire: ParentIndex) => multiply(transmits(copies[dam]), sireTransmits(copies[sire]));
+  const [first, second] = [daughters(0, 1), daughters(1, 0)];
+  if (first.numerator === second.numerator && first.denominator === second.denominator) {
+    return first;
+  }
+  return toNumber(first) < toNumber(second) ? { low: first, high: second } : { low: second, high: first };
+}
+
 /** The panel warning for harm that needs the variant from both parents; none for what a puppy inherits from one. */
 function warningOf(condition: Condition, odds: ConditionOdds, copies: readonly [number, number]): HealthWarning | null {
   if (copies[0] === 0 || copies[1] === 0) {
@@ -193,6 +214,9 @@ function warningOf(condition: Condition, odds: ConditionOdds, copies: readonly [
   }
   if (condition.inheritance === 'XR' && odds.kind === 'by-sex') {
     return { kind: 'affected-puppies', condition, among: 'daughters', chance: odds.daughters.atRisk };
+  }
+  if (condition.inheritance === 'XR' && odds.kind === 'unknown' && odds.reason === 'sex-unknown') {
+    return { kind: 'affected-puppies', condition, among: 'daughters', chance: xrDaughtersOverBothDams(copies) };
   }
   return null;
 }

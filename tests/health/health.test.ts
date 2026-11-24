@@ -312,6 +312,48 @@ describe('analyseHealth: parent sex', () => {
     }
   });
 
+  describe('both parents carry an XR variant and a sex is unreadable', () => {
+    const sexes = [
+      [null, 'female'],
+      ['male', null],
+      [null, null],
+    ] as const;
+    const xr = { name: 'Test Condition', gene: 'GENE', variant: 'G>A', inheritance: 'XR', knownInBreed: false };
+
+    it('odds stay unknown, and the daughters warning spans the two possible dams', () => {
+      for (const [firstSex, secondSex] of sexes) {
+        for (const [firstCopies, secondCopies] of [
+          [1, 2],
+          [2, 1],
+        ] as const) {
+          const analysis = analyseHealth(
+            parent(firstSex, [condition('XR', firstCopies)]),
+            parent(secondSex, [condition('XR', secondCopies)]),
+          );
+          expect(onlyRow(analysis).odds).toEqual({ kind: 'unknown', reason: 'sex-unknown' });
+          expect(analysis.warnings).toEqual([
+            { kind: 'affected-puppies', condition: xr, among: 'daughters', chance: { low: fraction(1, 2), high: ONE } },
+          ]);
+        }
+      }
+    });
+
+    it('a single chance when either parent as the dam gives the same', () => {
+      for (const [firstSex, secondSex] of sexes) {
+        const analysis = analyseHealth(parent(firstSex, [condition('XR', 1)]), parent(secondSex, [condition('XR', 1)]));
+        expect(analysis.warnings).toEqual([
+          { kind: 'affected-puppies', condition: xr, among: 'daughters', chance: fraction(1, 2) },
+        ]);
+      }
+    });
+
+    it('no warning when only one parent carries it', () => {
+      for (const [firstSex, secondSex] of sexes) {
+        expect(analyseHealth(parent(firstSex, [condition('XR', 1)]), parent(secondSex, [condition('XR', 0)])).warnings).toEqual([]);
+      }
+    });
+  });
+
   it('an MT condition tested in one parent of unknown sex is listed under that parent', () => {
     const analysis = analyseHealth(parent(null, []), parent('female', [condition('MT', 1)]));
     expect(analysis.rows).toEqual([]);
