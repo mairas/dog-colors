@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildLines, type TextItem } from '../../src/report/pdfText.ts';
+import { buildLines, MAX_TEXT_ITEMS_PER_PAGE, type TextItem } from '../../src/report/pdfText.ts';
 
 const BODY = 8;
 const OLD_SUPERSCRIPT = { size: 5.3, rise: 5.3 };
 const CURRENT_SUPERSCRIPT = { size: 5.2, rise: 1.5 };
+// Generous, for slow CI runners.
+const SUPERSCRIPT_PASS_BUDGET_MS = 250;
 
 function item(str: string, x: number, y: number, width: number, size = BODY): TextItem {
   return { str, x, y, width, size };
@@ -139,6 +141,22 @@ describe('buildLines', () => {
       ],
     ]);
     expect(texts(lines)).toEqual([['ID kit: KIT0000', 'Test date:']]);
+  });
+
+  it(`attaches superscripts on a page of ${MAX_TEXT_ITEMS_PER_PAGE} items without comparing every pair`, () => {
+    const { size, rise } = CURRENT_SUPERSCRIPT;
+    const perLine = 50;
+    const items = Array.from({ length: MAX_TEXT_ITEMS_PER_PAGE / 2 }, (_, index) => {
+      const x = 30 + (index % perLine) * 10;
+      const y = 800 - Math.floor(index / perLine) * 7;
+      return [item('a', x, y, 4), item('y', x + 4.2, y + rise, 3, size)];
+    }).flat();
+    const start = performance.now();
+    const lines = buildLines([items]);
+    // Comparing every pair takes about 900 ms here; the band scan about 10 ms.
+    expect(performance.now() - start).toBeLessThan(SUPERSCRIPT_PASS_BUDGET_MS);
+    expect(lines).toHaveLength(MAX_TEXT_ITEMS_PER_PAGE / 2 / perLine);
+    expect(texts(lines).flat().every((text) => text === Array(perLine).fill('ay').join(' '))).toBe(true);
   });
 
   it('keeps a copy count apart from result text a few points to its right', () => {

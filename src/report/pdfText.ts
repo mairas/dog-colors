@@ -67,26 +67,61 @@ interface Run {
 
 const isBlank = (text: string): boolean => text.trim() === '';
 
+// Widens the scanned band past rounding at its edge; the rise test decides.
+const BAND_SLACK = 1;
+
+/** Index of the first run whose baseline is at or above `y`, in runs sorted by baseline. */
+function firstAtOrAbove(sorted: readonly Run[], y: number): number {
+  let low = 0;
+  let high = sorted.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if ((sorted[middle]?.y ?? y) < y) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+  return low;
+}
+
 function attachSuperscripts(items: readonly TextItem[]): Run[] {
   // Spaces carry no information that the gaps between items don't, and a
   // superscript-sized space would otherwise pull a line's baseline upwards.
   const runs: Run[] = items.filter((item) => !isBlank(item.str)).map((item) => ({ ...item }));
+  const order = new Map(runs.map((run, index) => [run, index]));
+  // Sorted by baseline, so that each candidate superscript scans only the
+  // runs in the band below it that the largest font's rise allows, rather
+  // than the whole page. A run without a finite position or size is never a
+  // base, as no comparison with it holds.
+  const byBaseline = runs
+    .filter((run) => Number.isFinite(run.y) && Number.isFinite(run.size))
+    .sort((a, b) => a.y - b.y);
+  const maxRise = byBaseline.reduce((max, run) => Math.max(max, run.size), 0) * SUPERSCRIPT_MAX_RISE_RATIO;
   const attached = new Set<Run>();
   for (const sup of runs) {
+    if (!Number.isFinite(sup.y)) {
+      continue;
+    }
     let best: Run | undefined;
     let bestGap = Number.POSITIVE_INFINITY;
-    for (const base of runs) {
-      if (base === sup || attached.has(base) || sup.size > base.size * SUPERSCRIPT_MAX_SIZE_RATIO) {
+    for (let index = firstAtOrAbove(byBaseline, sup.y - maxRise - BAND_SLACK); index < byBaseline.length; index++) {
+      const base = byBaseline[index];
+      if (!base || base.y >= sup.y) {
+        break;
+      }
+      if (attached.has(base) || sup.size > base.size * SUPERSCRIPT_MAX_SIZE_RATIO) {
         continue;
       }
       const rise = sup.y - base.y;
       const gap = sup.x - (base.x + base.width);
+      // Of equally close bases, the earliest in the content stream wins.
+      const closer = gap < bestGap || (gap === bestGap && best !== undefined && (order.get(base) ?? 0) < (order.get(best) ?? 0));
       if (
-        rise > 0 &&
         rise <= base.size * SUPERSCRIPT_MAX_RISE_RATIO &&
         gap >= -SUPERSCRIPT_MAX_OVERLAP &&
         gap <= base.size * SUPERSCRIPT_MAX_GAP_RATIO &&
-        gap < bestGap
+        closer
       ) {
         best = base;
         bestGap = gap;
@@ -166,9 +201,11 @@ export type PdfTextResult =
 // that is not one, and is refused before pdf.js spends time on it.
 export const MAX_BYTES = 40 * 1024 * 1024;
 export const MAX_PAGES = 40;
-// The superscript pass compares every pair of items on a page. The sample
-// reports have at most about 300 items on a page, and the Adobe-printer output
-// among them, which must still reach its own rejection, about 3,800.
+// A backstop: the superscript pass compares each item with those in its rise
+// band, which is still quadratic on a page that packs its items into one band.
+// The sample reports have at most about 300 items on a page, and the
+// Adobe-printer output among them, which must still reach its own rejection,
+// about 3,800.
 export const MAX_TEXT_ITEMS_PER_PAGE = 10_000;
 
 const PDF_SIGNATURE = '%PDF-';
