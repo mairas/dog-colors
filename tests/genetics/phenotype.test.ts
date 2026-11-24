@@ -280,9 +280,15 @@ describe('ownColourName', () => {
     [{ CBD103: 'KB/ky', PMEL: 'M/M' }, ['MITF'], 'Black double merle, mostly white'],
   ])('%j with %j unknown → %s', (spec, unknown, name) => expect(ownColourName(of(spec, unknown))).toBe(name));
 
-  it('names an unknown base colour', () => {
-    expect(ownColourName(of({ CBD103: 'KB/ky', MITF: 'sp/+' }, ['TYRP1']))).toBe('Unknown base colour with limited white');
-  });
+  it.each<[Spec, readonly ColourGene[], string]>([
+    [{ CBD103: 'KB/ky', MITF: 'sp/+' }, ['TYRP1'], 'Colour unknown, with limited white'],
+    [{}, ['TYRP1'], 'Colour unknown, wolf sable, solid'],
+    [{ ASIP: 'at/at' }, ['TYRP1'], 'Colour unknown, tan points, solid'],
+    [{ CBD103: 'KB/ky', PMEL: 'M/m' }, ['TYRP1'], 'Colour unknown, merle, solid'],
+    [{ ASIP: 'at/at' }, ['TYRP1', 'CBD103', 'MITF'], 'Colour unknown, pattern unknown, white spotting unknown'],
+  ])('names an unknown base colour: %j with %j unknown → %s', (spec, unknown, name) =>
+    expect(ownColourName(of(spec, unknown))).toBe(name),
+  );
 });
 
 describe('FLAG_INFO', () => {

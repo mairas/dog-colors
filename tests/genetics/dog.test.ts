@@ -86,7 +86,7 @@ describe('resolveDog: missing and inconsistent loci', () => {
   it('leaves a missing locus unknown in the own colour', () => {
     const dog = resolveDog(syntheticReport({ 'CBD103 KB': 1, 'MITF sp': 1 }, ['TYRP1']));
     expect(dog.missingLoci).toEqual(['TYRP1']);
-    expect(names(dog)).toEqual(['Unknown base colour with limited white']);
+    expect(names(dog)).toEqual(['Colour unknown, with limited white']);
   });
 
   it('reports a locus whose copies fit no genotype as inconsistent, and treats it as unknown', () => {

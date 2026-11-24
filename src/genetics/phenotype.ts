@@ -419,9 +419,15 @@ function capitalise(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/** A plain name for a dog's own coat, e.g. "Brown, mostly white". */
+/**
+ * A plain name for a dog's own coat, e.g. "Brown, mostly white"; with an
+ * unknown base colour, comma-separated parts: "Colour unknown, tan points, solid".
+ */
 export function ownColourName(value: Phenotype): string {
-  const baseName: Record<BaseColour | Unknown, string> = {
+  if (value.base === 'albino') {
+    return 'White or cream, pink nose';
+  }
+  const baseName: Record<Exclude<BaseColour, 'albino'>, string> = {
     black: 'black',
     brown: 'brown',
     cocoa: 'cocoa',
@@ -429,35 +435,42 @@ export function ownColourName(value: Phenotype): string {
     lilac: 'lilac',
     beige: 'beige',
     'beige-light': 'beige, light cream likely',
-    albino: 'white or cream, pink nose',
-    unknown: 'unknown base colour',
   };
-  if (value.base === 'albino') {
-    return capitalise(baseName.albino);
+  const marking =
+    value.traits.harlequin === 'yes'
+      ? 'harlequin'
+      : value.traits.merle === 'yes'
+        ? 'merle'
+        : value.traits.doubleMerle === 'yes'
+          ? 'double merle'
+          : undefined;
+  const whiteName: Record<WhiteSpotting | Unknown, string> = {
+    solid: 'solid',
+    limited: 'with limited white',
+    extensive: 'mostly white',
+    unknown: 'white spotting unknown',
+  };
+  // M/M alone makes a dog mostly white, whatever MITF holds.
+  const white = whiteName[value.traits.doubleMerle === 'yes' ? 'extensive' : value.white];
+
+  if (value.base === 'unknown') {
+    const patternPart: Partial<Record<Pattern | Unknown, string>> = {
+      sable: 'sable',
+      'wolf-sable': 'wolf sable',
+      'tan-points': 'tan points',
+      unknown: 'pattern unknown',
+    };
+    const parts = ['Colour unknown', marking, patternPart[value.pattern], white];
+    return parts.filter((part) => part !== undefined).join(', ');
   }
-  let name = baseName[value.base];
-  if (value.traits.harlequin === 'yes') {
-    name += ' harlequin';
-  } else if (value.traits.merle === 'yes') {
-    name += ' merle';
-  } else if (value.traits.doubleMerle === 'yes') {
-    name += ' double merle';
-  }
+
   const patternSuffix: Partial<Record<Pattern | Unknown, string>> = {
     sable: ' sable',
     'wolf-sable': ' wolf sable',
     'tan-points': ' and tan',
     unknown: ', pattern unknown',
   };
-  name += patternSuffix[value.pattern] ?? '';
-  const joiner = name.includes(',') ? ', ' : ' ';
-  const whiteSuffix: Record<WhiteSpotting | Unknown, string> = {
-    solid: ', solid',
-    limited: `${joiner}with limited white`,
-    extensive: ', mostly white',
-    unknown: ', white spotting unknown',
-  };
-  // M/M alone makes a dog mostly white, whatever MITF holds.
-  const white = value.traits.doubleMerle === 'yes' ? 'extensive' : value.white;
-  return capitalise(name + whiteSuffix[white]);
+  const name = baseName[value.base] + (marking === undefined ? '' : ` ${marking}`) + (patternSuffix[value.pattern] ?? '');
+  const joiner = white === whiteName.limited && !name.includes(',') ? ' ' : ', ';
+  return capitalise(name + joiner + white);
 }
