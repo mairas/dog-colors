@@ -3,18 +3,15 @@
 // older format prints no Inheritance column). It keeps panel facts only:
 // condition name, gene, risk variant and mode, never a dog's copies or result,
 // and refuses to write a file holding any sample's identifying values.
-import { readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { CatalogueEntry } from '../src/health/conditions.ts';
 import { parseReport } from '../src/report/parse.ts';
-import { extractPdfText } from '../src/report/pdfText.ts';
 import type { Report } from '../src/report/types.ts';
 import {
   assertNoIdentifiers,
-  FIXTURE_LETTERS,
   identifiersOf,
-  readManifest,
+  readSampleTexts,
   SAMPLES_DIRECTORY,
   type Identifier,
 } from './extract-fixtures.ts';
@@ -46,32 +43,20 @@ export function serialiseCatalogue(entries: readonly CatalogueEntry[]): string {
 }
 
 interface Sample {
+  readonly letter: string;
   readonly report: Report;
   readonly identifiers: readonly Identifier[];
 }
 
 /** Every readable sample report the manifest lists, with its identifying values. */
 export async function readSamples(directory: string): Promise<Sample[]> {
-  const manifest = readManifest(directory);
-  if (manifest === null) {
-    throw new Error(`${directory}/manifest.json is missing; it maps each sample letter to its PDF (see AGENTS.md)`);
-  }
   const samples: Sample[] = [];
-  for (const letter of FIXTURE_LETTERS) {
-    const relative = manifest.fixtures[letter];
-    if (relative === undefined) {
-      throw new Error(`the manifest names no PDF for sample ${letter}`);
-    }
-    const path = join(directory, relative);
-    const extracted = await extractPdfText(new Uint8Array(readFileSync(path)));
-    if (!extracted.ok) {
-      throw new Error(`sample ${letter} could not be read: ${extracted.kind}`);
-    }
-    const result = await parseReport(extracted.text);
+  for await (const { letter, path, text } of readSampleTexts(directory)) {
+    const result = await parseReport(text);
     if (!result.ok) {
       throw new Error(`sample ${letter} could not be read: ${result.kind}`);
     }
-    samples.push({ report: result.report, identifiers: identifiersOf(extracted.text, path) });
+    samples.push({ letter, report: result.report, identifiers: identifiersOf(text, path) });
   }
   return samples;
 }

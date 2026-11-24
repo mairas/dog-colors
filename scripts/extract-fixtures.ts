@@ -57,6 +57,33 @@ export function readManifest(directory: string): Manifest | null {
   return existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as Manifest) : null;
 }
 
+export interface SampleText {
+  readonly letter: string;
+  /** The PDF's path, which `identifiersOf` reads names from. */
+  readonly path: string;
+  readonly text: PdfText;
+}
+
+/** Every sample report the manifest lists, read through pdf.js, in letter order. */
+export async function* readSampleTexts(directory: string): AsyncGenerator<SampleText> {
+  const manifest = readManifest(directory);
+  if (manifest === null) {
+    throw new Error(`${join(directory, MANIFEST_FILE)} is missing; it maps each sample letter to its PDF (see AGENTS.md)`);
+  }
+  for (const letter of FIXTURE_LETTERS) {
+    const relative = manifest.fixtures[letter];
+    if (relative === undefined) {
+      throw new Error(`the manifest names no PDF for sample ${letter}`);
+    }
+    const path = join(directory, relative);
+    const extracted = await extractPdfText(new Uint8Array(readFileSync(path)));
+    if (!extracted.ok) {
+      throw new Error(`sample ${letter} could not be read: ${extracted.kind}`);
+    }
+    yield { letter, path, text: extracted.text };
+  }
+}
+
 export interface Identifier {
   /** What the value is, safe to print. */
   readonly kind: string;
@@ -264,26 +291,11 @@ export function serialiseFixture(fixture: Fixture, identifiers: readonly Identif
 }
 
 async function main(directory: string): Promise<void> {
-  const manifest = readManifest(directory);
-  if (manifest === null) {
-    throw new Error(
-      `${join(directory, MANIFEST_FILE)} is missing; it maps each fixture letter to its PDF (see AGENTS.md)`,
-    );
-  }
-  for (const letter of FIXTURE_LETTERS) {
-    const relative = manifest.fixtures[letter];
-    if (relative === undefined) {
-      throw new Error(`the manifest names no PDF for sample ${letter}`);
-    }
-    const path = join(directory, relative);
-    const extracted = await extractPdfText(new Uint8Array(readFileSync(path)));
-    if (!extracted.ok) {
-      throw new Error(`sample ${letter} could not be read: ${extracted.kind}`);
-    }
-    const fixture = buildFixture(extracted.text, letter);
+  for await (const { letter, path, text } of readSampleTexts(directory)) {
+    const fixture = buildFixture(text, letter);
     let serialised: string;
     try {
-      serialised = serialiseFixture(fixture, identifiersOf(extracted.text, path));
+      serialised = serialiseFixture(fixture, identifiersOf(text, path));
     } catch (error) {
       throw new Error(`sample ${letter} not written: ${error instanceof Error ? error.message : String(error)}`);
     }

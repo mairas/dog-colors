@@ -4,7 +4,7 @@
 import { readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { buildCatalogue, CATALOGUE_PATH, readSamples, serialiseCatalogue } from '../../scripts/build-conditions.ts';
-import { FIXTURE_LETTERS, readManifest, SAMPLES_DIRECTORY } from '../../scripts/extract-fixtures.ts';
+import { readManifest, SAMPLES_DIRECTORY } from '../../scripts/extract-fixtures.ts';
 import { analyseHealth } from '../../src/health/health.ts';
 import type { Report } from '../../src/report/types.ts';
 
@@ -14,8 +14,9 @@ describe.skipIf(manifest === null)('health analysis of the real sample reports',
   const reports = new Map<string, Report>();
 
   beforeAll(async () => {
-    const samples = await readSamples(SAMPLES_DIRECTORY);
-    samples.forEach(({ report }, index) => reports.set(FIXTURE_LETTERS[index] ?? '', report));
+    for (const { letter, report } of await readSamples(SAMPLES_DIRECTORY)) {
+      reports.set(letter, report);
+    }
   });
 
   function report(letter: string): Report {
@@ -26,7 +27,7 @@ describe.skipIf(manifest === null)('health analysis of the real sample reports',
     return found;
   }
 
-  const lettersOf = (format: Report['format']) => FIXTURE_LETTERS.filter((letter) => report(letter).format === format);
+  const lettersOf = (format: Report['format']) => [...reports.keys()].filter((letter) => report(letter).format === format);
 
   it('commits the catalogue the current-format samples give', () => {
     expect(readFileSync(CATALOGUE_PATH, 'utf8')).toBe(serialiseCatalogue(buildCatalogue([...reports.values()])));
