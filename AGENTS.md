@@ -27,7 +27,7 @@ CI runs every command except `dev` and `preview` on every pull request, with `ch
 - Text derived from a PDF is untrusted. Insert it with `textContent` or text nodes only, never `innerHTML`, `insertAdjacentHTML` or HTML template strings.
 - The production build carries a Content-Security-Policy meta tag, added by a build-only plugin in `vite.config.ts`. `scripts/csp-check.ts` states the same policy independently; change both together.
 - The page makes no third-party requests: no CDNs, no hosted fonts, no analytics.
-- Raw reports live only in the git-ignored `_local/` directory and are never committed. `*.pdf` is ignored, and CI fails if a PDF is tracked or a pull request's commits ever added one; deleting it in a later commit does not help, so rewrite the branch instead.
+- Raw reports live only in the git-ignored `_local/` directory and are never committed. `*.pdf` is ignored, and CI fails if a PDF is tracked or a pull request's commits ever added one, even if a later commit deleted it. A PDF pushed to any branch or pull request is public: rewriting the branch only keeps it out of `main` and clears CI, and the pushed commit stays reachable on GitHub until GitHub Support purges it, so tell the owner immediately.
 
 ## Rendering the UI
 

@@ -55,7 +55,9 @@ if [[ -n $BASE ]]; then
   # --full-history keeps merged side branches that a path filter would
   # otherwise simplify away; --diff-merges=separate shows files added in a
   # merge itself; --no-renames reports a rename to *.pdf as an addition.
-  report "Commits in $BASE..HEAD added PDF files; remove them from history:" "$(
+  report "Commits in $BASE..HEAD added PDF files. Once pushed they are public:
+tell the owner now. Rewriting the branch only keeps them out of main and clears
+this check; GitHub serves the pushed commits until GitHub Support purges them:" "$(
     git log --full-history --diff-merges=separate --no-renames \
       --diff-filter=A --name-only --format= "$BASE..HEAD" -- "$PDF_PATHS" |
       sed '/^$/d' | sort -u
