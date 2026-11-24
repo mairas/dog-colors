@@ -3,9 +3,18 @@
 // two chromosomes in every way the documented cis haplotypes allow; each
 // placement decodes to one allele pair, and equal pairs merge.
 
-import type { ColourGene } from '../report/loci.ts';
+import { COLOUR_GENES, type ColourGene } from '../report/loci.ts';
 import type { Report } from '../report/types.ts';
-import { comparePairs, formatPair, GENE_RULES, orderedPair, variantCodes, type AllelePair } from './alleles.ts';
+import {
+  comparePairs,
+  formatPair,
+  GENE_RULES,
+  orderedPair,
+  variantCodes,
+  withLocus,
+  type AllelePair,
+  type Genotype,
+} from './alleles.ts';
 
 /**
  * Why a locus's copy counts fit no genotype: a count outside 0–2, or variants
@@ -82,4 +91,22 @@ export function resolveReport(report: Pick<Report, 'colour' | 'missingLoci'>): G
     USH2A: resolve('USH2A'),
     SLC45A2: resolve('SLC45A2'),
   };
+}
+
+/**
+ * Every genotype the candidates allow: the cross product over the resolved
+ * loci. Missing and inconsistent loci are left out, so they stay unknown.
+ */
+export function candidateGenotypes(resolution: GenotypeResolution): Genotype[] {
+  let genotypes: Genotype[] = [{}];
+  const extend = <G extends ColourGene>(gene: G): void => {
+    const locus: LocusResolution<G> = resolution[gene];
+    if (locus.status === 'resolved') {
+      genotypes = genotypes.flatMap((genotype) => locus.candidates.map((pair) => withLocus(genotype, gene, pair)));
+    }
+  };
+  for (const gene of COLOUR_GENES) {
+    extend(gene);
+  }
+  return genotypes;
 }

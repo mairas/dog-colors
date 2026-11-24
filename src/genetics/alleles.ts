@@ -130,3 +130,11 @@ export function allPairs<G extends ColourGene>(gene: G): AllelePair<G>[] {
   const alleles: readonly Allele<G>[] = ALLELES[gene];
   return alleles.flatMap((first, index) => alleles.slice(index).map((second): AllelePair<G> => [first, second]));
 }
+
+/** The genotype with one locus set. */
+export function withLocus<G extends ColourGene>(genotype: Genotype, gene: G, pair: AllelePair<G>): Genotype {
+  const result: { -readonly [K in ColourGene]?: AllelePair<K> } = { ...genotype };
+  const locus: { -readonly [K in G]?: AllelePair<K> } = result;
+  locus[gene] = pair;
+  return result;
+}

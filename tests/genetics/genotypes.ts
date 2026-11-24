@@ -1,4 +1,4 @@
-import { ALLELES, type Allele, type AllelePair, type Genotype } from '../../src/genetics/alleles.ts';
+import { ALLELES, withLocus, type Allele, type AllelePair, type Genotype } from '../../src/genetics/alleles.ts';
 import { COLOUR_GENES, type ColourGene } from '../../src/report/loci.ts';
 
 /** The pair a dog with no tested variant at the locus has. */
@@ -39,10 +39,9 @@ export function genotype(
   spec: Readonly<Partial<Record<ColourGene, string>>>,
   unknown: readonly ColourGene[] = [],
 ): Genotype {
-  const result: { -readonly [G in ColourGene]?: AllelePair<G> } = {};
+  let result: Genotype = {};
   const set = <G extends ColourGene>(gene: G): void => {
-    const value: { -readonly [K in G]?: AllelePair<K> } = result;
-    value[gene] = pair(gene, spec[gene] ?? WILD_TYPE[gene]);
+    result = withLocus(result, gene, pair(gene, spec[gene] ?? WILD_TYPE[gene]));
   };
   for (const gene of COLOUR_GENES) {
     if (!unknown.includes(gene)) {
