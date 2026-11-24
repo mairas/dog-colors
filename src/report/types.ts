@@ -2,7 +2,9 @@ import type { ColourGene, ReportFormat } from './loci.ts';
 
 export type Sex = 'male' | 'female';
 
-export type Inheritance = 'AR' | 'AD' | 'XR' | 'XD' | 'MT';
+export const INHERITANCE_MODES = ['AR', 'AD', 'XR', 'XD', 'MT'] as const;
+
+export type Inheritance = (typeof INHERITANCE_MODES)[number];
 
 export interface HealthRow {
   /** Condition name, wrapped parts joined and whitespace and dashes normalised. */

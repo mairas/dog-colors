@@ -12,13 +12,13 @@ import {
   type ReportFormat,
 } from './loci.ts';
 import type { Cell, DocumentInfo, Line, PdfText } from './pdfText.ts';
-import type {
-  HealthRow,
-  Inheritance,
-  ReadResult,
-  Rejection,
-  RejectionKind,
-  Sex,
+import {
+  INHERITANCE_MODES,
+  type HealthRow,
+  type ReadResult,
+  type Rejection,
+  type RejectionKind,
+  type Sex,
 } from './types.ts';
 
 const CURRENT_MARKER = /^Wisdom Panel\S*\s+Genetics Report$/i;
@@ -33,7 +33,6 @@ const ADOBE_PRINTER = /PScript5\.dll|Acrobat Distiller/i;
 const MIN_READABLE_SHARE = 0.6;
 
 const COPIES = /^(\d)(?:\s|$)/;
-const INHERITANCE_MODES: readonly Inheritance[] = ['AR', 'AD', 'XR', 'XD', 'MT'];
 
 // Wrapped name and gene fragments sit up to 13 pt from their row's values;
 // the next row, or a condition's description, is at least 24 pt away.
