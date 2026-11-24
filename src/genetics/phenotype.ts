@@ -362,44 +362,6 @@ export function phenotypeKey(value: Phenotype): string {
   ]);
 }
 
-export const BASE_LABELS: Readonly<Record<BaseColour | Unknown, string>> = {
-  black: 'black',
-  brown: 'brown',
-  cocoa: 'cocoa',
-  blue: 'blue (dilute black)',
-  lilac: 'lilac (isabella)',
-  beige: 'beige',
-  'beige-light': 'beige, light cream likely',
-  albino: 'white or cream, pink nose',
-  unknown: 'unknown base colour',
-};
-
-export const PATTERN_LABELS: Readonly<Record<Pattern | Unknown, string>> = {
-  'one-colour': 'One colour: no tan points, sable or brindle',
-  sable: 'Sable',
-  'wolf-sable': 'Wolf sable',
-  'tan-points': 'Tan points',
-  'recessive-solid': 'One colour (recessive black, a/a)',
-  'not-visible': 'No pattern visible',
-  unknown: 'Unknown pattern',
-};
-
-export const NOSE_LABELS: Readonly<Record<Nose | Unknown, string>> = {
-  black: 'black',
-  brown: 'brown',
-  blue: 'blue-grey',
-  lilac: 'lilac',
-  pink: 'pink',
-  unknown: 'unknown',
-};
-
-export const WHITE_LABELS: Readonly<Record<WhiteSpotting | Unknown, string>> = {
-  solid: 'Solid',
-  limited: 'None to limited white',
-  extensive: 'Piebald to mostly white',
-  unknown: 'Unknown white spotting',
-};
-
 export const FLAG_INFO: Readonly<Record<Flag, { readonly label: string; readonly caveat: string }>> = {
   'not-modelled-eA': {
     label: 'not modelled precisely',
@@ -459,10 +421,21 @@ function capitalise(text: string): string {
 
 /** A plain name for a dog's own coat, e.g. "Brown, mostly white". */
 export function ownColourName(value: Phenotype): string {
+  const baseName: Record<BaseColour | Unknown, string> = {
+    black: 'black',
+    brown: 'brown',
+    cocoa: 'cocoa',
+    blue: 'blue',
+    lilac: 'lilac',
+    beige: 'beige',
+    'beige-light': 'beige, light cream likely',
+    albino: 'white or cream, pink nose',
+    unknown: 'unknown base colour',
+  };
   if (value.base === 'albino') {
-    return capitalise(BASE_LABELS.albino);
+    return capitalise(baseName.albino);
   }
-  let name = value.base === 'blue' || value.base === 'lilac' ? value.base : BASE_LABELS[value.base];
+  let name = baseName[value.base];
   if (value.traits.harlequin === 'yes') {
     name += ' harlequin';
   } else if (value.traits.merle === 'yes') {
