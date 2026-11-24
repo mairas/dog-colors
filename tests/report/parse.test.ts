@@ -306,6 +306,18 @@ describe('parseReport: health rows', () => {
     ]);
   });
 
+  it('does not join text from the next page to a row at the bottom of a page', async () => {
+    const report = await parsed([
+      ...currentHeader(),
+      currentHealthHeader(12, 120),
+      line(12, 60, [43, 'Xanthinuria'], [301, 'MOCOS'], [370, 'G>A'], [431, '0'], [482, 'AR'], [531, 'Clear']),
+      line(12, 13, [34, 'Wisdom Panel™ Genetics Report'], [519, 'page 12 of 27']),
+      line(13, 62, [43, 'Information about the genetic condition']),
+      line(13, 13, [34, 'Wisdom Panel™ Genetics Report'], [519, 'page 13 of 27']),
+    ]);
+    expect(report.health.map(({ name, gene }) => ({ name, gene }))).toEqual([{ name: 'Xanthinuria', gene: 'MOCOS' }]);
+  });
+
   it('does not read trait rows as health rows', async () => {
     const report = await parsed([
       ...currentHeader(),

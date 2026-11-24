@@ -54,6 +54,20 @@ describe.skipIf(manifest === null)('real sample reports', () => {
     },
   );
 
+  it('reads the same health conditions from samples A and B, one panel from two producers', async () => {
+    const conditions = async (letter: string) => {
+      const result = await readSample(manifest?.fixtures[letter] ?? '');
+      if (!result.ok) {
+        throw new Error(`sample ${letter} was rejected as ${result.kind}`);
+      }
+      // Sorted: a report lists the dog's carrier and at-risk results first.
+      return result.report.health.map(({ name, gene, variant }) => `${name} | ${gene} | ${variant}`).sort();
+    };
+    const a = await conditions('a');
+    expect(a.length).toBeGreaterThan(0);
+    expect(await conditions('b')).toEqual(a);
+  });
+
   // Numbered rather than named: the file names identify the dogs.
   const rejections = Object.entries(manifest?.rejections ?? {}).map(
     ([relative, kind], index) => [index + 1, kind, relative] as const,
