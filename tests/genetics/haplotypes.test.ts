@@ -98,17 +98,49 @@ describe('resolveLocus: impossible copy counts', () => {
     expect(resolveLocus('MITF', { sp: 1.5 })).toEqual({ status: 'inconsistent', reason: 'invalid-count' });
   });
 
-  it('rejects three single variants with no documented cis pair', () => {
+  it('rejects three single variants with no documented placement, whose other placements disagree', () => {
+    // TYRP1: all three on one chromosome gives B/b, two and one gives b/b.
     expect(resolveLocus('TYRP1', { bc: 1, bs: 1, be: 1 })).toEqual({ status: 'inconsistent', reason: 'no-phasing' });
+    // MC1R: Em+e1 / eA gives e/eA, Em / e1+eA gives Em/e.
     expect(resolveLocus('MC1R', { Em: 1, e1: 1, eA: 1 })).toEqual({ status: 'inconsistent', reason: 'no-phasing' });
   });
+});
 
-  it('rejects a double-copy variant beside an undocumented single one', () => {
-    expect(resolveLocus('TYRP1', { bc: 2, bs: 1 })).toEqual({ status: 'inconsistent', reason: 'no-phasing' });
+describe('resolveLocus: no documented placement', () => {
+  it('reads TYRP1 bc 2 + bs 1, whose only placement is undocumented, as b/b, flagged', () => {
+    expect(resolveLocus('TYRP1', { bc: 2, bs: 1 })).toEqual({
+      status: 'resolved',
+      candidates: [['b', 'b']],
+      undocumented: true,
+    });
   });
 
-  it('rejects ASIP a without at', () => {
-    expect(resolveLocus('ASIP', { a: 1, at: 0 })).toEqual({ status: 'inconsistent', reason: 'no-phasing' });
+  it('reads TYRP1 bc 2 + bs 2 as b/b, flagged', () => {
+    expect(resolveLocus('TYRP1', { bc: 2, bs: 2 })).toEqual({
+      status: 'resolved',
+      candidates: [['b', 'b']],
+      undocumented: true,
+    });
+  });
+
+  it('reads ASIP a without at, whose only placement is undocumented, as aw/a, flagged', () => {
+    expect(resolveLocus('ASIP', { a: 1, at: 0 })).toEqual({
+      status: 'resolved',
+      candidates: [['aw', 'a']],
+      undocumented: true,
+    });
+  });
+
+  it('leaves documented placements unflagged, even beside undocumented ones', () => {
+    expect(resolveLocus('TYRP1', { bc: 1, bs: 1 })).toEqual({ status: 'resolved', candidates: [['b', 'b']] });
+    expect(resolveLocus('TYRP1', { bc: 2, bd: 1 })).toEqual({ status: 'resolved', candidates: [['b', 'b']] });
+    expect(resolveLocus('TYRP1', { bd: 1, bc: 1 })).toEqual({
+      status: 'resolved',
+      candidates: [
+        ['B', 'b'],
+        ['b', 'b'],
+      ],
+    });
   });
 });
 

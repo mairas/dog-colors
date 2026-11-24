@@ -31,6 +31,7 @@ export type Trait = (typeof TRAITS)[number];
 
 /** The canonical flag order; every phenotype lists its flags in this order. */
 export const FLAGS = [
+  'undocumented-haplotype',
   'not-modelled-eA',
   'not-modelled-eH-eG',
   'ayt-unknown',
@@ -162,7 +163,10 @@ const hasHarlequin: Rule<boolean> = (read) => merleCopies(read) > 0 && has(read(
 
 type WhiteFlag = 'roan-single-copy';
 
-const PIGMENT_FLAGS: Readonly<Record<Exclude<Flag, WhiteFlag>, Rule<boolean>>> = {
+/** Flags about how the report was read, not about the genotype; resolveDog adds them. */
+type ReportFlag = 'undocumented-haplotype';
+
+const PIGMENT_FLAGS: Readonly<Record<Exclude<Flag, WhiteFlag | ReportFlag>, Rule<boolean>>> = {
   'not-modelled-eA': (read) => !hidesEumelanin(read) && skipsK(read),
   'not-modelled-eH-eG': (read) => !hidesEumelanin(read) && (has(read('MC1R'), 'eH') || has(read('MC1R'), 'eG')),
   'ayt-unknown': (read) => patternOf(read) === 'sable' && has(read('ASIP'), 'ayt'),
@@ -324,6 +328,11 @@ export function phenotypeKey(value: Phenotype): string {
 }
 
 export const FLAG_INFO: Readonly<Record<Flag, { readonly label: string; readonly caveat: string }>> = {
+  'undocumented-haplotype': {
+    label: 'undocumented combination',
+    caveat:
+      "The report's variant copies fit no combination documented on one chromosome. Every way of placing them on the two chromosomes gives the same alleles, so those are used, but the combination itself is not described in the sources.",
+  },
   'not-modelled-eA': {
     label: 'not modelled precisely',
     caveat:

@@ -110,6 +110,14 @@ describe('resolveDog: missing and inconsistent loci', () => {
     expect(names(dog)).toEqual(['Colour unknown, with limited white']);
   });
 
+  it('reads TYRP1 bc 2 + bs 1 as brown with the undocumented-haplotype flag', () => {
+    const dog = resolveDog(syntheticReport({ 'TYRP1 bc': 2, 'TYRP1 bs': 1, 'CBD103 KB': 1 }));
+    expect(dog.inconsistentLoci).toEqual([]);
+    expect(dog.loci.TYRP1).toMatchObject({ status: 'resolved', undocumented: true });
+    expect(names(dog)).toEqual(['Brown, solid']);
+    expect(dog.ownColours[0]?.phenotype.flags).toEqual(['undocumented-haplotype', 'brindle-possible']);
+  });
+
   it('reports a locus whose copies fit no genotype as inconsistent, and treats it as unknown', () => {
     const dog = resolveDog(syntheticReport({ 'TYRP1 bc': 1, 'TYRP1 bs': 1, 'TYRP1 be': 1, 'CBD103 KB': 1 }));
     expect(dog.inconsistentLoci).toEqual([{ gene: 'TYRP1', reason: 'no-phasing' }]);

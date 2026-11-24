@@ -78,9 +78,17 @@ export function resolveDog(report: Pick<Report, 'colour' | 'missingLoci'>, answe
     return locus.status === 'inconsistent' ? [{ gene, reason: locus.reason }] : [];
   });
 
+  const undocumented = COLOUR_GENES.some((gene) => {
+    const locus = loci[gene];
+    return locus.status === 'resolved' && locus.undocumented === true;
+  });
+
   const ownColours = new Map<string, { name: string; phenotype: Phenotype; genotypes: Genotype[] }>();
   for (const genotype of candidateGenotypes(loci)) {
-    const predicted = phenotype(genotype);
+    const genetic = phenotype(genotype);
+    const predicted: Phenotype = undocumented
+      ? { ...genetic, flags: FLAGS.filter((flag) => flag === 'undocumented-haplotype' || genetic.flags.includes(flag)) }
+      : genetic;
     const name = ownColourName(predicted);
     const entry = ownColours.get(name);
     if (entry === undefined) {
