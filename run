@@ -61,14 +61,7 @@ function check-csp {
 function check-pdfs {
   #@ Fail if any PDF file is tracked by git
   #@ Category: Quality
-  local tracked
-  tracked=$(git ls-files -- ':(icase)*.pdf')
-  if [[ -n $tracked ]]; then
-    echo "PDF files must never be committed; these are tracked:"
-    echo "$tracked"
-    return 1
-  fi
-  echo "No PDF files are tracked"
+  scripts/check-pdfs.sh "$PROJECT_ROOT"
 }
 
 ################################################################################
