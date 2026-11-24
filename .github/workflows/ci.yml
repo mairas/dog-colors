@@ -1,16 +1,20 @@
 name: CI
 
+# Pushes to main run this workflow through pages.yml, which deploys only after
+# it passes.
 on:
   pull_request:
-  push:
-    branches: [main]
+  workflow_call:
 
 permissions:
   contents: read
 
+# A called workflow sees its caller's github context, so the group carries the
+# caller's name there and never matches the pages group. Only pull requests
+# cancel superseded runs; cancelling a called run would skip its deploy.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
