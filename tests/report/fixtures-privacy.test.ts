@@ -8,6 +8,7 @@ import {
   fixturePath,
   HEALTH_FIXTURE_LETTERS,
   identifiersOf,
+  placeholderWidth,
   readManifest,
   serialiseFixture,
   SAMPLES_DIRECTORY,
@@ -76,6 +77,22 @@ describe('extract-fixtures', () => {
     expect(texts).not.toContain('Alexander Disease');
     expect(texts).not.toContain('Genetic Diversity');
     expect(fixture.healthRowCount).toBe(2);
+  });
+
+  it('sets a replaced cell’s width from its new text alone, not from the real value’s glyphs', () => {
+    const registeredWidth = (realWidth: number): number | undefined => {
+      const text = source();
+      const lines = text.lines.map((kept) => ({
+        ...kept,
+        cells: kept.cells.map((cell) =>
+          cell.text === 'Kennelname Rexie Example' ? { ...cell, width: realWidth } : cell,
+        ),
+      }));
+      const fixture = buildFixture({ ...text, lines }, 'a');
+      return fixture.lines.flatMap((kept) => kept.cells).find((cell) => cell.text === 'Sample A Registered')?.width;
+    };
+    expect(registeredWidth(50)).toBe(placeholderWidth('Sample A Registered'));
+    expect(registeredWidth(150)).toBe(placeholderWidth('Sample A Registered'));
   });
 
   it('keeps no health rows for the other owners’ dogs', () => {
@@ -158,6 +175,20 @@ describe('committed fixtures', () => {
     expect(header.countryOfOrigin ?? 'XX').toBe('XX');
     for (const owner of [header.ownerFirstName, header.ownerLastName]) {
       expect([null, 'Owner', 'Surname']).toContain(owner);
+    }
+  });
+
+  it.each(FIXTURE_LETTERS)('sample %s sizes every placeholder cell by the placeholder rule', (letter) => {
+    const upper = letter.toUpperCase();
+    // "Owner" counts only as a whole cell: labels such as "Owner reported breed" hold the word too.
+    const placeholder = new RegExp(
+      `(?<![\\p{L}\\p{N}])(Sample ${upper}|0{15}|XX00000/00|KIT000${upper}|2000-01-0[12]|1/[12]/2000|T-0000|Surname|XX)(?![\\p{L}\\p{N}])|^Owner$`,
+      'u',
+    );
+    const cells = loadFixture(letter).lines.flatMap((kept) => kept.cells).filter((cell) => placeholder.test(cell.text));
+    expect(cells.length).toBeGreaterThan(0);
+    for (const cell of cells) {
+      expect({ text: cell.text, width: cell.width }).toEqual({ text: cell.text, width: placeholderWidth(cell.text) });
     }
   });
 

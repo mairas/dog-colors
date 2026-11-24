@@ -159,12 +159,18 @@ function placeholders(header: HeaderFields, name: string | null, letter: string)
 
 const round = (value: number): number => Math.round(value * 10) / 10;
 
+// About half an em of the reports' 8–9 pt type.
+const NOMINAL_CHARACTER_WIDTH = 4.5;
+
+/** The width of a cell whose text holds a placeholder: from its text alone, so it reveals nothing of the real value's glyphs. */
+export function placeholderWidth(text: string): number {
+  return round(text.length * NOMINAL_CHARACTER_WIDTH);
+}
+
 function substitute(cell: Cell, replacements: ReadonlyMap<string, string>): Cell {
   const longestFirst = [...replacements].sort(([a], [b]) => b.length - a.length);
   const text = longestFirst.reduce((current, [real, placeholder]) => current.replaceAll(real, placeholder), cell.text);
-  // Scale the width with the text, so that it does not reveal the real value's length.
-  const width = text === cell.text ? cell.width : (cell.width / cell.text.length) * text.length;
-  return { text, x: round(cell.x), width: round(width) };
+  return { text, x: round(cell.x), width: text === cell.text ? round(cell.width) : placeholderWidth(text) };
 }
 
 export function buildFixture(text: PdfText, letter: string): Fixture {
