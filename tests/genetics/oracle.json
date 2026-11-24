@@ -108,7 +108,6 @@
       "ASIP": "ay/ay"
     },
     "expected": {
-      "base": "black",
       "pattern": "sable",
       "flags": [
         "not-modelled-eA"
@@ -119,7 +118,8 @@
       "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7643265",
       "locator": "Table 2 row 1 (eA/eA or eA/e1, KB/*, ay/-: observed fawn, n=5); Results text: 5 clear-fawn dogs ay/ay"
     },
-    "note": "K skipped. Observed phenotype is clear fawn, close to e/e, so 'fawn/sable' is the A pattern the plan would show."
+    "note": "K skipped. Observed phenotype is clear fawn, close to e/e, so 'fawn/sable' is the A pattern the plan would show.",
+    "adaptation": "Only the flag and the skipped K step (the A-locus pattern, not one colour) are asserted. Anderson 2020 observed clear fawn; the model shows black sable, which the flag's caveat qualifies."
   },
   {
     "id": "eAe-KB-at",
