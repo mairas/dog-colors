@@ -17,7 +17,7 @@ A static single-page site, served from GitHub Pages, that reads two Wisdom Panel
 | `./run check-csp` | Check that `dist/index.html` carries the expected Content-Security-Policy meta tag (run after `build`) |
 | `./run check-pdfs` | Fail if any PDF file is tracked by git |
 
-CI runs all of these on every pull request. A new `./run` target is `function name {`, then a `#@ Description` line, then a `#@ Category: X` line, in that order; the help is generated from them.
+CI runs every command except `dev` and `preview` on every pull request; a new check target runs in CI only after it is added as a step in `.github/workflows/ci.yml`. A new `./run` target is `function name {`, then a `#@ Description` line, then a `#@ Category: X` line, in that order; the help is generated from them.
 
 ## Conventions
 
