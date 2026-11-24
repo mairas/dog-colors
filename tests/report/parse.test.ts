@@ -444,6 +444,13 @@ describe('parseReport: sample reports', () => {
     });
   });
 
+  it('reads the X-linked recessive and mitochondrial inheritance modes', async () => {
+    const { health } = await sample('a');
+    const inheritanceOf = (name: string) => health.find((row) => row.name === name)?.inheritance;
+    expect(inheritanceOf('Hemophilia A (Discovered in the German Shepherd Dog - Variant 1)')).toBe('XR');
+    expect(inheritanceOf('Sensory Ataxic Neuropathy')).toBe('MT');
+  });
+
   it('gives each report its own kit-ID hash, and the same report the same hash', async () => {
     const hashes = await Promise.all(FIXTURE_LETTERS.map(async (letter) => (await sample(letter)).kitIdHash));
     expect(new Set(hashes).size).toBe(FIXTURE_LETTERS.length);
