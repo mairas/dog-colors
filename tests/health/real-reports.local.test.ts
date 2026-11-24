@@ -63,4 +63,22 @@ describe.skipIf(manifest === null)('health analysis of the real sample reports',
       }
     }
   });
+
+  it('pairs the two aliased conditions of a current-format report with an older-format one', () => {
+    const dsra = 'Dental-Skeletal-Retinal Anomaly (Discovered in the Cane Corso)';
+    const lgmd = 'Limb-girdle Muscular Dystrophy (Discovered in the Boston Terrier)';
+    const paired = [dsra, `${lgmd} Variant 1`];
+    for (const c of lettersOf('current')) {
+      for (const o of lettersOf('mydogdna')) {
+        for (const analysis of [analyseHealth(report(c), report(o)), analyseHealth(report(o), report(c))]) {
+          const unpaired = analysis.oneParentOnly.map(({ name }) => name).filter((name) => [lgmd, ...paired].includes(name));
+          expect(unpaired, `${c} × ${o}`).toEqual([]);
+          const listed = [...analysis.rows, ...analysis.clearInBoth];
+          for (const name of paired) {
+            expect(listed.filter((item) => item.name === name), `${c} × ${o}: ${name}`).toHaveLength(1);
+          }
+        }
+      }
+    }
+  });
 });

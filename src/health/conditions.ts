@@ -2,8 +2,10 @@
 // and risk variant: gene and variant alone are not unique (VWF G>A is two
 // conditions). Reports sometimes withhold the gene ("Confidential") or, in the
 // older format, the variant (printed as a dash); such a row matches on the
-// name alone, provided the genes do not contradict each other.
+// name alone, provided the genes do not contradict each other. A few older
+// keys that neither rule pairs are listed in ./aliases.ts.
 import type { Inheritance } from '../report/types.ts';
+import { ALIASES } from './aliases.ts';
 import catalogue from './conditions.json' with { type: 'json' };
 
 export interface ConditionKey {
@@ -35,18 +37,25 @@ function genesAgree(a: ConditionKey, b: ConditionKey): boolean {
   return a.gene === b.gene || a.gene === CONFIDENTIAL_GENE || b.gene === CONFIDENTIAL_GENE;
 }
 
+function sameKey(a: ConditionKey, b: ConditionKey): boolean {
+  return sameName(a, b) && a.gene === b.gene && a.variant === b.variant;
+}
+
+function canonical(key: ConditionKey): ConditionKey {
+  return ALIASES.find(({ older }) => sameKey(key, older))?.current ?? key;
+}
+
 /** The candidate that is the same condition as `key`, if exactly one is. */
 export function findCondition<T extends ConditionKey>(key: ConditionKey, candidates: readonly T[]): T | undefined {
-  const exact = candidates.find(
-    (candidate) => sameName(key, candidate) && key.gene === candidate.gene && key.variant === candidate.variant,
-  );
+  const wanted = canonical(key);
+  const exact = candidates.find((candidate) => sameKey(wanted, canonical(candidate)));
   if (exact) {
     return exact;
   }
-  const withheld = candidates.filter(
-    (candidate) =>
-      sameName(key, candidate) && (isWithheld(key) || isWithheld(candidate)) && genesAgree(key, candidate),
-  );
+  const withheld = candidates.filter((candidate) => {
+    const other = canonical(candidate);
+    return sameName(wanted, other) && (isWithheld(wanted) || isWithheld(other)) && genesAgree(wanted, other);
+  });
   return withheld.length === 1 ? withheld[0] : undefined;
 }
 

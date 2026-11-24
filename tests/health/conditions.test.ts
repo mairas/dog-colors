@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { buildCatalogue } from '../../scripts/build-conditions.ts';
+import { ALIASES } from '../../src/health/aliases.ts';
 import { catalogueInheritance, findCondition } from '../../src/health/conditions.ts';
 import { parseReport } from '../../src/report/parse.ts';
 import type { Report } from '../../src/report/types.ts';
@@ -105,9 +106,9 @@ describe('findCondition', () => {
     expect(findCondition(healthRow(current.name, 0, null, { gene: 'OTHER', variant: '-' }), [current])).toBeUndefined();
   });
 
-  it('does not match rows that print different variants under one name', () => {
-    const current = healthRow('Dental-Skeletal-Retinal Anomaly (Discovered in the Cane Corso)', 0, 'AR', { gene: 'MIA3', variant: 'Deletion' });
-    expect(findCondition(healthRow(current.name, 0, null, { gene: 'MIA3', variant: 'I>S' }), [current])).toBeUndefined();
+  it('does not match rows that print different variants under one name, unless aliased', () => {
+    const current = healthRow('Neuronal Ceroid Lipofuscinosis 7', 0, 'AR', { gene: 'MFSD8', variant: 'Deletion' });
+    expect(findCondition(healthRow(current.name, 0, null, { gene: 'MFSD8', variant: 'C>T' }), [current])).toBeUndefined();
   });
 
   it('does not match different names', () => {
@@ -125,5 +126,34 @@ describe('catalogueInheritance', () => {
 
   it('is null for a condition the catalogue lacks', () => {
     expect(catalogueInheritance(healthRow('No Such Condition', 0, null))).toBeNull();
+  });
+});
+
+describe('aliases', () => {
+  const dsra = 'Dental-Skeletal-Retinal Anomaly (Discovered in the Cane Corso)';
+  const lgmd = 'Limb-girdle Muscular Dystrophy (Discovered in the Boston Terrier)';
+
+  it('pairs the older format\'s MIA3 "I>S" row with the current format\'s MIA3 deletion', () => {
+    const current = healthRow(dsra, 0, 'AR', { gene: 'MIA3', variant: 'Deletion' });
+    const older = healthRow(dsra, 1, null, { gene: 'MIA3', variant: 'I>S' });
+    expect(findCondition(older, [current])).toBe(current);
+    expect(findCondition(current, [older])).toBe(older);
+    expect(catalogueInheritance(older)).toBe('AR');
+  });
+
+  it('pairs the older format\'s Boston Terrier LGMD row with the current format\'s Variant 1, not Variant 2', () => {
+    const variant1 = healthRow(`${lgmd} Variant 1`, 0, 'AR', { gene: 'SGCD', variant: 'Deletion' });
+    const variant2 = healthRow(`${lgmd} Variant 2`, 0, 'AR', { gene: 'SGCD', variant: 'CAT>GG' });
+    const older = healthRow(lgmd, 1, null, { gene: 'SGCD', variant: '-' });
+    expect(findCondition(older, [variant2, variant1])).toBe(variant1);
+    expect(findCondition(variant2, [older])).toBeUndefined();
+    expect(catalogueInheritance(older)).toBe('AR');
+  });
+
+  it('maps each alias to a condition in the catalogue', () => {
+    expect(ALIASES).toHaveLength(2);
+    for (const { current } of ALIASES) {
+      expect(catalogueInheritance(current), current.name).not.toBeNull();
+    }
   });
 });
