@@ -37,6 +37,12 @@ function preview {
   npx --no-install vite preview "$@"
 }
 
+function fixtures {
+  #@ [samples-dir]: rewrite tests/fixtures/sample-*.json from the local sample reports
+  #@ Category: Development
+  node scripts/extract-fixtures.ts "${1:-_local/samples}"
+}
+
 ################################################################################
 # Quality Commands
 
