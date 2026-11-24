@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractPdfText, MAX_BYTES, MAX_PAGES } from '../../src/report/pdfText.ts';
+import { extractPdfText, MAX_BYTES, MAX_PAGES, MAX_TEXT_ITEMS_PER_PAGE } from '../../src/report/pdfText.ts';
 import { readReport } from '../../src/report/read.ts';
 import { buildPdf, type TextRun } from './pdfBuilder.ts';
 
@@ -62,6 +62,14 @@ describe('extractPdfText', () => {
     const pages = (count: number) => Array.from({ length: count }, () => [run('page', 34, 700)]);
     expect((await extractPdfText(buildPdf(pages(MAX_PAGES)))).ok).toBe(true);
     expect(await extractPdfText(buildPdf(pages(MAX_PAGES + 1)))).toEqual({ ok: false, kind: 'too-large' });
+  });
+
+  it(`rejects a page of more than ${MAX_TEXT_ITEMS_PER_PAGE} text items as too-large`, async () => {
+    // Each run is at least one text item; pdf.js adds space and line-end items between them.
+    const crowded = Array.from({ length: MAX_TEXT_ITEMS_PER_PAGE + 1 }, (_, index) =>
+      run('x', 34 + (index % 50) * 10, 800 - Math.floor(index / 50) * 3),
+    );
+    expect(await extractPdfText(buildPdf([MINI_REPORT, crowded]))).toEqual({ ok: false, kind: 'too-large' });
   });
 
   it('rejects more than the size limit as too-large without parsing it', async () => {
