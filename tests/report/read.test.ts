@@ -58,6 +58,13 @@ describe('extractPdfText', () => {
     });
   });
 
+  it('rejects a PDF that loads but whose pages cannot be read as unreadable-text', async () => {
+    expect(await extractPdfText(buildPdf([MINI_REPORT], { brokenPages: true }))).toEqual({
+      ok: false,
+      kind: 'unreadable-text',
+    });
+  });
+
   it(`accepts ${MAX_PAGES} pages and rejects ${MAX_PAGES + 1} as too-large`, async () => {
     const pages = (count: number) => Array.from({ length: count }, () => [run('page', 34, 700)]);
     expect((await extractPdfText(buildPdf(pages(MAX_PAGES)))).ok).toBe(true);
@@ -103,6 +110,13 @@ describe('readReport', () => {
   it('rejects an oversized file by its size, before reading it', async () => {
     const huge = { size: MAX_BYTES + 1, arrayBuffer: () => Promise.reject(new Error('read')) } as unknown as Blob;
     expect(await readReport(huge)).toEqual({ ok: false, kind: 'too-large' });
+  });
+
+  it('passes a page-read rejection through', async () => {
+    expect(await readReport(blob(buildPdf([MINI_REPORT], { brokenPages: true })))).toEqual({
+      ok: false,
+      kind: 'unreadable-text',
+    });
   });
 
   it('passes a pdf.js rejection through', async () => {

@@ -13,6 +13,8 @@ export interface PdfOptions {
   readonly info?: Readonly<Record<string, string>>;
   /** Adds a standard security handler whose user password is not empty. */
   readonly encrypted?: boolean;
+  /** Leaves each page's /Contents array unclosed: the document loads, its pages do not. */
+  readonly brokenPages?: boolean;
 }
 
 const escapeString = (text: string): string => text.replace(/[\\()]/g, '\\$&');
@@ -35,7 +37,8 @@ export function buildPdf(pages: readonly (readonly TextRun[])[], options: PdfOpt
     const content = add(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
     return add(
       `<< /Type /Page /Parent ${pageTree} 0 R /MediaBox [0 0 595 842] ` +
-        `/Resources << /Font << /F1 ${font} 0 R >> >> /Contents ${content} 0 R >>`,
+        `/Resources << /Font << /F1 ${font} 0 R >> >> ` +
+        (options.brokenPages ? `/Contents [${content} 0 R >>` : `/Contents ${content} 0 R >>`),
     );
   });
   objects[catalog - 1] = `<< /Type /Catalog /Pages ${pageTree} 0 R >>`;

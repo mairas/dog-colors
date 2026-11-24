@@ -156,7 +156,7 @@ export interface PdfText {
   readonly info: DocumentInfo;
 }
 
-export type PdfRejectionKind = Extract<RejectionKind, 'not-pdf' | 'encrypted' | 'too-large'>;
+export type PdfRejectionKind = Extract<RejectionKind, 'not-pdf' | 'encrypted' | 'too-large' | 'unreadable-text'>;
 
 export type PdfTextResult =
   | { readonly ok: true; readonly text: PdfText }
@@ -209,7 +209,8 @@ function toTextItem(raw: unknown): TextItem | null {
  *
  * Throws when the reader itself fails rather than the file, for example a
  * pdf.js worker that could not be loaded; pdf.js keeps that failure until the
- * page is reloaded.
+ * page is reloaded. Once the document has loaded, a page or metadata pdf.js
+ * cannot read is a damaged file, rejected as unreadable-text.
  */
 export async function extractPdfText(data: Uint8Array): Promise<PdfTextResult> {
   if (data.byteLength > MAX_BYTES) {
@@ -240,15 +241,20 @@ export async function extractPdfText(data: Uint8Array): Promise<PdfTextResult> {
       return { ok: false, kind: 'too-large' };
     }
     const pages: TextItem[][] = [];
-    for (let number = 1; number <= document.numPages; number++) {
-      const page = await document.getPage(number);
-      const content = await page.getTextContent();
-      if (content.items.length > MAX_TEXT_ITEMS_PER_PAGE) {
-        return { ok: false, kind: 'too-large' };
+    let info: unknown;
+    try {
+      for (let number = 1; number <= document.numPages; number++) {
+        const page = await document.getPage(number);
+        const content = await page.getTextContent();
+        if (content.items.length > MAX_TEXT_ITEMS_PER_PAGE) {
+          return { ok: false, kind: 'too-large' };
+        }
+        pages.push(content.items.map(toTextItem).filter((item) => item !== null));
       }
-      pages.push(content.items.map(toTextItem).filter((item) => item !== null));
+      ({ info } = await document.getMetadata());
+    } catch {
+      return { ok: false, kind: 'unreadable-text' };
     }
-    const { info } = await document.getMetadata();
     return {
       ok: true,
       text: {
