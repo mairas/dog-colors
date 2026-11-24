@@ -46,8 +46,8 @@ function deleteFile(path: string): void {
 }
 
 function check(base?: string): { status: number | null; output: string } {
-  const args = base === undefined ? [repo] : [repo, base];
-  const result = spawnSync(SCRIPT, args, { env: GIT_ENV, encoding: 'utf8' });
+  const args = base === undefined ? [] : [base];
+  const result = spawnSync(SCRIPT, args, { cwd: repo, env: GIT_ENV, encoding: 'utf8' });
   return { status: result.status, output: result.stdout + result.stderr };
 }
 

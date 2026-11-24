@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
-# usage: scripts/check-pdfs.sh <repo-dir> [<base-ref>]
+# usage: scripts/check-pdfs.sh [<base-ref>]
 #
-# Fails if the git repository at <repo-dir> tracks a PDF file, by name
-# (case-insensitive) or by content (a file that starts with %PDF-). Given
+# Fails if the git repository in the current directory tracks a PDF file, by
+# name (case-insensitive) or by content (a file that starts with %PDF-). Given
 # <base-ref>, also fails if any commit in <base-ref>..HEAD added a path named
 # like a PDF, even if a later commit deleted it.
 #
@@ -12,12 +12,11 @@ set -o nounset
 set -o pipefail
 set -o errexit
 
-if [[ $# -lt 1 || $# -gt 2 ]]; then
-  echo "usage: $0 <repo-dir> [<base-ref>]" >&2
+if [[ $# -gt 1 ]]; then
+  echo "usage: $0 [<base-ref>]" >&2
   exit 2
 fi
-cd "$1"
-readonly BASE=${2:-}
+readonly BASE=${1:-}
 readonly PDF_PATHS=':(icase)*.pdf'
 readonly PDF_SIGNATURE='%PDF-'
 
