@@ -3,10 +3,13 @@
 // piebald → roan. The pigment loci and the white loci (MITF, USH2A) are
 // separate functions so the cross can enumerate the two groups independently.
 //
-// A locus absent from the genotype is unknown. Each phenotype field is computed
-// over every pair the unknown locus could hold, and a field that differs
-// between them is "unknown"; loci the rules never consult for this genotype
-// (MFSD12 under KB, say) leave the result untouched.
+// A locus absent from the genotype is unknown. Every field and every flag has
+// its own rule, which reads only the loci it needs for this genotype, and is
+// evaluated over every pair the unknown loci it reads could hold: a field that
+// differs between them is "unknown", and a flag holds only if it holds for all.
+// So missing loci a field never reads leave it known (lethality needs PSMB7
+// alone, however many pigment loci are missing), and loci never consulted for
+// this genotype (MFSD12 under KB, say) leave the result untouched.
 
 import type { ColourGene } from '../report/loci.ts';
 import { allPairs, type Allele, type AllelePair, type Genotype } from './alleles.ts';
@@ -81,169 +84,105 @@ export interface Phenotype {
 
 type Reader = <G extends ColourGene>(gene: G) => AllelePair<G>;
 
+/** One phenotype field or flag as a function of the genotype. It reads only the loci it needs. */
+type Rule<T> = (read: Reader) => T;
+
 const has = <G extends ColourGene>(pair: AllelePair<G>, allele: Allele<G>): boolean =>
   pair[0] === allele || pair[1] === allele;
 
 const copies = <G extends ColourGene>(pair: AllelePair<G>, allele: Allele<G>): number =>
   (pair[0] === allele ? 1 : 0) + (pair[1] === allele ? 1 : 0);
 
-const yesNo = (value: boolean): TraitValue => (value ? 'yes' : 'no');
+const yesNo = (value: boolean): 'yes' | 'no' => (value ? 'yes' : 'no');
 
-function sortedFlags(flags: Iterable<Flag>): Flag[] {
-  const present = new Set(flags);
-  return FLAGS.filter((flag) => present.has(flag));
-}
+const isAlbino: Rule<boolean> = (read) => copies(read('SLC45A2'), 'cal') === 2;
 
-function pigmentRule(read: Reader): PigmentPhenotype {
-  const flags = new Set<Flag>();
-  const merleCopies = copies(read('PMEL'), 'M');
-  const psmb7 = read('PSMB7');
-  const lethal = yesNo(copies(psmb7, 'H') === 2);
+const isRecessiveRed: Rule<boolean> = (read) => copies(read('MC1R'), 'e') === 2;
 
-  const merleTraits = (visible: boolean, hardToSee: boolean) => {
-    if (merleCopies > 0 && !visible) {
-      flags.add('merle-hidden');
-    }
-    if (merleCopies > 0 && visible && hardToSee) {
-      flags.add('merle-hard-to-see');
-    }
-    if (merleCopies === 2) {
-      flags.add('mostly-white');
-    }
-    const harlequinGenotype = merleCopies > 0 && has(psmb7, 'H');
-    if (harlequinGenotype && !visible) {
-      flags.add('harlequin-hidden');
-    }
-    return {
-      merle: yesNo(merleCopies === 1 && visible),
-      doubleMerle: yesNo(merleCopies === 2),
-      harlequin: yesNo(harlequinGenotype && visible),
-    };
-  };
+/** Albino or e/e: the coat shows no eumelanin, the only pigment merle and harlequin act on. */
+const hidesEumelanin: Rule<boolean> = (read) => isAlbino(read) || isRecessiveRed(read);
 
-  if (copies(read('SLC45A2'), 'cal') === 2) {
-    return {
-      base: 'albino',
-      pattern: 'not-visible',
-      nose: 'pink',
-      dilute: 'no',
-      beige: 'no',
-      ...merleTraits(false, false),
-      lethal,
-      flags: sortedFlags(flags),
-    };
+const isDilute: Rule<boolean> = (read) => !isAlbino(read) && copies(read('MLPH'), 'd') === 2;
+
+function baseOf(read: Reader): BaseColour {
+  if (isAlbino(read)) {
+    return 'albino';
   }
-
-  const mc1r = read('MC1R');
-  const brownish = copies(read('TYRP1'), 'b') === 2 || copies(read('HPS3'), 'co') === 2;
-  const cocoaOnly = copies(read('TYRP1'), 'b') < 2 && copies(read('HPS3'), 'co') === 2;
-  const dilute = copies(read('MLPH'), 'd') === 2;
-  const nose: Nose = dilute ? (brownish ? 'lilac' : 'blue') : brownish ? 'brown' : 'black';
+  if (isRecessiveRed(read)) {
+    return copies(read('MFSD12'), 'i') === 2 ? 'beige-light' : 'beige';
+  }
+  const brown = copies(read('TYRP1'), 'b') === 2;
+  const cocoa = copies(read('HPS3'), 'co') === 2;
+  if (isDilute(read)) {
+    return brown || cocoa ? 'lilac' : 'blue';
+  }
   // co/co with b/b is named plain brown: no source gives the combined shade.
-  const eumelanin: BaseColour = dilute ? (brownish ? 'lilac' : 'blue') : cocoaOnly ? 'cocoa' : brownish ? 'brown' : 'black';
-
-  if (copies(mc1r, 'e') === 2) {
-    return {
-      base: copies(read('MFSD12'), 'i') === 2 ? 'beige-light' : 'beige',
-      pattern: 'not-visible',
-      nose,
-      dilute: yesNo(dilute),
-      beige: 'yes',
-      ...merleTraits(false, false),
-      lethal,
-      flags: sortedFlags(flags),
-    };
-  }
-
-  if (has(mc1r, 'eH') || has(mc1r, 'eG')) {
-    flags.add('not-modelled-eH-eG');
-  }
-  // Anderson 2020: KB was not expressed in eA/eA and eA/e dogs; Em/eA and E/eA were unaffected.
-  const kSkipped = has(mc1r, 'eA') && copies(mc1r, 'eA') + copies(mc1r, 'e') === 2;
-  if (kSkipped) {
-    flags.add('not-modelled-eA');
-  }
-
-  let pattern: Pattern;
-  if (!kSkipped && has(read('CBD103'), 'KB')) {
-    pattern = 'one-colour';
-    // The KB test also marks the brindle haplotypes, so any KB result may be brindle.
-    flags.add('brindle-possible');
-  } else {
-    const asip = read('ASIP');
-    if (has(asip, 'ayt')) {
-      flags.add('ayt-unknown');
-    }
-    if (has(asip, 'ay') || has(asip, 'ayt')) {
-      pattern = 'sable';
-    } else if (has(asip, 'aw')) {
-      pattern = 'wolf-sable';
-    } else if (has(asip, 'at')) {
-      pattern = 'tan-points';
-      if (has(read('RALY'), '+')) {
-        flags.add('possible-saddle');
-      }
-    } else {
-      pattern = 'recessive-solid';
-    }
-  }
-
-  const pheomelaninShows = pattern === 'sable' || pattern === 'wolf-sable' || pattern === 'tan-points';
-  if (pheomelaninShows && has(mc1r, 'Em')) {
-    flags.add('mask');
-  }
-  if (pheomelaninShows && copies(read('MFSD12'), 'i') === 2) {
-    flags.add('pheomelanin-light');
-  }
-
-  return {
-    base: eumelanin,
-    pattern,
-    nose,
-    dilute: yesNo(dilute),
-    beige: 'no',
-    ...merleTraits(true, pattern === 'sable'),
-    lethal,
-    flags: sortedFlags(flags),
-  };
+  return brown ? 'brown' : cocoa ? 'cocoa' : 'black';
 }
 
-function whiteRule(read: Reader): WhitePhenotype {
-  const spotting = copies(read('MITF'), 'sp');
-  const white = WHITE_SPOTTING[spotting] ?? 'extensive';
-  if (spotting === 0) {
-    // Roan shows only within white areas.
-    return { white, roan: 'no', flags: [] };
+function noseOf(read: Reader): Nose {
+  if (isAlbino(read)) {
+    return 'pink';
   }
-  const roanCopies = copies(read('USH2A'), 'R');
+  const brownish = copies(read('TYRP1'), 'b') === 2 || copies(read('HPS3'), 'co') === 2;
+  if (isDilute(read)) {
+    return brownish ? 'lilac' : 'blue';
+  }
+  return brownish ? 'brown' : 'black';
+}
+
+/** Anderson 2020: KB was not expressed in eA/eA and eA/e dogs; Em/eA and E/eA were unaffected. */
+const skipsK: Rule<boolean> = (read) => {
+  const mc1r = read('MC1R');
+  return has(mc1r, 'eA') && copies(mc1r, 'eA') + copies(mc1r, 'e') === 2;
+};
+
+function patternOf(read: Reader): Pattern {
+  if (hidesEumelanin(read)) {
+    return 'not-visible';
+  }
+  if (!skipsK(read) && has(read('CBD103'), 'KB')) {
+    return 'one-colour';
+  }
+  const asip = read('ASIP');
+  if (has(asip, 'ay') || has(asip, 'ayt')) {
+    return 'sable';
+  }
+  if (has(asip, 'aw')) {
+    return 'wolf-sable';
+  }
+  return has(asip, 'at') ? 'tan-points' : 'recessive-solid';
+}
+
+const showsPheomelanin: Rule<boolean> = (read) => ['sable', 'wolf-sable', 'tan-points'].includes(patternOf(read));
+
+const merleCopies = (read: Reader): number => copies(read('PMEL'), 'M');
+
+const hasHarlequin: Rule<boolean> = (read) => merleCopies(read) > 0 && has(read('PSMB7'), 'H');
+
+type WhiteFlag = 'roan-single-copy';
+
+const PIGMENT_FLAGS: Readonly<Record<Exclude<Flag, WhiteFlag>, Rule<boolean>>> = {
+  'not-modelled-eA': (read) => !hidesEumelanin(read) && skipsK(read),
+  'not-modelled-eH-eG': (read) => !hidesEumelanin(read) && (has(read('MC1R'), 'eH') || has(read('MC1R'), 'eG')),
+  'ayt-unknown': (read) => patternOf(read) === 'sable' && has(read('ASIP'), 'ayt'),
+  'possible-saddle': (read) => patternOf(read) === 'tan-points' && has(read('RALY'), '+'),
+  mask: (read) => showsPheomelanin(read) && has(read('MC1R'), 'Em'),
+  'pheomelanin-light': (read) => showsPheomelanin(read) && copies(read('MFSD12'), 'i') === 2,
+  // The KB test also marks the brindle haplotypes, so any KB result may be brindle.
+  'brindle-possible': (read) => patternOf(read) === 'one-colour',
+  'merle-hidden': (read) => merleCopies(read) > 0 && hidesEumelanin(read),
+  'merle-hard-to-see': (read) => merleCopies(read) > 0 && patternOf(read) === 'sable',
+  'harlequin-hidden': (read) => hasHarlequin(read) && hidesEumelanin(read),
+  'mostly-white': (read) => merleCopies(read) === 2,
+};
+
+const spotting = (read: Reader): number => copies(read('MITF'), 'sp');
+
+const WHITE_FLAGS: Readonly<Record<WhiteFlag, Rule<boolean>>> = {
   // Brancalion 2021 never observed one copy, and Wisdom's roan test is a linkage test.
-  return { white, roan: yesNo(roanCopies > 0), flags: roanCopies === 1 ? ['roan-single-copy'] : [] };
-}
-
-const same = <T extends string>(left: T, right: T): T | Unknown => (left === right ? left : 'unknown');
-
-function intersect(left: readonly Flag[], right: readonly Flag[]): Flag[] {
-  return left.filter((flag) => right.includes(flag));
-}
-
-function joinPigment(left: PigmentPhenotype, right: PigmentPhenotype): PigmentPhenotype {
-  return {
-    base: same(left.base, right.base),
-    pattern: same(left.pattern, right.pattern),
-    nose: same(left.nose, right.nose),
-    merle: same(left.merle, right.merle),
-    doubleMerle: same(left.doubleMerle, right.doubleMerle),
-    dilute: same(left.dilute, right.dilute),
-    beige: same(left.beige, right.beige),
-    harlequin: same(left.harlequin, right.harlequin),
-    lethal: same(left.lethal, right.lethal),
-    flags: intersect(left.flags, right.flags),
-  };
-}
-
-function joinWhite(left: WhitePhenotype, right: WhitePhenotype): WhitePhenotype {
-  return { white: same(left.white, right.white), roan: same(left.roan, right.roan), flags: intersect(left.flags, right.flags) };
-}
+  'roan-single-copy': (read) => spotting(read) > 0 && copies(read('USH2A'), 'R') === 1,
+};
 
 interface Choice {
   readonly gene: ColourGene;
@@ -252,17 +191,14 @@ interface Choice {
 }
 
 /**
- * Runs the rule once per combination of pairs at the unknown loci it reads,
- * branching on a locus only when the rule first reads it, and joins the
- * results. Stops early once nothing more can become unknown, and gives up
- * with everything unknown past MAX_RUNS: only a genotype missing most of its
- * loci gets there, and every field of such a dog is unknown in practice.
+ * Calls visit with the rule's value for each combination of pairs at the
+ * unknown loci the rule reads, until visit returns false. It branches on a
+ * locus only when the rule first reads it, so a rule meets only the loci it
+ * needs for this genotype: at most five, 3·21·3·15·3 = 8,505 combinations.
  */
-function explore<T>(genotype: Genotype, rule: (read: Reader) => T, join: (left: T, right: T) => T, unknown: T): T {
+function search<T>(genotype: Genotype, rule: Rule<T>, visit: (value: T) => boolean): void {
   const choices: Choice[] = [];
-  const settled = (value: T): boolean => JSON.stringify(value) === JSON.stringify(unknown);
-  let result: T | undefined;
-  for (let run = 0; run < MAX_RUNS; run++) {
+  for (;;) {
     let depth = 0;
     const chosen = new Map<ColourGene, number>();
     const read: Reader = <G extends ColourGene>(gene: G): AllelePair<G> => {
@@ -286,44 +222,69 @@ function explore<T>(genotype: Genotype, rule: (read: Reader) => T, join: (left: 
       return pair;
     };
 
-    const value = rule(read);
-    result = result === undefined ? value : join(result, value);
+    if (!visit(rule(read))) {
+      return;
+    }
     choices.length = depth;
     let last = choices.at(-1);
     while (last !== undefined && ++last.index >= last.count) {
       choices.pop();
       last = choices.at(-1);
     }
-    if (last === undefined || settled(result)) {
-      return result;
+    if (last === undefined) {
+      return;
     }
   }
-  return unknown;
 }
 
-const MAX_RUNS = 4096;
+/** The rule's value, or unknown when the unknown loci it reads could change it. */
+function known<T extends string>(genotype: Genotype, rule: Rule<T>): T | Unknown {
+  let result: T | Unknown = 'unknown';
+  let first = true;
+  search(genotype, rule, (value) => {
+    result = first || result === value ? value : 'unknown';
+    first = false;
+    return result !== 'unknown';
+  });
+  return result;
+}
 
-const PIGMENT_UNKNOWN: PigmentPhenotype = {
-  base: 'unknown',
-  pattern: 'unknown',
-  nose: 'unknown',
-  merle: 'unknown',
-  doubleMerle: 'unknown',
-  dilute: 'unknown',
-  beige: 'unknown',
-  harlequin: 'unknown',
-  lethal: 'unknown',
-  flags: [],
-};
-
-const WHITE_UNKNOWN: WhitePhenotype = { white: 'unknown', roan: 'unknown', flags: [] };
+/** The flags that hold whatever the unknown loci their rules read hold. */
+function flagsOf(genotype: Genotype, rules: Readonly<Partial<Record<Flag, Rule<boolean>>>>): Flag[] {
+  return FLAGS.filter((flag) => {
+    const rule = rules[flag];
+    if (rule === undefined) {
+      return false;
+    }
+    let always = true;
+    search(genotype, rule, (value) => (always = value));
+    return always;
+  });
+}
 
 export function pigmentPhenotype(genotype: Genotype): PigmentPhenotype {
-  return explore(genotype, pigmentRule, joinPigment, PIGMENT_UNKNOWN);
+  const trait = (rule: Rule<boolean>): TraitValue => known(genotype, (read) => yesNo(rule(read)));
+  return {
+    base: known(genotype, baseOf),
+    pattern: known(genotype, patternOf),
+    nose: known(genotype, noseOf),
+    merle: trait((read) => merleCopies(read) === 1 && !hidesEumelanin(read)),
+    doubleMerle: trait((read) => merleCopies(read) === 2),
+    dilute: trait(isDilute),
+    beige: trait((read) => !isAlbino(read) && isRecessiveRed(read)),
+    harlequin: trait((read) => hasHarlequin(read) && !hidesEumelanin(read)),
+    lethal: trait((read) => copies(read('PSMB7'), 'H') === 2),
+    flags: flagsOf(genotype, PIGMENT_FLAGS),
+  };
 }
 
 export function whitePhenotype(genotype: Genotype): WhitePhenotype {
-  return explore(genotype, whiteRule, joinWhite, WHITE_UNKNOWN);
+  return {
+    white: known(genotype, (read) => WHITE_SPOTTING[spotting(read)] ?? 'extensive'),
+    // Roan shows only within white areas.
+    roan: known(genotype, (read) => yesNo(spotting(read) > 0 && copies(read('USH2A'), 'R') > 0)),
+    flags: flagsOf(genotype, WHITE_FLAGS),
+  };
 }
 
 export function combine(pigment: PigmentPhenotype, white: WhitePhenotype): Phenotype {
@@ -341,7 +302,7 @@ export function combine(pigment: PigmentPhenotype, white: WhitePhenotype): Pheno
       roan: white.roan,
     },
     lethal: pigment.lethal,
-    flags: sortedFlags([...pigment.flags, ...white.flags]),
+    flags: FLAGS.filter((flag) => pigment.flags.includes(flag) || white.flags.includes(flag)),
   };
 }
 

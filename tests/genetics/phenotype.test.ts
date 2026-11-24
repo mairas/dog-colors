@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { allPairs, withLocus, type Genotype } from '../../src/genetics/alleles.ts';
 import {
   FLAG_INFO,
   ownColourName,
@@ -7,7 +8,7 @@ import {
   type Flag,
   type Phenotype,
 } from '../../src/genetics/phenotype.ts';
-import type { ColourGene } from '../../src/report/loci.ts';
+import { COLOUR_GENES, type ColourGene } from '../../src/report/loci.ts';
 import { genotype } from './genotypes.ts';
 
 type Spec = Readonly<Partial<Record<ColourGene, string>>>;
@@ -237,9 +238,94 @@ describe('phenotype: unknown loci', () => {
     check({ CBD103: 'KB/ky', TYRP1: 'b/b' }, { base: 'unknown', pattern: 'unknown', nose: 'brown', flags: [] }, ['MC1R', 'ASIP']);
   });
 
+  it('keeps merle, double merle, harlequin, lethality and dilution known with eight pigment loci missing', () => {
+    check(
+      { PMEL: 'M/M', PSMB7: 'h/h', MLPH: 'D/D' },
+      {
+        traits: { merle: 'no', doubleMerle: 'yes', harlequin: 'no', dilute: 'no' },
+        lethal: 'no',
+        flags: ['mostly-white'],
+      },
+      ['SLC45A2', 'MC1R', 'CBD103', 'ASIP', 'TYRP1', 'HPS3', 'MFSD12', 'RALY'],
+    );
+  });
+
+  it('keeps dilution, double merle and lethality known with five pigment loci missing', () => {
+    check(
+      { PMEL: 'M/m', PSMB7: 'H/H', MLPH: 'D/d' },
+      { base: 'unknown', traits: { dilute: 'no', doubleMerle: 'no' }, lethal: 'yes' },
+      ['SLC45A2', 'MC1R', 'ASIP', 'TYRP1', 'HPS3'],
+    );
+  });
+
   it('an empty genotype is unknown everywhere', () => {
     const all: ColourGene[] = ['ASIP', 'CBD103', 'MC1R', 'HPS3', 'MFSD12', 'MLPH', 'TYRP1', 'MITF', 'PMEL', 'PSMB7', 'RALY', 'USH2A', 'SLC45A2'];
     check({}, { base: 'unknown', pattern: 'unknown', nose: 'unknown', white: 'unknown', lethal: 'unknown', flags: [] }, all);
+  });
+});
+
+describe('phenotype: the unknown-locus search', () => {
+  /** Mulberry32, seeded, so every run checks the same genotypes. */
+  function generator(seed: number): (size: number) => number {
+    let state = seed;
+    return (size) => {
+      state = (state + 0x6d2b79f5) | 0;
+      let t = Math.imul(state ^ (state >>> 15), 1 | state);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return Math.floor((((t ^ (t >>> 14)) >>> 0) / 2 ** 32) * size);
+    };
+  }
+
+  const same = <T extends string>(left: T, right: T): T | 'unknown' => (left === right ? left : 'unknown');
+
+  /** What an unknown locus means: a field the completions disagree on is unknown; a flag holds only if every completion has it. */
+  function join(left: Phenotype, right: Phenotype): Phenotype {
+    const trait = (name: keyof Phenotype['traits']) => same(left.traits[name], right.traits[name]);
+    return {
+      base: same(left.base, right.base),
+      pattern: same(left.pattern, right.pattern),
+      nose: same(left.nose, right.nose),
+      white: same(left.white, right.white),
+      traits: {
+        merle: trait('merle'),
+        doubleMerle: trait('doubleMerle'),
+        dilute: trait('dilute'),
+        beige: trait('beige'),
+        harlequin: trait('harlequin'),
+        roan: trait('roan'),
+      },
+      lethal: same(left.lethal, right.lethal),
+      flags: left.flags.filter((flag) => right.flags.includes(flag)),
+    };
+  }
+
+  it('matches joining the phenotypes of every completion of up to three unknown loci', () => {
+    const random = generator(1);
+    for (let trial = 0; trial < 200; trial++) {
+      const genes = [...COLOUR_GENES];
+      const unknown = Array.from({ length: 1 + random(3) }, () => genes.splice(random(genes.length), 1)[0]);
+      let partial: Genotype = {};
+      const pick = <G extends ColourGene>(gene: G): void => {
+        const pairs = allPairs(gene);
+        const pair = pairs[random(pairs.length)];
+        if (pair !== undefined && !unknown.includes(gene)) {
+          partial = withLocus(partial, gene, pair);
+        }
+      };
+      COLOUR_GENES.forEach(pick);
+
+      let completions: Genotype[] = [partial];
+      const complete = <G extends ColourGene>(gene: G): void => {
+        completions = completions.flatMap((known) => allPairs(gene).map((pair) => withLocus(known, gene, pair)));
+      };
+      unknown.forEach((gene) => gene !== undefined && complete(gene));
+
+      const [first, ...rest] = completions.map(phenotype);
+      expect(first).toBeDefined();
+      if (first !== undefined) {
+        expect({ unknown, phenotype: phenotype(partial) }).toEqual({ unknown, phenotype: rest.reduce(join, first) });
+      }
+    }
   });
 });
 
