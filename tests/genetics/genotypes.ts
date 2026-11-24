@@ -1,4 +1,5 @@
 import { ALLELES, withLocus, type Allele, type AllelePair, type Genotype } from '../../src/genetics/alleles.ts';
+import type { GenotypeResolution, LocusResolution } from '../../src/genetics/haplotypes.ts';
 import { COLOUR_GENES, type ColourGene } from '../../src/report/loci.ts';
 
 /** The pair a dog with no tested variant at the locus has. */
@@ -49,4 +50,38 @@ export function genotype(
     }
   }
   return result;
+}
+
+/**
+ * A parent's loci from pair literals, one or more candidates per locus
+ * ({ TYRP1: ['B/b', 'b/b'] }). Loci not given are wild type; loci listed as
+ * missing are unknown.
+ */
+export function parentLoci(
+  spec: Readonly<Partial<Record<ColourGene, string | readonly string[]>>>,
+  missing: readonly ColourGene[] = [],
+): GenotypeResolution {
+  const resolve = <G extends ColourGene>(gene: G): LocusResolution<G> => {
+    if (missing.includes(gene)) {
+      return { status: 'missing' };
+    }
+    const given: string | readonly string[] = spec[gene] ?? WILD_TYPE[gene];
+    const texts: readonly string[] = typeof given === 'string' ? [given] : given;
+    return { status: 'resolved', candidates: texts.map((text) => pair(gene, text)) };
+  };
+  return {
+    ASIP: resolve('ASIP'),
+    CBD103: resolve('CBD103'),
+    MC1R: resolve('MC1R'),
+    HPS3: resolve('HPS3'),
+    MFSD12: resolve('MFSD12'),
+    MLPH: resolve('MLPH'),
+    TYRP1: resolve('TYRP1'),
+    MITF: resolve('MITF'),
+    PMEL: resolve('PMEL'),
+    PSMB7: resolve('PSMB7'),
+    RALY: resolve('RALY'),
+    USH2A: resolve('USH2A'),
+    SLC45A2: resolve('SLC45A2'),
+  };
 }
