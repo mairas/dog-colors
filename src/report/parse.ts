@@ -1,7 +1,7 @@
 // Lines of a report → Report, or the reason it is not one. Rows are found by
 // their content (gene, variant, copies), never by column positions, because
 // each PDF producer places the columns differently.
-import { readHeader } from './header.ts';
+import { displayName, readHeader } from './header.ts';
 import {
   COLOUR_GENES,
   COLOUR_VARIANTS,
@@ -361,12 +361,11 @@ export async function parseReport(text: PdfText): Promise<ReadResult> {
     ),
   );
   const header = readHeader(lines);
-  const ownName = format === 'current' ? header.profileName : header.callName;
   return {
     ok: true,
     report: {
       format,
-      name: ownName ?? header.registeredName,
+      name: displayName(header, format),
       sex: SEXES.get(header.sex?.toLowerCase() ?? '') ?? null,
       breed: header.breed,
       kitIdHash: header.kitId === null ? null : await sha256Hex(header.kitId),

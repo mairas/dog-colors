@@ -7,7 +7,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readHeader, type HeaderFields } from '../src/report/header.ts';
+import { displayName, readHeader, type HeaderFields } from '../src/report/header.ts';
 import { detectFormat, findHealthRows, findTraitRows } from '../src/report/parse.ts';
 import { extractPdfText, type Cell, type Line, type PdfText } from '../src/report/pdfText.ts';
 import type { RejectionKind } from '../src/report/types.ts';
@@ -132,7 +132,7 @@ export function assertNoIdentifiers(text: string, identifiers: readonly Identifi
   }
 }
 
-function placeholders(header: HeaderFields, displayName: string | null, letter: string): Map<string, string> {
+function placeholders(header: HeaderFields, name: string | null, letter: string): Map<string, string> {
   const upper = letter.toUpperCase();
   const isoDate = (value: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(value);
   const replacements = new Map<string, string>();
@@ -141,7 +141,7 @@ function placeholders(header: HeaderFields, displayName: string | null, letter: 
       replacements.set(value, placeholder);
     }
   };
-  add(displayName, `Sample ${upper}`);
+  add(name, `Sample ${upper}`);
   add(header.registeredName, `Sample ${upper} Registered`);
   add(header.profileName, `Sample ${upper} Profile`);
   add(header.callName, `Sample ${upper} Call`);
@@ -194,8 +194,7 @@ export function buildFixture(text: PdfText, letter: string): Fixture {
   }
 
   const header = readHeader(lines);
-  const displayName = (format === 'current' ? header.profileName : header.callName) ?? header.registeredName;
-  const replacements = placeholders(header, displayName, letter);
+  const replacements = placeholders(header, displayName(header, format), letter);
   return {
     healthRowCount: healthRows.length,
     lines: lines

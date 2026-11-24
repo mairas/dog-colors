@@ -1,6 +1,7 @@
 // Header fields of a report's first page, read by label. Both formats print
 // labels in columns with each value on the line below; the current format's
 // page header also prints "Label: value" pairs. Every field is untrusted text.
+import type { ReportFormat } from './loci.ts';
 import type { Cell, Line } from './pdfText.ts';
 
 export interface HeaderFields {
@@ -132,4 +133,9 @@ export function readHeader(lines: readonly Line[]): HeaderFields {
     }
   });
   return fields;
+}
+
+/** The name a report goes by: its profile name (current format) or call name (older format), else its registered name. */
+export function displayName(header: HeaderFields, format: ReportFormat): string | null {
+  return (format === 'current' ? header.profileName : header.callName) ?? header.registeredName;
 }
