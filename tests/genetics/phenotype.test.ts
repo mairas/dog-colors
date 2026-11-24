@@ -264,7 +264,9 @@ describe('ownColourName', () => {
     [{ CBD103: 'KB/ky', PMEL: 'M/m', PSMB7: 'H/h' }, 'Black harlequin, solid'],
     [{}, 'Black wolf sable, solid'],
     [{ ASIP: 'aw/at', MITF: 'sp/+' }, 'Black wolf sable with limited white'],
-    [{ CBD103: 'KB/ky', PMEL: 'M/M' }, 'Black double merle, solid'],
+    [{ CBD103: 'KB/ky', PMEL: 'M/M' }, 'Black double merle, mostly white'],
+    [{ CBD103: 'KB/ky', PMEL: 'M/M', MITF: 'sp/+' }, 'Black double merle, mostly white'],
+    [{ MC1R: 'e/e', PMEL: 'M/M' }, 'Beige double merle, mostly white'],
     [{ CBD103: 'KB/ky', MLPH: 'd/d' }, 'Blue, solid'],
     [{ MC1R: 'e/e', MFSD12: 'i/i', MITF: 'sp/+' }, 'Beige, light cream likely, with limited white'],
     [{ SLC45A2: 'cal/cal', MITF: 'sp/sp' }, 'White or cream, pink nose'],
@@ -275,6 +277,7 @@ describe('ownColourName', () => {
     [{ ASIP: 'at/at', MITF: 'sp/+' }, ['CBD103'], 'Black, pattern unknown, with limited white'],
     [{ CBD103: 'KB/ky' }, ['MITF'], 'Black, white spotting unknown'],
     [{ ASIP: 'at/at', TYRP1: 'b/b' }, ['MITF'], 'Brown and tan, white spotting unknown'],
+    [{ CBD103: 'KB/ky', PMEL: 'M/M' }, ['MITF'], 'Black double merle, mostly white'],
   ])('%j with %j unknown → %s', (spec, unknown, name) => expect(ownColourName(of(spec, unknown))).toBe(name));
 
   it('names an unknown base colour', () => {

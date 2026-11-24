@@ -457,5 +457,7 @@ export function ownColourName(value: Phenotype): string {
     extensive: ', mostly white',
     unknown: ', white spotting unknown',
   };
-  return capitalise(name + whiteSuffix[value.white]);
+  // M/M alone makes a dog mostly white, whatever MITF holds.
+  const white = value.traits.doubleMerle === 'yes' ? 'extensive' : value.white;
+  return capitalise(name + whiteSuffix[white]);
 }
