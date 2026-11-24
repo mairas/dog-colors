@@ -61,10 +61,31 @@ describe('resolveDog: ambiguity', () => {
     expect(dog.questions).toEqual([]);
     expect(dog.ambiguousLoci).toEqual(['ASIP']);
     expect(dog.unsettled).toEqual(['ASIP']);
-    expect(dog.ownColours.map((colour) => [colour.phenotype.pattern, colour.phenotype.flags])).toEqual([
-      ['sable', []],
-      ['sable', ['ayt-unknown']],
-    ]);
+  });
+
+  it('lists a name once, with every genotype that gives it and the flags of any of them', () => {
+    const dog = resolveDog(syntheticReport({ 'ASIP ay': 1, 'ASIP at': 1 }));
+    expect(names(dog)).toEqual(['Black sable, solid']);
+    const [own] = dog.ownColours;
+    expect(own?.genotypes.map((genotype) => formatPair(genotype.ASIP ?? ['?', '?']))).toEqual(['ay/at', 'ayt/aw']);
+    expect(own?.phenotype.flags).toEqual(['ayt-unknown']);
+  });
+
+  it('makes a field the merged candidates disagree on unknown', () => {
+    const dog = resolveDog(syntheticReport({ 'TYRP1 bd': 1, 'TYRP1 bc': 1, 'MC1R e1': 2 }));
+    expect(names(dog)).toEqual(['Beige, solid']);
+    expect(dog.ownColours[0]?.phenotype).toMatchObject({ base: 'beige', nose: 'unknown' });
+  });
+
+  it.each<[string, Readonly<Record<string, number>>]>([
+    ['ASIP ay 1 + at 1', { 'ASIP ay': 1, 'ASIP at': 1 }],
+    ['ASIP ay 1 + at 1 under KB', { 'ASIP ay': 1, 'ASIP at': 1, 'CBD103 KB': 2 }],
+    ['TYRP1 bd 1 + bc 1', { 'TYRP1 bd': 1, 'TYRP1 bc': 1, 'CBD103 KB': 1 }],
+    ['TYRP1 bd 1 + bc 1 on e/e', { 'TYRP1 bd': 1, 'TYRP1 bc': 1, 'MC1R e1': 2 }],
+    ['ASIP and TYRP1 both ambiguous', { 'ASIP ay': 1, 'ASIP at': 1, 'TYRP1 bd': 1, 'TYRP1 bc': 1 }],
+  ])('names every own colour differently: %s', (_name, copies) => {
+    const listed = names(resolveDog(syntheticReport(copies)));
+    expect(new Set(listed).size).toBe(listed.length);
   });
 
   it('merges candidates that look the same, and still reports the locus unsettled', () => {
