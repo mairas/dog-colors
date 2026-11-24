@@ -261,11 +261,21 @@ describe('ownColourName', () => {
     [{ ASIP: 'at/at' }, 'Black and tan, solid'],
     [{ ASIP: 'ay/ay', TYRP1: 'b/b' }, 'Brown sable, solid'],
     [{ CBD103: 'KB/ky', PMEL: 'M/m' }, 'Black merle, solid'],
+    [{ CBD103: 'KB/ky', PMEL: 'M/m', PSMB7: 'H/h' }, 'Black harlequin, solid'],
+    [{}, 'Black wolf sable, solid'],
+    [{ ASIP: 'aw/at', MITF: 'sp/+' }, 'Black wolf sable with limited white'],
     [{ CBD103: 'KB/ky', PMEL: 'M/M' }, 'Black double merle, solid'],
     [{ CBD103: 'KB/ky', MLPH: 'd/d' }, 'Blue, solid'],
     [{ MC1R: 'e/e', MFSD12: 'i/i', MITF: 'sp/+' }, 'Beige, light cream likely, with limited white'],
     [{ SLC45A2: 'cal/cal', MITF: 'sp/sp' }, 'White or cream, pink nose'],
   ])('%j → %s', (spec, name) => expect(ownColourName(of(spec))).toBe(name));
+
+  it.each<[Spec, readonly ColourGene[], string]>([
+    [{ ASIP: 'at/at' }, ['CBD103'], 'Black, pattern unknown, solid'],
+    [{ ASIP: 'at/at', MITF: 'sp/+' }, ['CBD103'], 'Black, pattern unknown, with limited white'],
+    [{ CBD103: 'KB/ky' }, ['MITF'], 'Black, white spotting unknown'],
+    [{ ASIP: 'at/at', TYRP1: 'b/b' }, ['MITF'], 'Brown and tan, white spotting unknown'],
+  ])('%j with %j unknown → %s', (spec, unknown, name) => expect(ownColourName(of(spec, unknown))).toBe(name));
 
   it('names an unknown base colour', () => {
     expect(ownColourName(of({ CBD103: 'KB/ky', MITF: 'sp/+' }, ['TYRP1']))).toBe('Unknown base colour with limited white');
