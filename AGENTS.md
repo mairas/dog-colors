@@ -43,7 +43,7 @@ The report reader (`src/report/`) is tested on fixtures: committed line streams 
 }
 ```
 
-Paths are relative to `_local/samples`; each rejection value is a `RejectionKind` from `src/report/types.ts`. When the manifest is present, `./run test` also runs `tests/report/real-pdfs.local.test.ts`, which reads every listed PDF through pdf.js and compares it with its fixture or expected rejection, and checks the committed fixtures against the real identifier values. Without it, as in CI, those tests are skipped.
+Paths are relative to `_local/samples`; each rejection value is a `RejectionKind` from `src/report/types.ts`. When the manifest is present, `./run test` also runs `tests/report/real-pdfs.local.test.ts`, which reads every listed PDF through pdf.js and compares it with its fixture or expected rejection, and the local part of `tests/report/fixtures-privacy.test.ts`, which checks the committed fixtures against the real identifier values. Without it, as in CI, those tests are skipped.
 
 pdf.js is the legacy build everywhere: Node needs it, and it polyfills built-ins that the modern build assumes but older phone browsers lack. In the browser `src/report/browser.ts` points it at its bundled worker.
 
