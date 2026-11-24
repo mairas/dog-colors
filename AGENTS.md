@@ -13,12 +13,13 @@ A static single-page site, served from GitHub Pages, that reads two Wisdom Panel
 | `./run preview` | Serve the production build from `dist/` (run after `build`) |
 | `./run typecheck` | Type-check every TypeScript file |
 | `./run fixtures [dir]` | Rewrite `tests/fixtures/sample-*.json` from the local sample reports in `_local/samples` (see *Sample reports and fixtures*) |
+| `./run conditions [dir]` | Rewrite `src/health/conditions.json`, the inheritance catalogue, from the local current-format sample reports |
 | `./run test` | Run the Vitest suite, including the local-only tests against the sample reports when they are present |
 | `./run build` | Build the production site into `dist/` |
 | `./run check-csp` | Check that `dist/index.html` carries the expected Content-Security-Policy meta tag (run after `build`) |
 | `./run check-pdfs [base]` | Fail if a tracked file is named `*.pdf` (any case) or starts with the PDF signature `%PDF-`; given a base ref, also fail if any commit in `base..HEAD` added a `*.pdf` path or added or changed a file to start with `%PDF-`, even one deleted later. A failing git command fails the check |
 
-CI runs every command except `dev`, `preview` and `fixtures` on every pull request, with `check-pdfs` given the pull request's base branch. The Pages deploy calls the same CI workflow on every push to `main` and on manual runs, and deploys only if it passes; there `check-pdfs` scans the tree only, since a PDF already in `main`'s history is public. A new check target runs in CI only after it is added as a step in `.github/workflows/ci.yml`. A new `./run` target is `function name {`, then a `#@ Description` line, then a `#@ Category: X` line, in that order; the help is generated from them.
+CI runs every command except `dev`, `preview`, `fixtures` and `conditions` on every pull request, with `check-pdfs` given the pull request's base branch. The Pages deploy calls the same CI workflow on every push to `main` and on manual runs, and deploys only if it passes; there `check-pdfs` scans the tree only, since a PDF already in `main`'s history is public. A new check target runs in CI only after it is added as a step in `.github/workflows/ci.yml`. A new `./run` target is `function name {`, then a `#@ Description` line, then a `#@ Category: X` line, in that order; the help is generated from them.
 
 ## Conventions
 
@@ -44,6 +45,8 @@ The report reader (`src/report/`) is tested on fixtures: committed line streams 
 ```
 
 Paths are relative to `_local/samples`; each rejection value is a `RejectionKind` from `src/report/types.ts`. When the manifest is present, `./run test` also runs `tests/report/real-pdfs.local.test.ts`, which reads every listed PDF through pdf.js and compares it with its fixture or expected rejection, and the local part of `tests/report/fixtures-privacy.test.ts`, which checks the committed fixtures against the real identifier values. Without it, as in CI, those tests are skipped.
+
+The older format prints no Inheritance column, so the health analysis takes modes from `src/health/conditions.json`: condition name, gene, risk variant and mode for every condition on the current-format panel, and nothing about any dog. `./run conditions` rebuilds it from the current-format samples and, like the fixture script, refuses to write it if it holds any sample's identifying values. The local test fails when the committed catalogue differs from what the samples give.
 
 pdf.js is the legacy build everywhere: Node needs it, and it polyfills built-ins that the modern build assumes but older phone browsers lack. In the browser `src/report/browser.ts` points it at its bundled worker.
 

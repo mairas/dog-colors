@@ -43,6 +43,12 @@ function fixtures {
   node scripts/extract-fixtures.ts "${1:-_local/samples}"
 }
 
+function conditions {
+  #@ [samples-dir]: rewrite src/health/conditions.json from the local current-format sample reports
+  #@ Category: Development
+  node scripts/build-conditions.ts "${1:-_local/samples}"
+}
+
 ################################################################################
 # Quality Commands
 
