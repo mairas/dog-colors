@@ -21,6 +21,8 @@ export interface HeaderFields {
   readonly tattoo: string | null;
   readonly ownerFirstName: string | null;
   readonly ownerLastName: string | null;
+  /** The older format's country of origin; identifying in a small breed. */
+  readonly countryOfOrigin: string | null;
 }
 
 type Field = keyof HeaderFields;
@@ -38,11 +40,8 @@ const BLOCK_LABELS: ReadonlyMap<string, Field> = new Map([
   ['tattoo id', 'tattoo'],
   ['first name', 'ownerFirstName'],
   ['last name', 'ownerLastName'],
+  ['country of origin', 'countryOfOrigin'],
 ]);
-
-// Labels the block holds whose values identify no one; recognising them keeps
-// their values from being read as anything else.
-const IGNORED_BLOCK_LABELS = new Set(['country of origin']);
 
 const INLINE_LABELS: ReadonlyMap<string, Field> = new Map([
   ['breed', 'breed'],
@@ -65,10 +64,7 @@ const ALIGNMENT_TOLERANCE = 2;
 
 const labelKey = (text: string): string => text.trim().toLowerCase();
 
-const isBlockLabel = (cell: Cell): boolean => {
-  const key = labelKey(cell.text);
-  return BLOCK_LABELS.has(key) || IGNORED_BLOCK_LABELS.has(key);
-};
+const isBlockLabel = (cell: Cell): boolean => BLOCK_LABELS.has(labelKey(cell.text));
 
 function labelAbove(labels: readonly Cell[], value: Cell): Cell | undefined {
   return labels.find(
@@ -92,6 +88,7 @@ export function readHeader(lines: readonly Line[]): HeaderFields {
     tattoo: null,
     ownerFirstName: null,
     ownerLastName: null,
+    countryOfOrigin: null,
   };
   const set = (field: Field, value: string): void => {
     const trimmed = value.trim();

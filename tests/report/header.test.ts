@@ -31,6 +31,7 @@ describe('readHeader', () => {
       tattoo: null,
       ownerFirstName: null,
       ownerLastName: null,
+      countryOfOrigin: null,
     });
   });
 
@@ -50,7 +51,7 @@ describe('readHeader', () => {
       line(1, 482, [36, 'Sex'], [306, 'Registration']),
       line(1, 468, [36, 'Female'], [306, 'XX00000/00']),
       line(1, 446, [36, 'Country of Origin'], [306, 'Microchip ID']),
-      line(1, 432, [36, 'FI'], [306, '000000000000000']),
+      line(1, 432, [36, 'XX'], [306, '000000000000000']),
       line(1, 410, [36, 'Owner Reported Breed'], [306, 'Tattoo ID']),
       line(1, 396, [36, 'Spanish Water Dog'], [306, 'T-0000']),
     ]);
@@ -68,6 +69,7 @@ describe('readHeader', () => {
       tattoo: 'T-0000',
       ownerFirstName: 'Owner',
       ownerLastName: 'Surname',
+      countryOfOrigin: 'XX',
     });
   });
 

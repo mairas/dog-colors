@@ -38,6 +38,8 @@ function source(extra: readonly Line[] = []): PdfText {
       line(1, 574, [34, 'Spanish Water Dog'], [209, '2015-06-21']),
       line(1, 550, [34, 'Microchip number']),
       line(1, 538, [34, '123456789012345']),
+      line(1, 526, [34, 'Country of Origin']),
+      line(1, 514, [34, 'ZZ']),
       line(1, 503, [33, 'Genetic Diversity']),
       line(1, 467, [34, 'Rex’s Percentage of Heterozygosity']),
       line(1, 13, [34, 'Wisdom Panel™ Genetics Report'], [519, 'page 1 of 27']),
@@ -56,7 +58,7 @@ describe('extract-fixtures', () => {
     const text = source();
     const fixture = buildFixture(text, 'a');
     const serialised = serialiseFixture(fixture, identifiersOf(text, SOURCE_PATH));
-    expect(serialised).not.toMatch(/Rex|Kennelname|123456789012345|ABCDEFG|FI12345|2015-06-21|2019-03-14/);
+    expect(serialised).not.toMatch(/Rex|Kennelname|123456789012345|ABCDEFG|FI12345|2015-06-21|2019-03-14|ZZ/);
     const header = readHeader(fixture.lines);
     expect(header).toMatchObject({
       profileName: 'Sample A',
@@ -66,6 +68,7 @@ describe('extract-fixtures', () => {
       registration: 'XX00000/00',
       birthDate: '2000-01-01',
       testDate: '2000-01-02',
+      countryOfOrigin: 'XX',
     });
     const texts = fixture.lines.flatMap((kept) => kept.cells.map((cell) => cell.text));
     expect(texts).toContain('ASIP');
@@ -92,6 +95,13 @@ describe('extract-fixtures', () => {
 
   it('refuses to write a fixture that holds one word of the registered name', () => {
     const text = source([traitRowSaying('Kennelname')]);
+    expect(() => serialiseFixture(buildFixture(text, 'a'), identifiersOf(text, SOURCE_PATH))).toThrow(
+      /identifier/,
+    );
+  });
+
+  it('refuses to write a fixture that holds the country of origin in another letter case', () => {
+    const text = source([traitRowSaying('Bred in zz')]);
     expect(() => serialiseFixture(buildFixture(text, 'a'), identifiersOf(text, SOURCE_PATH))).toThrow(
       /identifier/,
     );
@@ -145,6 +155,7 @@ describe('committed fixtures', () => {
     expect(header.kitId).toBe(`KIT000${upper}`);
     expect(header.microchip).toMatch(/^0+$/);
     expect(header.registration ?? 'XX00000/00').toBe('XX00000/00');
+    expect(header.countryOfOrigin ?? 'XX').toBe('XX');
     for (const owner of [header.ownerFirstName, header.ownerLastName]) {
       expect([null, 'Owner', 'Surname']).toContain(owner);
     }

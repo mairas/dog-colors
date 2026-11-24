@@ -153,6 +153,7 @@ function placeholders(header: HeaderFields, name: string | null, letter: string)
   add(header.tattoo, 'T-0000');
   add(header.ownerFirstName, 'Owner');
   add(header.ownerLastName, 'Surname');
+  add(header.countryOfOrigin, 'XX');
   return replacements;
 }
 
