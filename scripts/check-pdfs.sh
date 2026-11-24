@@ -31,20 +31,25 @@ function report {
   fi
 }
 
-report "PDF files must never be committed; these are tracked:" \
-  "$(git ls-files -- "$PDF_PATHS")"
+# Each scan is assigned on its own line so that errexit and pipefail stop the
+# script when git fails, instead of a failed scan reading as a clean one.
+tracked_names=$(git ls-files -- "$PDF_PATHS")
+report "PDF files must never be committed; these are tracked:" "$tracked_names"
 
 # head reads only the signature's length from each file, so a large file costs
 # no more than a small one. Symlinks are skipped: git stores their target path,
 # not the target's content.
-report "These tracked files hold PDF content:" "$(
+tracked_content=$(
   git ls-files -z | while IFS= read -r -d '' path; do
-    if [[ -f $path && ! -L $path &&
-      $(head -c ${#PDF_SIGNATURE} -- "$path") == "$PDF_SIGNATURE" ]]; then
-      printf '%s\n' "$path"
+    if [[ -f $path && ! -L $path ]]; then
+      signature=$(head -c ${#PDF_SIGNATURE} -- "$path") || exit
+      if [[ $signature == "$PDF_SIGNATURE" ]]; then
+        printf '%s\n' "$path"
+      fi
     fi
   done
-)"
+)
+report "These tracked files hold PDF content:" "$tracked_content"
 
 if [[ -n $BASE ]]; then
   if ! git rev-parse --verify --quiet "$BASE^{commit}" >/dev/null; then
@@ -54,13 +59,15 @@ if [[ -n $BASE ]]; then
   # --full-history keeps merged side branches that a path filter would
   # otherwise simplify away; --diff-merges=separate shows files added in a
   # merge itself; --no-renames reports a rename to *.pdf as an addition.
-  report "Commits in $BASE..HEAD added PDF files. Once pushed they are public:
-tell the owner now. Rewriting the branch only keeps them out of main and clears
-this check; GitHub serves the pushed commits until GitHub Support purges them:" "$(
+  added_names=$(
     git log --full-history --diff-merges=separate --no-renames \
       --diff-filter=A --name-only --format= "$BASE..HEAD" -- "$PDF_PATHS" |
       sed '/^$/d' | sort -u
-  )"
+  )
+  report "Commits in $BASE..HEAD added PDF files. Once pushed they are public:
+tell the owner now. Rewriting the branch only keeps them out of main and clears
+this check; GitHub serves the pushed commits until GitHub Support purges them:" \
+    "$added_names"
 fi
 
 if [[ $found -ne 0 ]]; then

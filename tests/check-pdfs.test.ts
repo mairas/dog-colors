@@ -137,4 +137,31 @@ describe('check-pdfs', () => {
     expect(result.status).not.toBe(0);
     expect(result.output).toContain('no-such-ref');
   });
+
+  it('fails rather than passing outside a git repository', () => {
+    rmSync(join(repo, '.git'), { recursive: true, force: true });
+
+    const result = check();
+    expect(result.status).not.toBe(0);
+    expect(result.output).not.toContain('No PDF files');
+  });
+
+  it('fails rather than passing when a history scan cannot run git log', () => {
+    const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
+    const bin = join(repo, '.fake-bin');
+    mkdirSync(bin);
+    writeFileSync(
+      join(bin, 'git'),
+      `#!/bin/sh\n[ "$1" = log ] && { echo 'simulated failure' >&2; exit 128; }\nexec '${realGit}' "$@"\n`,
+      { mode: 0o755 },
+    );
+
+    const result = spawnSync(SCRIPT, ['base'], {
+      cwd: repo,
+      env: { ...GIT_ENV, PATH: `${bin}:${process.env.PATH ?? ''}` },
+      encoding: 'utf8',
+    });
+    expect(result.status).not.toBe(0);
+    expect(result.stdout + result.stderr).not.toContain('No PDF files');
+  });
 });
