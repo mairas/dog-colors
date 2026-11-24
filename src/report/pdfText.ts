@@ -5,7 +5,12 @@
 // Math.sumPrecise) that the modern build expects but older phone browsers
 // lack. The browser entry point sets its bundled worker; Node uses pdf.js's
 // in-process fallback.
-import { getDocument, VerbosityLevel } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import {
+  getDocument,
+  InvalidPDFException,
+  PasswordException,
+  VerbosityLevel,
+} from 'pdfjs-dist/legacy/build/pdf.mjs';
 import type { RejectionKind } from './types.ts';
 
 export interface TextItem {
@@ -197,6 +202,10 @@ function toTextItem(raw: unknown): TextItem | null {
 /**
  * Extracts the text lines and producer metadata of a PDF. Takes ownership of
  * `data`: pdf.js transfers its buffer to the worker.
+ *
+ * Throws when the reader itself fails rather than the file, for example a
+ * pdf.js worker that could not be loaded; pdf.js keeps that failure until the
+ * page is reloaded.
  */
 export async function extractPdfText(data: Uint8Array): Promise<PdfTextResult> {
   if (data.byteLength > MAX_BYTES) {
@@ -215,8 +224,13 @@ export async function extractPdfText(data: Uint8Array): Promise<PdfTextResult> {
     try {
       document = await task.promise;
     } catch (error) {
-      const name = error instanceof Error ? error.name : '';
-      return { ok: false, kind: name === 'PasswordException' ? 'encrypted' : 'not-pdf' };
+      if (error instanceof PasswordException) {
+        return { ok: false, kind: 'encrypted' };
+      }
+      if (error instanceof InvalidPDFException) {
+        return { ok: false, kind: 'not-pdf' };
+      }
+      throw error;
     }
     if (document.numPages > MAX_PAGES) {
       return { ok: false, kind: 'too-large' };
