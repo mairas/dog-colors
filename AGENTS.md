@@ -10,6 +10,7 @@ A static single-page site, served from GitHub Pages, that reads two Wisdom Panel
 |---|---|
 | `./run setup` | Install dependencies from the lockfile (`npm ci`) |
 | `./run dev` | Start the Vite dev server |
+| `./run preview` | Serve the production build from `dist/` (run after `build`) |
 | `./run typecheck` | Type-check every TypeScript file |
 | `./run test` | Run the Vitest suite |
 | `./run build` | Build the production site into `dist/` |
@@ -30,6 +31,6 @@ CI runs all of these on every pull request. A new `./run` target is `function na
 
 ## Rendering the UI
 
-Run `./run setup` once, then `./run dev` and open <http://localhost:5173/dog-colors/>. The dev server serves without the Content-Security-Policy, because Vite injects inline scripts during development. To see the page as deployed, with the policy in force, run `./run build` and then `npx vite preview`, and open <http://localhost:4173/dog-colors/>.
+Run `./run setup` once, then `./run dev` and open <http://localhost:5173/dog-colors/>. The dev server serves without the Content-Security-Policy, because Vite injects inline scripts during development. To see the page as deployed, with the policy in force, run `./run build` and then `./run preview`, and open <http://localhost:4173/dog-colors/>.
 
 Fixture-driven states, selected through a dev-only query parameter so that each screen can be rendered without real reports, arrive with the UI units.

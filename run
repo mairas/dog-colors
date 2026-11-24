@@ -31,6 +31,12 @@ function dev {
   npx --no-install vite "$@"
 }
 
+function preview {
+  #@ Serve the production build from dist/ (extra arguments go to vite)
+  #@ Category: Development
+  npx --no-install vite preview "$@"
+}
+
 ################################################################################
 # Quality Commands
 
