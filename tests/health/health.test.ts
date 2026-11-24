@@ -127,6 +127,14 @@ describe('analyseHealth: samples', () => {
     }
   });
 
+  it('takes the mode from the catalogue for an older-format dam in slot 2 that alone tests the MT condition', async () => {
+    const analysis = analyseHealth(await sample('c'), asOlderFormat(await sample('b')));
+    const mt = analysis.rows.find((row) => row.name === MT_CONDITION);
+    expect(mt).toMatchObject({ inheritance: 'MT', parents: [null, { copies: 0, result: 'Clear' }] });
+    expect(mt?.odds).toEqual({ kind: 'puppies', puppies: { atRisk: ZERO, carrier: null } });
+    expect(analysis.oneParentOnly).toEqual([]);
+  });
+
   it('takes the modes of two older-format reports from the catalogue', async () => {
     const analysis = analyseHealth(asOlderFormat(await sample('a')), asOlderFormat(await sample('b')));
     expect(analysis.rows.map(({ name, inheritance }) => [name, inheritance])).toEqual([
@@ -171,8 +179,9 @@ describe('analyseHealth: autosomal modes', () => {
   });
 
   it('marks the condition known in the breed when either report does', () => {
-    const analysis = analyseHealth(parent('male', [condition('AD', 1, { knownInBreed: true })]), parent('female', [condition('AD', 0)]));
-    expect(onlyRow(analysis).knownInBreed).toBe(true);
+    const known = condition('AD', 1, { knownInBreed: true });
+    expect(onlyRow(analyseHealth(parent('male', [known]), parent('female', [condition('AD', 0)]))).knownInBreed).toBe(true);
+    expect(onlyRow(analyseHealth(parent('male', [condition('AD', 0)]), parent('female', [known]))).knownInBreed).toBe(true);
   });
 });
 
@@ -294,12 +303,13 @@ describe('analyseHealth: parent sex', () => {
     }
   });
 
-  it('a parent of unknown sex: X-linked and MT rows unknown for that reason', () => {
-    const analysis = pair(null, 'female');
-    expect(analysis.rows.slice(0, 2).map(({ odds }) => odds)).toEqual([
-      { kind: 'unknown', reason: 'sex-unknown' },
-      { kind: 'unknown', reason: 'sex-unknown' },
-    ]);
+  it('a parent of unknown sex, in either slot: X-linked and MT rows unknown for that reason', () => {
+    for (const analysis of [pair(null, 'female'), pair('female', null)]) {
+      expect(analysis.rows.slice(0, 2).map(({ odds }) => odds)).toEqual([
+        { kind: 'unknown', reason: 'sex-unknown' },
+        { kind: 'unknown', reason: 'sex-unknown' },
+      ]);
+    }
   });
 
   it('an MT condition tested in one parent of unknown sex is listed under that parent', () => {
