@@ -66,7 +66,7 @@ function merge(left: Phenotype, right: Phenotype): Phenotype {
 export function resolveDog(report: Pick<Report, 'colour' | 'missingLoci'>, answers: Answers = {}): ResolvedDog {
   const reported = resolveReport(report);
   const questions = questionsFor(reported);
-  const loci = applyAnswers(reported, answers);
+  const loci = applyAnswers(reported, questions, answers);
 
   const ambiguousLoci = COLOUR_GENES.filter((gene) => {
     const locus = loci[gene];

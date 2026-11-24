@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { formatPair } from '../../src/genetics/alleles.ts';
 import { resolveReport, type GenotypeResolution } from '../../src/genetics/haplotypes.ts';
-import { applyAnswers, questionsFor } from '../../src/genetics/questions.ts';
+import { applyAnswers, questionsFor, type Answers } from '../../src/genetics/questions.ts';
 import type { ColourGene } from '../../src/report/loci.ts';
 import { sampleReport, syntheticReport } from './reports.ts';
 
@@ -50,18 +50,21 @@ describe('questionsFor', () => {
 });
 
 describe('applyAnswers', () => {
+  const answered = (resolution: GenotypeResolution, answers: Answers) =>
+    applyAnswers(resolution, questionsFor(resolution), answers);
+
   it('keeps b/b for "brown" and B/b for "black"', () => {
     const resolution = resolved(BD_BC);
-    expect(tyrp1(applyAnswers(resolution, { nose: 'brown' }))).toEqual(['b/b']);
-    expect(tyrp1(applyAnswers(resolution, { nose: 'black' }))).toEqual(['B/b']);
+    expect(tyrp1(answered(resolution, { nose: 'brown' }))).toEqual(['b/b']);
+    expect(tyrp1(answered(resolution, { nose: 'black' }))).toEqual(['B/b']);
   });
 
   it('keeps every candidate without an answer', () => {
-    expect(tyrp1(applyAnswers(resolved(BD_BC), {}))).toEqual(['B/b', 'b/b']);
+    expect(tyrp1(answered(resolved(BD_BC), {}))).toEqual(['B/b', 'b/b']);
   });
 
   it('ignores an answer to a question the dog has no reason to be asked', () => {
     const resolution = resolved({ ...BD_BC, 'MLPH d1': 2 });
-    expect(applyAnswers(resolution, { nose: 'brown' })).toEqual(resolution);
+    expect(answered(resolution, { nose: 'brown' })).toEqual(resolution);
   });
 });

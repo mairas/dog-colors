@@ -64,10 +64,17 @@ export function questionsFor(resolution: GenotypeResolution): Question[] {
   return [{ id: 'nose', gene: 'TYRP1', options }];
 }
 
-/** The resolution narrowed by the answers. An answer to a question the dog is not asked is ignored. */
-export function applyAnswers(resolution: GenotypeResolution, answers: Answers): GenotypeResolution {
+/**
+ * The resolution narrowed by the answers to its questions (from questionsFor).
+ * An answer to a question the dog is not asked is ignored.
+ */
+export function applyAnswers(
+  resolution: GenotypeResolution,
+  questions: readonly Question[],
+  answers: Answers,
+): GenotypeResolution {
   let narrowed = resolution;
-  for (const question of questionsFor(resolution)) {
+  for (const question of questions) {
     const option = question.options.find((candidate) => candidate.answer === answers[question.id]);
     if (option !== undefined) {
       narrowed = { ...narrowed, [question.gene]: { status: 'resolved', candidates: option.candidates } };
