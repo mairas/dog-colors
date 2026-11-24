@@ -135,7 +135,7 @@ interface Anchor {
 
 export interface SourcedHealthRow {
   readonly row: HealthRow;
-  /** The lines the row was read from, in document order: section title, table header, values and wrapped fragments. */
+  /** The lines the row was read from: section title, table header, values and wrapped fragments. */
   readonly lines: readonly Line[];
 }
 
@@ -306,12 +306,7 @@ function healthRow(
       inheritance,
       knownInBreed: anchor.knownInBreed,
     },
-    lines: [
-      ...anchor.context,
-      ...fragmentLines.filter((fragment) => fragment.y > line.y),
-      line,
-      ...fragmentLines.filter((fragment) => fragment.y <= line.y),
-    ],
+    lines: [...anchor.context, line, ...fragmentLines],
   };
 }
 
