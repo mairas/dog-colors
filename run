@@ -59,9 +59,9 @@ function check-csp {
 }
 
 function check-pdfs {
-  #@ Fail if any PDF file is tracked by git
+  #@ Fail if a PDF is tracked by name or content; given a base ref, also if base..HEAD added one
   #@ Category: Quality
-  scripts/check-pdfs.sh "$PROJECT_ROOT"
+  scripts/check-pdfs.sh "$PROJECT_ROOT" "$@"
 }
 
 ################################################################################

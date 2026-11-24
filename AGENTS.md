@@ -15,9 +15,9 @@ A static single-page site, served from GitHub Pages, that reads two Wisdom Panel
 | `./run test` | Run the Vitest suite |
 | `./run build` | Build the production site into `dist/` |
 | `./run check-csp` | Check that `dist/index.html` carries the expected Content-Security-Policy meta tag (run after `build`) |
-| `./run check-pdfs` | Fail if any PDF file is tracked by git |
+| `./run check-pdfs [base]` | Fail if a tracked file is named `*.pdf` (any case) or starts with the PDF signature `%PDF-`; given a base ref, also fail if any commit in `base..HEAD` added a `*.pdf` path, even one deleted later |
 
-CI runs every command except `dev` and `preview` on every pull request; a new check target runs in CI only after it is added as a step in `.github/workflows/ci.yml`. A new `./run` target is `function name {`, then a `#@ Description` line, then a `#@ Category: X` line, in that order; the help is generated from them.
+CI runs every command except `dev` and `preview` on every pull request, with `check-pdfs` given the pull request's base branch. The Pages deploy calls the same CI workflow on every push to `main` and on manual runs, and deploys only if it passes; there `check-pdfs` scans the tree only, since a PDF already in `main`'s history is public. A new check target runs in CI only after it is added as a step in `.github/workflows/ci.yml`. A new `./run` target is `function name {`, then a `#@ Description` line, then a `#@ Category: X` line, in that order; the help is generated from them.
 
 ## Conventions
 
@@ -27,7 +27,7 @@ CI runs every command except `dev` and `preview` on every pull request; a new ch
 - Text derived from a PDF is untrusted. Insert it with `textContent` or text nodes only, never `innerHTML`, `insertAdjacentHTML` or HTML template strings.
 - The production build carries a Content-Security-Policy meta tag, added by a build-only plugin in `vite.config.ts`. `scripts/csp-check.ts` states the same policy independently; change both together.
 - The page makes no third-party requests: no CDNs, no hosted fonts, no analytics.
-- Raw reports live only in the git-ignored `_local/` directory and are never committed. `*.pdf` is ignored, and CI fails if a PDF is tracked.
+- Raw reports live only in the git-ignored `_local/` directory and are never committed. `*.pdf` is ignored, and CI fails if a PDF is tracked or a pull request's commits ever added one; deleting it in a later commit does not help, so rewrite the branch instead.
 
 ## Rendering the UI
 

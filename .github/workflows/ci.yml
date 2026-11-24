@@ -23,6 +23,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Full history, with every branch as origin/<name>, so the PDF check
+          # can walk the pull request's commits from its base.
+          fetch-depth: 0
           persist-credentials: false
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -30,8 +33,12 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      - name: No tracked PDFs
-        run: ./run check-pdfs
+      # base_ref is empty outside pull requests, as when pages.yml calls this
+      # workflow on main; the check then scans the tree only.
+      - name: No PDFs in the tree or the pull request's commits
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: ./run check-pdfs ${BASE_REF:+"origin/$BASE_REF"}
 
       - name: Install
         run: ./run setup
