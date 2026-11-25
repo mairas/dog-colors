@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { findCspProblems } from '../scripts/csp-check.ts';
 
 const POLICY =
-  "default-src 'none'; script-src 'self'; worker-src 'self'; connect-src 'self'; " +
+  "default-src 'none'; script-src 'self' https://gc.zgo.at; worker-src 'self'; " +
+  "connect-src 'self' https://mairas.goatcounter.com/count; " +
   "img-src 'self' data:; style-src 'self'; font-src 'self'; " +
   "form-action 'none'; base-uri 'none'; object-src 'none'";
 
@@ -57,7 +58,14 @@ describe('findCspProblems', () => {
   it('rejects a weakened directive', () => {
     const weakened = POLICY.replace("script-src 'self'", "script-src 'self' 'unsafe-inline'");
     expect(findCspProblems(page(meta(weakened) + script))).toEqual([
-      "script-src is \"'self' 'unsafe-inline'\", expected \"'self'\"",
+      "script-src is \"'self' 'unsafe-inline' https://gc.zgo.at\", expected \"'self' https://gc.zgo.at\"",
+    ]);
+  });
+
+  it('rejects connect-src widened from the count endpoint to its whole host', () => {
+    const widened = POLICY.replace('goatcounter.com/count', 'goatcounter.com');
+    expect(findCspProblems(page(meta(widened) + script))).toEqual([
+      "connect-src is \"'self' https://mairas.goatcounter.com\", expected \"'self' https://mairas.goatcounter.com/count\"",
     ]);
   });
 

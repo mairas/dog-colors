@@ -4,11 +4,11 @@
 // vite.config.ts so that the check stays an independent statement of intent.
 import { readFileSync } from 'node:fs';
 
-const EXPECTED_POLICY: ReadonlyMap<string, string> = new Map([
+export const EXPECTED_POLICY: ReadonlyMap<string, string> = new Map([
   ['default-src', "'none'"],
-  ['script-src', "'self'"],
+  ['script-src', "'self' https://gc.zgo.at"],
   ['worker-src', "'self'"],
-  ['connect-src', "'self'"],
+  ['connect-src', "'self' https://mairas.goatcounter.com/count"],
   ['img-src', "'self' data:"],
   ['style-src', "'self'"],
   ['font-src', "'self'"],

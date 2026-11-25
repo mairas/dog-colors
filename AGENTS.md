@@ -30,7 +30,7 @@ CI runs every command except `dev`, `preview`, `preview-fixtures`, `fixtures` an
 - Conventional commits: `<type>(<scope>): <subject>`, at most 50 characters, imperative mood.
 - Text derived from a PDF is untrusted. Insert it with `textContent` or text nodes only, never `innerHTML`, `insertAdjacentHTML` or HTML template strings.
 - The production build carries a Content-Security-Policy meta tag, added by a build-only plugin in `vite.config.ts`. `scripts/csp-check.ts` states the same policy independently; change both together.
-- The page makes no third-party requests: no CDNs, no hosted fonts, no analytics.
+- The only third-party requests are GoatCounter's: `index.html` loads its versioned count.js, pinned by an SRI hash, and count.js sends one page view to `https://mairas.goatcounter.com/count`. No CDNs, no hosted fonts. count.js skips localhost, so local runs count nothing.
 - Raw reports live only in the git-ignored `_local/` directory and are never committed. `*.pdf` is ignored, and CI fails if a PDF is tracked or a pull request's commits ever added one, even if a later commit deleted it. A PDF pushed to any branch or pull request is public: rewriting the branch only keeps it out of `main` and clears CI, and the pushed commit stays reachable on GitHub until GitHub Support purges it, so tell the owner immediately.
 
 ## Sample reports and fixtures
