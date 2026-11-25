@@ -184,8 +184,8 @@ const PIGMENT_FLAGS: Readonly<Record<Exclude<Flag, WhiteFlag | ReportFlag>, Rule
 const spotting = (read: Reader): number => copies(read('MITF'), 'sp');
 
 const WHITE_FLAGS: Readonly<Record<WhiteFlag, Rule<boolean>>> = {
-  // Brancalion 2021 proposes incomplete dominance; the one-copy coat is not
-  // described, and Wisdom's roan test is a linkage test.
+  // Brancalion 2021 proposes incomplete dominance from Australian Cattle Dogs
+  // with one or two copies; Wisdom's roan test is a linkage test.
   'roan-single-copy': (read) => spotting(read) > 0 && copies(read('USH2A'), 'R') === 1,
 };
 
@@ -382,7 +382,7 @@ export const FLAG_INFO: Readonly<Record<Flag, { readonly label: string; readonly
   'roan-single-copy': {
     label: 'roan uncertain',
     caveat:
-      "Roan may be partly dominant (Brancalion 2021 proposes incomplete dominance), but how one copy looks has not been described. Wisdom's roan test is a linkage test.",
+      "Brancalion 2021 proposes incomplete dominance: Australian Cattle Dogs, nearly all roan, carried one or two roan copies, but no spaniel with one roan and one non-roan copy was found. Wisdom's roan test is a linkage test.",
   },
 };
 
@@ -421,7 +421,12 @@ export function ownColourName(value: Phenotype): string {
           ? 'double merle'
           : undefined;
   const unsettled = [
-    merle === 'unknown' && marking === undefined ? 'merle unknown' : undefined,
+    // doubleMerle 'no' with merle unknown means one M is reported but its visibility isn't settled.
+    merle === 'unknown' && marking === undefined
+      ? doubleMerle === 'no'
+        ? 'merle, may not show'
+        : 'merle unknown'
+      : undefined,
     harlequin === 'unknown' ? 'harlequin unknown' : undefined,
   ].filter((part) => part !== undefined);
   const whiteName: Record<WhiteSpotting | Unknown, string> = {
@@ -430,7 +435,7 @@ export function ownColourName(value: Phenotype): string {
     extensive: 'mostly white',
     unknown: 'white spotting unknown',
   };
-  // M/M alone makes a dog mostly white, whatever MITF holds.
+  // M/M usually makes a dog mostly white whatever MITF holds; the mostly-white caveat carries the exceptions.
   const white =
     whiteName[
       doubleMerle === 'yes'

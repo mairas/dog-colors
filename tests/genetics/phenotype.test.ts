@@ -382,6 +382,27 @@ describe('ownColourName', () => {
     expect(ownColourName(of(spec, unknown))).toBe(name),
   );
 
+  it.each<[Spec, readonly ColourGene[]]>([
+    [{ CBD103: 'KB/ky', PMEL: 'M/m' }, ['MC1R']],
+    [{ CBD103: 'KB/ky', PMEL: 'M/m' }, ['SLC45A2']],
+  ])('a reported M/m whose visibility is unknown is merle that may not show: %j with %j unknown', (spec, unknown) => {
+    const name = ownColourName(of(spec, unknown));
+    expect(name).toContain('merle, may not show');
+    expect(name).not.toContain('merle unknown');
+  });
+
+  it('the single-copy roan caveat says what Brancalion 2021 found', () => {
+    const { caveat } = FLAG_INFO['roan-single-copy'];
+    expect(caveat).toMatch(/Australian Cattle Dogs/);
+    expect(caveat).toMatch(/no spaniel with one roan and one non-roan copy/);
+  });
+
+  it.each<[Spec, readonly ColourGene[], string]>([
+    [{ CBD103: 'KB/ky' }, ['PMEL'], 'Black, merle unknown, white spotting unknown'],
+  ])('keeps merle unknown when PMEL itself is unknown: %j with %j unknown → %s', (spec, unknown, name) =>
+    expect(ownColourName(of(spec, unknown))).toBe(name),
+  );
+
   it.each<[Spec, readonly ColourGene[], string]>([
     [{ CBD103: 'KB/ky', PMEL: 'M/m' }, ['PSMB7'], 'Black merle, harlequin unknown, solid'],
     [{ CBD103: 'KB/ky', PMEL: 'M/m', MITF: 'sp/+' }, ['PSMB7'], 'Black merle, harlequin unknown, with limited white'],
