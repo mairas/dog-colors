@@ -8,7 +8,7 @@ The site is under construction.
 
 ## Privacy
 
-Your reports never leave your computer. The PDFs are read by your browser, on the page itself. Nothing is uploaded and nothing is saved: close the page and the reports are gone from it. The site loads no third-party scripts, fonts or trackers.
+Your reports never leave your computer. The PDFs are read by your browser, on the page itself. Nothing is uploaded and nothing is saved: close the page and the reports are gone from it. The only script the site loads from elsewhere is [GoatCounter](https://www.goatcounter.com/)'s counter, which counts page views. For each view it sends the page address, the referring page, the page title and the screen size, and nothing from the reports. As with any request, GoatCounter also receives your IP address and browser identification, which it uses for country and browser statistics. It sets no cookies.
 
 ## Development
 
