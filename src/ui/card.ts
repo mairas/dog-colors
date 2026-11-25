@@ -71,10 +71,6 @@ function ownColourText(dog: ResolvedDog): string {
     .join(' or ');
 }
 
-function patternHidden(dog: ResolvedDog): boolean {
-  return dog.ownColours.length > 0 && dog.ownColours.every((colour) => ['one-colour', 'not-visible'].includes(colour.phenotype.pattern));
-}
-
 function copiesCell(report: Report, gene: ColourGene, missing: boolean): HTMLElement {
   const codes = report.colour[gene] ?? {};
   const pills = COLOUR_VARIANTS.filter((variant) => variant.gene === gene && (codes[variant.code] ?? 0) > 0).map((variant) =>
@@ -97,7 +93,7 @@ function readsAs(dog: ResolvedDog, gene: ColourGene, answered: boolean): string 
     return `${pairs}: ${asked ? 'see the question below' : "the report can't tell which"}`;
   }
   const [pair] = locus.candidates;
-  const effect = pair === undefined ? '' : pairEffect(gene, pair, patternHidden(dog));
+  const effect = pair === undefined ? '' : pairEffect(gene, pair, dog.ownColours.flatMap((colour) => colour.genotypes));
   const asked = answered && dog.questions.some((question) => question.gene === gene);
   return `${pairs}: ${effect}${asked ? ' (your answer)' : ''}${locus.undocumented ? ' (undocumented combination)' : ''}`;
 }
