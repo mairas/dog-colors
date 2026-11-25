@@ -48,15 +48,17 @@ describe('the health section', () => {
     expect(root.querySelector('.warnings')).toBeNull();
   });
 
-  it('gives an X-linked condition Sons and Daughters sub-rows', async () => {
+  it('gives an X-linked condition Sons and Daughters sub-rows, named for screen readers', async () => {
     const dam = withHealth(b, 'Sample F', [XR(1)], { sex: 'female' });
     const sire = withHealth(a, 'Sample M', [XR(0)], { sex: 'male' });
     const { root } = await pairOf(sire, dam);
     expect(healthRows(root)).toEqual([
       ['Hemophilia AX-linked recessive: sons need one copy, daughters two', '', ''],
-      ['Sons', '50% (1 in 2)', '–'],
-      ['Daughters', '0%', '50% (1 in 2)'],
+      ['Hemophilia A: Sons', '50% (1 in 2)', '–'],
+      ['Hemophilia A: Daughters', '0%', '50% (1 in 2)'],
     ]);
+    const hidden = [...root.querySelectorAll('.health tr.sub th .vh')].map((span) => span.textContent);
+    expect(hidden).toEqual(['Hemophilia A: ', 'Hemophilia A: ']);
   });
 
   const condition = (inheritance: Inheritance | null) => (copies: number) => healthRow('Some Condition', copies, inheritance);
@@ -127,7 +129,7 @@ describe('the health section', () => {
     const second = withHealth(a, 'Sample N', [XR(0)], { sex: null });
     const { root } = await pairOf(first, second);
     expect(healthRows(root)[0]?.[0]).toContain('Assuming a female × male pairing.');
-    expect(healthRows(root)[1]).toEqual(['Sons', '50% (1 in 2)', '–']);
+    expect(healthRows(root)[1]).toEqual(['Hemophilia A: Sons', '50% (1 in 2)', '–']);
   });
 
   it('lists a condition tested in one parent only, with that parent’s result', async () => {

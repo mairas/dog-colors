@@ -62,12 +62,15 @@ function conditionRows(row: ConditionRow): HTMLElement[] {
       return [h('tr', {}, label, ...figures(row.odds.puppies))];
     case 'unknown':
       return [h('tr', {}, label, h('td', { class: 'v' }, 'unknown'), h('td', { class: 'v' }))];
-    case 'by-sex':
+    case 'by-sex': {
+      // Each sub-row header names its condition, so a screen reader moving by cell hears more than "Sons".
+      const sub = (text: string): HTMLElement => h('th', { scope: 'row' }, h('span', { class: 'vh' }, `${row.name}: `), text);
       return [
         h('tr', { class: 'parent-row' }, label, h('td', { class: 'v' }), h('td', { class: 'v' })),
-        h('tr', { class: 'sub' }, h('th', { scope: 'row' }, 'Sons'), ...figures(row.odds.sons)),
-        h('tr', { class: 'sub' }, h('th', { scope: 'row' }, 'Daughters'), ...figures(row.odds.daughters)),
+        h('tr', { class: 'sub' }, sub('Sons'), ...figures(row.odds.sons)),
+        h('tr', { class: 'sub' }, sub('Daughters'), ...figures(row.odds.daughters)),
       ];
+    }
   }
 }
 
