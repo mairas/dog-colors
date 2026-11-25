@@ -3,7 +3,7 @@
 // reports and go in as text.
 
 import type { Fraction, Range } from '../health/fraction.ts';
-import type { ConditionRow, HealthAnalysis, HealthWarning, PuppyOdds, UnknownReason } from '../health/health.ts';
+import type { Condition, ConditionRow, HealthAnalysis, HealthWarning, PuppyOdds, UnknownReason } from '../health/health.ts';
 import type { Inheritance } from '../report/types.ts';
 import { h, type Child } from './dom.ts';
 import { chance, exactChance, odds } from './format.ts';
@@ -117,18 +117,33 @@ export function renderHealth(analysis: HealthAnalysis): HTMLElement {
   );
 }
 
-function healthWarning(warning: HealthWarning): PanelItem {
+/** Why the condition's row gives no odds, or null when it gives them. */
+function unknownReason(analysis: HealthAnalysis, condition: Condition): UnknownReason | null {
+  const row = analysis.rows.find(
+    (candidate) => candidate.name === condition.name && candidate.gene === condition.gene && candidate.variant === condition.variant,
+  );
+  return row?.odds.kind === 'unknown' ? row.odds.reason : null;
+}
+
+function daughtersText(chanceIsRange: boolean, reason: UnknownReason | null): string {
+  if (reason !== 'sex-unknown') {
+    return 'The dam carries this X-linked recessive variant and the sire has it, so daughters can be affected.';
+  }
+  const either = chanceIsRange ? 'the range covers both.' : 'the figure is the same either way.';
+  return `Both parents carry this X-linked recessive variant, so daughters can be affected. Neither report's sex could be read, so either parent may be the dam; ${either}`;
+}
+
+function healthWarning(warning: HealthWarning, analysis: HealthAnalysis): PanelItem {
   switch (warning.kind) {
     case 'affected-puppies': {
       const figure = isRange(warning.chance) ? chance(warning.chance) : exactChance(warning.chance);
       const daughters = warning.among === 'daughters';
       const text = daughters
-        ? 'The dam carries this X-linked recessive variant and the sire has it, so daughters can be affected.'
+        ? daughtersText(isRange(warning.chance), unknownReason(analysis, warning.condition))
         : 'Both parents carry this recessive variant, so puppies that inherit a copy from each are affected.';
-      const range = isRange(warning.chance) ? " Neither report's sex could be read, so the figure covers either parent as the dam." : '';
       return {
         title: `${warning.condition.name}: ${figure}${daughters ? ' of daughters' : ''}`,
-        text: `${text}${range}${warning.sexInferred ? ` ${ASSUMED_PAIRING}` : ''}`,
+        text: `${text}${warning.sexInferred ? ` ${ASSUMED_PAIRING}` : ''}`,
       };
     }
     case 'inheritance-unknown':
@@ -151,5 +166,5 @@ function healthWarning(warning: HealthWarning): PanelItem {
 }
 
 export function healthWarnings(analysis: HealthAnalysis): PanelItem[] {
-  return analysis.warnings.map(healthWarning);
+  return analysis.warnings.map((warning) => healthWarning(warning, analysis));
 }

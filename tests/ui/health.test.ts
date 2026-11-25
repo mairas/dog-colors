@@ -168,6 +168,23 @@ describe('the health section', () => {
     expect(root.querySelector('.warnings')?.textContent).toContain('Hemophilia A: 50% (1 in 2) of daughters');
   });
 
+  it.each([
+    {
+      case: 'the same either way',
+      copies: [1, 1],
+      title: 'Hemophilia A: 50% (1 in 2) of daughters',
+      either: 'the figure is the same either way.',
+    },
+    { case: 'a range', copies: [1, 2], title: 'Hemophilia A: 50–100% of daughters', either: 'the range covers both.' },
+  ])('names no dam in the X-linked warning when neither sex is read and the chance is $case', async ({ copies, title, either }) => {
+    const first = withHealth(b, 'Sample F', [XR(copies[0] ?? 0)], { sex: null });
+    const second = withHealth(a, 'Sample G', [XR(copies[1] ?? 0)], { sex: null });
+    const { root } = await pairOf(first, second);
+    expect(root.querySelector('.warnings .err')?.textContent).toBe(
+      `⚠${title}. Both parents carry this X-linked recessive variant, so daughters can be affected. Neither report's sex could be read, so either parent may be the dam; ${either}`,
+    );
+  });
+
   it('warns when both parents carry a variant of unknown inheritance', async () => {
     const odd = (copies: number) => healthRow('Unlisted Condition', copies, null, { gene: 'XYZ1' });
     const { root } = await pairOf(withHealth(a, 'Sample A', [odd(1)]), withHealth(b, 'Sample B', [odd(1)]));
