@@ -384,7 +384,7 @@ describe('analyseHealth: parent sex', () => {
             kind: 'affected-puppies',
             condition: xr,
             among: 'daughters',
-            chance: { low: fraction(1, 2), high: ONE },
+            chance: { min: fraction(1, 2), max: ONE },
             sexInferred: false,
           },
         ]);

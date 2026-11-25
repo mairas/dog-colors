@@ -13,6 +13,12 @@ function gcd(a: number, b: number): number {
   return x;
 }
 
+/** A chance that differs between cases, as its lowest and highest value; equal ends show as one value. */
+export interface Range {
+  readonly min: Fraction;
+  readonly max: Fraction;
+}
+
 export function fraction(numerator: number, denominator = 1): Fraction {
   if (!Number.isSafeInteger(numerator) || !Number.isSafeInteger(denominator) || denominator === 0) {
     throw new RangeError(`not a fraction: ${numerator}/${denominator}`);
@@ -39,4 +45,13 @@ export function multiply(a: Fraction, b: Fraction): Fraction {
 
 export function toNumber(value: Fraction): number {
   return value.numerator / value.denominator;
+}
+
+export function equals(a: Fraction, b: Fraction): boolean {
+  return a.numerator === b.numerator && a.denominator === b.denominator;
+}
+
+/** Negative when a < b, zero when equal, positive when a > b. */
+export function compare(a: Fraction, b: Fraction): number {
+  return a.numerator * b.denominator - b.numerator * a.denominator;
 }

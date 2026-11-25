@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { add, fraction, multiply, ONE, subtract, toNumber, ZERO } from '../../src/health/fraction.ts';
+import { add, compare, equals, fraction, multiply, ONE, subtract, toNumber, ZERO } from '../../src/health/fraction.ts';
 
 describe('fraction', () => {
   it('reduces to lowest terms with a positive denominator', () => {
@@ -23,5 +23,13 @@ describe('fraction', () => {
   it('rejects a zero denominator and non-integer terms', () => {
     expect(() => fraction(1, 0)).toThrow();
     expect(() => fraction(0.5, 1)).toThrow();
+  });
+
+  it('compares exactly', () => {
+    expect(equals(fraction(2, 4), fraction(1, 2))).toBe(true);
+    expect(equals(fraction(1, 3), fraction(1, 2))).toBe(false);
+    expect(compare(fraction(1, 3), fraction(1, 2))).toBeLessThan(0);
+    expect(compare(fraction(3, 4), fraction(1, 2))).toBeGreaterThan(0);
+    expect(compare(fraction(2, 6), fraction(1, 3))).toBe(0);
   });
 });

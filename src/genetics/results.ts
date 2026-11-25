@@ -3,7 +3,7 @@
 // inconsistent in either parent leaves the figures that depend on it
 // "unknown"; everything else is still computed.
 
-import { fraction, type Fraction } from '../health/fraction.ts';
+import { compare, fraction, type Fraction } from '../health/fraction.ts';
 import type { ParentIndex } from '../health/health.ts';
 import { COLOUR_GENES, type ColourGene } from '../report/loci.ts';
 import { ALLELES } from './alleles.ts';
@@ -296,10 +296,8 @@ function unknownLociOf(first: CrossParent, second: CrossParent): UnknownLocus[] 
   );
 }
 
-const upperThenLower = (left: Range, right: Range): number => {
-  const compare = (a: Fraction, b: Fraction): number => b.numerator * a.denominator - a.numerator * b.denominator;
-  return compare(left.max, right.max) || compare(left.min, right.min);
-};
+/** Descending by upper bound, then by lower bound. */
+const upperThenLower = (left: Range, right: Range): number => compare(right.max, left.max) || compare(right.min, left.min);
 
 const positive = (range: Range): boolean => range.max.numerator > 0;
 

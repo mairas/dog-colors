@@ -1,15 +1,12 @@
 // A displayed figure across scenarios: its lowest and highest value. A figure
 // equal in every scenario has min equal to max and shows as one value.
 
-import { fraction, type Fraction } from '../health/fraction.ts';
+import { equals, fraction, type Range } from '../health/fraction.ts';
 
-export interface Range {
-  readonly min: Fraction;
-  readonly max: Fraction;
-}
+export type { Range };
 
 export function isSingle(range: Range): boolean {
-  return range.min.numerator === range.max.numerator && range.min.denominator === range.max.denominator;
+  return equals(range.min, range.max);
 }
 
 interface Entry {

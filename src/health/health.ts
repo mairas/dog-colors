@@ -7,7 +7,7 @@
 // settles it.
 import type { HealthRow, Inheritance, Report } from '../report/types.ts';
 import { catalogueInheritance, findCondition, isWithheld, type ConditionKey } from './conditions.ts';
-import { add, fraction, multiply, ONE, subtract, toNumber, ZERO, type Fraction } from './fraction.ts';
+import { add, compare, equals, fraction, multiply, ONE, subtract, ZERO, type Fraction, type Range } from './fraction.ts';
 
 export type HealthParent = Pick<Report, 'sex' | 'shortTail' | 'health'>;
 
@@ -61,20 +61,14 @@ export interface OneParentCondition extends Condition {
   readonly tested: ParentResult;
 }
 
-/** A chance that depends on which parent is the dam, when neither report's sex could be read; `low` < `high`. */
-export interface ChanceRange {
-  readonly low: Fraction;
-  readonly high: Fraction;
-}
-
 export type HealthWarning =
   /** Affected puppies that need the variant from both parents (AR; XR daughters). */
   | {
       readonly kind: 'affected-puppies';
       readonly condition: Condition;
       readonly among: 'puppies' | 'daughters';
-      /** A range only for XR with neither sex read, and only when the two possible dams give different chances. */
-      readonly chance: Fraction | ChanceRange;
+      /** A range only for XR with neither sex read, and only when the two possible dams give different chances; `min` < `max`. */
+      readonly chance: Fraction | Range;
       /** The chance rests on an unread parent's sex taken as the opposite of the other parent's. */
       readonly sexInferred: boolean;
     }
@@ -195,13 +189,13 @@ function oddsOf(mode: Inheritance | 'conflict' | null, copies: readonly [number,
 }
 
 /** XR daughters affected with either parent as the dam: one chance when both give the same. */
-function xrDaughtersOverBothDams(copies: readonly [number, number]): Fraction | ChanceRange {
+function xrDaughtersOverBothDams(copies: readonly [number, number]): Fraction | Range {
   const daughters = (dam: ParentIndex, sire: ParentIndex) => multiply(transmits(copies[dam]), sireTransmits(copies[sire]));
   const [first, second] = [daughters(0, 1), daughters(1, 0)];
-  if (first.numerator === second.numerator && first.denominator === second.denominator) {
+  if (equals(first, second)) {
     return first;
   }
-  return toNumber(first) < toNumber(second) ? { low: first, high: second } : { low: second, high: first };
+  return compare(first, second) < 0 ? { min: first, max: second } : { min: second, max: first };
 }
 
 /** The panel warning for harm that needs the variant from both parents; none for what a puppy inherits from one. */
