@@ -140,12 +140,8 @@ describe('crossScenarios', () => {
       const scenarios = crossScenarios({ loci: parentLoci(spec(), missing) }, { loci: parentLoci(spec()) });
       for (const scenario of scenarios) {
         const pigment = bruteForce(PIGMENT_GENES, scenario.parents, pigmentPhenotype, PIGMENT_HIDDEN, (value) => value.lethal === 'yes');
-        const survivors = pigment.total - pigment.lethal;
-        const expectedTotal = survivors === 0 ? pigment.total : survivors;
-        expect(scenario.pigment.total).toBe(expectedTotal);
-        if (survivors > 0) {
-          expect(asMaps(scenario.pigment, PIGMENT_HIDDEN)).toEqual({ outcomes: pigment.outcomes, hidden: pigment.hidden });
-        }
+        expect(scenario.pigment.total).toBe(pigment.total - pigment.lethal);
+        expect(asMaps(scenario.pigment, PIGMENT_HIDDEN)).toEqual({ outcomes: pigment.outcomes, hidden: pigment.hidden });
         const white = bruteForce(WHITE_GENES, scenario.parents, whitePhenotype, WHITE_HIDDEN, () => false);
         expect(scenario.white.total).toBe(white.total);
         expect(asMaps(scenario.white, WHITE_HIDDEN)).toEqual({ outcomes: white.outcomes, hidden: white.hidden });
@@ -170,6 +166,11 @@ describe('crossScenarios', () => {
       expect(pigment.outcomes.reduce((sum, { count }) => sum + count, 0)).toBe(pigment.total);
       expect(white.outcomes.reduce((sum, { count }) => sum + count, 0)).toBe(white.total);
     }
+  });
+
+  it('leaves no live puppies when every conception is H/H', () => {
+    const [scenario] = crossScenarios({ loci: parentLoci({ PSMB7: 'H/H', PMEL: 'M/m' }) }, { loci: parentLoci({ PSMB7: 'H/H' }) });
+    expect(scenario?.pigment).toMatchObject({ total: 0, outcomes: [], hidden: [], lethal: { numerator: 1, denominator: 1 } });
   });
 
   it('removes H/H puppies and renormalises the rest', () => {

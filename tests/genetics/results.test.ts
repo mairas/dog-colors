@@ -223,6 +223,27 @@ describe('predictPuppies: warnings and caveats', () => {
     expect(prediction.combined.outcomes.every((outcome) => outcome.phenotype.lethal === 'no')).toBe(true);
   });
 
+  it('counts no live puppies when every conception is H/H, only the warning', () => {
+    const harlequin = { loci: parentLoci({ PSMB7: 'H/H', PMEL: 'M/m', MITF: 'sp/+' }) };
+    const prediction = predictPuppies(harlequin, harlequin);
+    expect(prediction.warnings).toEqual([{ kind: 'harlequin-lethal', chance: range('1') }]);
+    expect([prediction.base, prediction.pattern, prediction.white].map((table) => table.rows)).toEqual([[], [], []]);
+    expect(prediction.combined).toEqual({ outcomes: [], other: null });
+    expect(prediction.traits.possible).toEqual([]);
+    expect(prediction.hidden).toEqual([]);
+  });
+
+  it('leaves a scenario in which every conception dies out of the live-puppy figures', () => {
+    const prediction = predictPuppies(
+      { loci: parentLoci({ PSMB7: ['H/H', 'H/h'], PMEL: 'M/m', MC1R: 'e/e' }) },
+      { loci: parentLoci({ PSMB7: 'H/H', MC1R: 'e/e' }) },
+    );
+    expect(prediction.warnings).toEqual([{ kind: 'harlequin-lethal', chance: range('1/2', '1') }]);
+    // Only H/h × H/H has live puppies: all H/h, half of them M/m, all beige.
+    expect(prediction.hidden.find((row) => row.id === 'harlequin-hidden')).toMatchObject({ hider: 'beige', chance: range('1/2') });
+    expect(rows(prediction.base)).toEqual([['beige', range('1')]]);
+  });
+
   it('puts the deafness caveat on the white table for sp/sp puppies, with no panel warning', () => {
     const piebald = resolveDog(syntheticReport({ 'MITF sp': 2 }));
     const prediction = predictPuppies(piebald, piebald);

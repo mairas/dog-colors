@@ -373,7 +373,15 @@ export function predictPuppies(first: CrossParent, second: CrossParent): PuppyPr
 
   for (const scenario of counted) {
     const { pigment, white } = scenario;
-    for (const ranges of [base, pattern, whiteRows, traits, combinedRanges, hiddenRanges, lethal]) {
+    lethal.nextScenario();
+    if (pigment.lethal.numerator > 0) {
+      lethal.add('lethal', pigment.lethal.numerator, pigment.lethal.denominator);
+    }
+    // A scenario in which every conception dies has no live puppies to share out.
+    if (pigment.total === 0) {
+      continue;
+    }
+    for (const ranges of [base, pattern, whiteRows, traits, combinedRanges, hiddenRanges]) {
       ranges.nextScenario();
     }
     scenario.base.forEach((count, key) => base.add(key, count, pigment.total));
@@ -382,9 +390,6 @@ export function predictPuppies(first: CrossParent, second: CrossParent): PuppyPr
     scenario.traits.forEach((count, trait) => traits.add(trait, count, trait === 'roan' ? white.total : pigment.total));
     scenario.combined.ids.forEach((id, index) => combinedRanges.add(id, scenario.combined.counts[index] ?? 0, pigment.total * white.total));
     scenario.unknownTraits.forEach((trait) => unknownTraits.add(trait));
-    if (pigment.lethal.numerator > 0) {
-      lethal.add('lethal', pigment.lethal.numerator, pigment.lethal.denominator);
-    }
 
     for (const { phenotype: coat } of pigment.outcomes) {
       pigmentCoats.add(coat);
@@ -483,7 +488,7 @@ export function predictPuppies(first: CrossParent, second: CrossParent): PuppyPr
   if (ranked.length > COMBINED_SHOWN) {
     const shownIds = new Set(shown.map(({ key }) => key));
     const rest = new Ranges<'other'>();
-    for (const scenario of counted) {
+    for (const scenario of counted.filter(({ pigment }) => pigment.total > 0)) {
       rest.nextScenario();
       const total = scenario.pigment.total * scenario.white.total;
       const listed = sum(scenario.combined.ids.map((id, index) => (shownIds.has(id) ? (scenario.combined.counts[index] ?? 0) : 0)));

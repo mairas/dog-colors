@@ -115,7 +115,7 @@ export interface HiddenCount<P> {
 }
 
 export interface GroupResult<P> {
-  /** Live puppies: 4 per known locus of the group, multiplied, less the H/H conceptions. */
+  /** Live puppies: 4 per known locus of the group, multiplied, less the H/H conceptions; zero when every conception is H/H. */
   readonly total: number;
   /** Outcomes with a positive count; they sum to the total. */
   readonly outcomes: readonly Outcome<P>[];
@@ -348,9 +348,8 @@ class GroupCross<P> {
 
     const present = [...counts.keys()].filter((outcome) => (counts[outcome] ?? 0) > 0);
     const lethal = sum(present.map((outcome) => (group.lethal(this.coat(outcome)) ? (counts[outcome] ?? 0) : 0)));
-    const removeLethal = lethal < conceptions;
     const outcomes = present
-      .filter((outcome) => !removeLethal || !group.lethal(this.coat(outcome)))
+      .filter((outcome) => !group.lethal(this.coat(outcome)))
       .map((outcome) => ({ phenotype: this.coat(outcome), count: counts[outcome] ?? 0 }));
     const hidden = group.items.flatMap((item, index): HiddenCount<P>[] => {
       const count = hiddenCounts[index] ?? 0;
@@ -367,7 +366,7 @@ class GroupCross<P> {
       return [{ item, count, pairs, coats }];
     });
     return {
-      total: removeLethal ? conceptions - lethal : conceptions,
+      total: conceptions - lethal,
       outcomes,
       hidden,
       lethal: fraction(lethal, conceptions),
