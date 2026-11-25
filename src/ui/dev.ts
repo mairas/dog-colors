@@ -14,7 +14,7 @@ import { healthRow } from '../../tests/health/rows.ts';
 import type { NoseAnswer } from '../genetics/questions.ts';
 import { parseReport } from '../report/parse.ts';
 import type { Line } from '../report/pdfText.ts';
-import type { Report } from '../report/types.ts';
+import type { Report, Sex } from '../report/types.ts';
 import type { AppState, SlotState } from './app.ts';
 import { DROP_FULL, REJECTIONS, replacementRejected, type Message } from './messages.ts';
 
@@ -49,6 +49,27 @@ const NO_TYRP1 = { basd: 0, bc: 0, bd: 0, be: 0, bh: 0, bs: 0 };
 
 const PRCD = 'Progressive Rod-Cone Degeneration (prcd-PRA)';
 const HEMOPHILIA = 'Hemophilia A';
+const MITO = 'Sensory Ataxic Neuropathy';
+
+/**
+ * A sample with its sex set, carrying an X-linked, a mitochondrial and an
+ * unknown-inheritance condition at the given copies: odds that the parents'
+ * sexes decide, and odds nothing decides. Its own mitochondrial row is dropped
+ * so that the condition appears once.
+ */
+async function healthCase(letter: string, name: string, sex: Sex | null, [xr, mt, unlisted]: readonly [number, number, number]): Promise<Report> {
+  const base = await sample(letter);
+  return synthetic(letter, {
+    name,
+    sex,
+    health: [
+      ...base.health.filter((row) => row.name !== MITO),
+      healthRow(HEMOPHILIA, xr, 'XR'),
+      healthRow(MITO, mt, 'MT'),
+      healthRow('Unlisted Condition', unlisted, null),
+    ],
+  });
+}
 
 /** Reports by short name: the five samples and the synthetic cases the samples lack. */
 const REPORTS: Readonly<Record<string, () => Promise<Report>>> = {
@@ -88,6 +109,13 @@ const REPORTS: Readonly<Record<string, () => Promise<Report>>> = {
       health: [...(await sample('a')).health, healthRow(PRCD, 1, 'AR', { knownInBreed: true }), healthRow(HEMOPHILIA, 0, 'XR')],
       copies: { TYRP1: NO_TYRP1, PMEL: { M: 1 }, MLPH: { d1: 1, d2: 0, d3: 0 }, MITF: { sp: 0 }, MC1R: { Em: 0, e1: 0, e2: 0, e3: 0, eH: 0, eA: 0, eG: 0 } },
     }),
+  // Two females: the X-linked and mitochondrial odds are unknown.
+  h: () => healthCase('a', 'Sample H', 'female', [1, 1, 1]),
+  k: () => healthCase('b', 'Sample K', 'female', [2, 0, 1]),
+  // Sample H's and Sample K's health with the sex unread: n with h infers one
+  // sex, u with n has neither, and its X-linked chance is a range.
+  u: () => healthCase('a', 'Sample U', null, [1, 1, 1]),
+  n: () => healthCase('b', 'Sample N', null, [2, 0, 1]),
 };
 
 export const REPORT_NAMES = Object.keys(REPORTS);
@@ -123,6 +151,7 @@ const STATES: Readonly<Record<string, () => Promise<AppState>>> = {
   'results-ranges': () => slots(card('q'), card('b')),
   'results-warnings': () => slots(card('w'), card('v')),
   'results-partial': () => slots(card('q', 'brown'), card('m')),
+  'results-health-unknown': () => slots(card('h'), card('k')),
 };
 
 export const STATE_NAMES = Object.keys(STATES);

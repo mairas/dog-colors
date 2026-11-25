@@ -24,6 +24,7 @@ const STATE_NAMES = [
   'results-ranges',
   'results-warnings',
   'results-partial',
+  'results-health-unknown',
 ];
 
 const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

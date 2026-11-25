@@ -78,5 +78,11 @@ Every state of the page can be rendered without real reports through a dev-only 
 | Results with warnings | `?state=results-warnings` |
 | Results with an unknown locus | `?state=results-partial` |
 | Same-sex pair (two males) | `?fixtures=a,c` |
+| Health odds unknown: same-sex parents, unknown inheritance | `?state=results-health-unknown` |
 
-`?fixtures=<first>,<second>` loads any two reports, unanswered: the samples `a` to `e`, or the synthetic `q` (nose question), `x` (ASIP ambiguity), `m` (TYRP1 missing), `w` and `v` (merle and dilute carriers with a bobtail, both carrying a recessive condition, with an X-linked condition and one tested in Parent 1 only). Their names are placeholders such as "Sample Q".
+`?fixtures=<first>,<second>` loads any two reports, unanswered: the samples `a` to `e`, or the synthetic `q` (nose question), `x` (ASIP ambiguity), `m` (TYRP1 missing), `w` and `v` (merle and dilute carriers with a bobtail, both carrying a recessive condition, with an X-linked condition and one tested in Parent 1 only), `h` and `k` (two females carrying X-linked, mitochondrial and unknown-inheritance conditions), and `u` and `n` (the same health as `h` and `k`, with the sex unread). Their names are placeholders such as "Sample Q". Two health pairings have no state of their own:
+
+| Health state | URL |
+|---|---|
+| One sex unread: the pairing assumed female × male | `?fixtures=h,n` |
+| Neither sex read: unknown X-linked odds, the daughters warning as a range | `?fixtures=u,n` |
