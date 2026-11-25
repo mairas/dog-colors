@@ -7,7 +7,7 @@ import { FLAG_INFO, FLAGS, type BaseColour, type Flag, type Phenotype, type Unkn
 import type { PuppyPrediction, Row, Table, TraitRow, UndocumentedLocus } from '../genetics/results.ts';
 import { caveatText, COLOUR_WARNING_TEXT, type CaveatId, type ColourWarning } from '../genetics/warnings.ts';
 import { h, present, svg, type Child } from './dom.ts';
-import { chance, chanceParts } from './format.ts';
+import { chance, chanceParts, showsRange } from './format.ts';
 import { alertBox } from './slots.ts';
 import {
   BASE_NAMES,
@@ -244,13 +244,14 @@ function caveatList(prediction: PuppyPrediction): HTMLElement {
 function notes(input: ResultsInput): Child[] {
   const { prediction } = input;
   const result: Child[] = [];
-  if (prediction.hasRanges && input.openQuestion) {
+  const hasRanges = prediction.ranges.some(showsRange);
+  if (hasRanges && input.openQuestion) {
     // Print hides the questions, so the printed note doesn't ask for answers.
     result.push(
       h('p', { class: 'note screen-only' }, "Some figures are ranges because a parent's genotype is uncertain. Answer the questions on the cards to narrow them."),
       h('p', { class: 'note print-only' }, "Some figures are ranges because a parent's genotype is uncertain and a question on the cards is unanswered."),
     );
-  } else if (prediction.hasRanges) {
+  } else if (hasRanges) {
     result.push(h('p', { class: 'note' }, "Some figures are ranges because the report can't settle a parent's genotype."));
   }
   if (prediction.unknownLoci.length > 0) {

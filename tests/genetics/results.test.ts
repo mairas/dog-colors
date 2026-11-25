@@ -68,7 +68,7 @@ describe('predictPuppies: Sample A × Sample B', () => {
     expect(rows(prediction.pattern)).toEqual([['one-colour', range('1')]]);
     expect(prediction.pattern.caveats).toContain('brindle-possible');
     expect(prediction.pattern.rows[0]?.flags).not.toContain('brindle-possible');
-    expect(prediction.hasRanges).toBe(false);
+    expect(prediction.ranges).toEqual([]);
     expect(prediction.scenarios).toBe(1);
   });
 
@@ -240,7 +240,7 @@ describe('predictPuppies: ranges', () => {
       ['extensive', range('1/2')],
       ['limited', range('1/2')],
     ]);
-    expect(prediction.hasRanges).toBe(true);
+    expect(prediction.ranges).not.toEqual([]);
     expect(prediction.hidden.find((row) => row.id === 'carries-brown')).toEqual({
       id: 'carries-brown',
       hider: null,
@@ -253,7 +253,7 @@ describe('predictPuppies: ranges', () => {
   it('narrows to single values once the nose question is answered', async () => {
     const prediction = predictPuppies(resolveDog(bdBc, { nose: 'brown' }), resolveDog(await sampleReport('b')));
     expect(rows(prediction.base)).toEqual([['brown', range('1')]]);
-    expect(prediction.hasRanges).toBe(false);
+    expect(prediction.ranges).toEqual([]);
   });
 
   it('collapses 16 scenarios into one range per figure, each lower bound at most its upper bound', () => {
@@ -261,7 +261,7 @@ describe('predictPuppies: ranges', () => {
     expect(ambiguous.ambiguousLoci).toEqual(['ASIP', 'TYRP1']);
     const prediction = predictPuppies(ambiguous, ambiguous);
     expect(prediction.scenarios).toBe(16);
-    expect(prediction.hasRanges).toBe(true);
+    expect(prediction.ranges).not.toEqual([]);
     const ranges = allRanges(prediction);
     expect(ranges.length).toBeGreaterThan(10);
     for (const { min, max } of ranges) {

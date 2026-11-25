@@ -82,15 +82,15 @@ export interface HiddenRow {
   /** The pairs that give it, in display order ("E/e"). */
   readonly genotypes: readonly string[];
   readonly chance: Range;
-  /** The one visible base colour of the puppies it applies to, when not every puppy has that colour: "(black puppies)". */
+  /** The one visible base colour of the puppies it applies to, when not every puppy has that colour: "(black puppies only)". */
   readonly onlyIn: BaseColour | null;
 }
 
 export interface PuppyPrediction {
   /** Pairs of candidate genotypes, Parent 1's × Parent 2's. */
   readonly scenarios: number;
-  /** Whether any figure shown differs between scenarios. */
-  readonly hasRanges: boolean;
+  /** Every figure shown that differs between scenarios. */
+  readonly ranges: readonly Range[];
   readonly warnings: readonly ColourWarning[];
   readonly combined: {
     /** The most likely outcomes, at most six, ranked by upper bound. */
@@ -688,7 +688,7 @@ export function predictPuppies(first: CrossParent, second: CrossParent): PuppyPr
   const pattern = table(rows.pattern, patternCaveats, READS.pattern);
   const white = table(rows.white, whiteCaveats, READS.white);
 
-  const ranges = [
+  const figures = [
     ...[...rows.base, ...rows.pattern, ...rows.white, ...traits.possible].map((row) => row.chance),
     ...combined.outcomes.map((outcome) => outcome.chance),
     ...(combined.other === null ? [] : [combined.other]),
@@ -698,7 +698,7 @@ export function predictPuppies(first: CrossParent, second: CrossParent): PuppyPr
 
   return {
     scenarios: scenarios.length,
-    hasRanges: ranges.some((range) => !isSingle(range)),
+    ranges: figures.filter((range) => !isSingle(range)),
     warnings,
     combined,
     base,
