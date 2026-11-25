@@ -16,7 +16,6 @@ import {
   whitePhenotype,
   type Pattern,
   type Phenotype,
-  type PigmentPhenotype,
   type Unknown,
   type WhiteSpotting,
 } from './phenotype.ts';
@@ -28,8 +27,6 @@ interface Reading {
   readonly shows: (coat: Phenotype) => string | null;
   /** The text when the pair neither shows nor carries anything. */
   readonly none: string;
-  /** An effect the dog's own coat leaves out though no hidden-table item covers it. */
-  readonly unexpressed?: { readonly when: (coat: PigmentPhenotype) => boolean; readonly note: string };
 }
 
 const PATTERN_WORDS: Readonly<Record<Pattern | Unknown, string>> = {
@@ -58,7 +55,6 @@ const READINGS: Readonly<Record<ColourGene, Reading>> = {
   CBD103: {
     shows: (coat) => (coat.pattern === 'one-colour' ? 'one colour (Dominant Black)' : null),
     none: 'no Dominant Black',
-    unexpressed: { when: (coat) => coat.flags.includes('not-modelled-eA'), note: 'not expressed with eA' },
   },
   MC1R: {
     shows: (coat) => {
@@ -107,6 +103,7 @@ const EFFECTS_HIDDEN = PIGMENT_HIDDEN.filter((item) => !CARRIERS.includes(item))
 const UNSEEN_NOTES: Readonly<Partial<Record<HiddenId, string>>> = {
   'mask-hidden': 'hidden on solid coats',
   'roan-hidden': 'hidden without white spotting',
+  'dominant-black-unexpressed': 'not expressed with eA or eH',
 };
 
 /** The item that hides this pair's effect on every one of the coats, if any. */
@@ -118,13 +115,12 @@ function hiddenOn<P>(items: readonly HiddenItem<P>[], gene: ColourGene, pair: re
 
 /** "hidden by beige", "not expressed with eA", or null when the dog's coat shows the effect. */
 function unseenNote(gene: ColourGene, pair: readonly string[], genotypes: readonly Genotype[]): string | null {
-  const pigment = genotypes.map(pigmentPhenotype);
-  const item = hiddenOn(EFFECTS_HIDDEN, gene, pair, pigment) ?? hiddenOn(WHITE_HIDDEN, gene, pair, genotypes.map(whitePhenotype));
-  if (item !== undefined) {
-    return item.hider === null ? (UNSEEN_NOTES[item.id] ?? 'hidden') : HIDER_LABELS[item.hider];
+  const item =
+    hiddenOn(EFFECTS_HIDDEN, gene, pair, genotypes.map(pigmentPhenotype)) ?? hiddenOn(WHITE_HIDDEN, gene, pair, genotypes.map(whitePhenotype));
+  if (item === undefined) {
+    return null;
   }
-  const { unexpressed } = READINGS[gene];
-  return unexpressed !== undefined && pigment.length > 0 && pigment.every(unexpressed.when) ? unexpressed.note : null;
+  return item.hider === null ? (UNSEEN_NOTES[item.id] ?? 'hidden') : HIDER_LABELS[item.hider];
 }
 
 /**

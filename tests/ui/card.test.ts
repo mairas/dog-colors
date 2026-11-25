@@ -66,13 +66,13 @@ const CASES: readonly Case[] = [
     'KB with eA/eA',
     { 'CBD103 KB': 1, 'MC1R eA': 2, 'ASIP at': 2 },
     'Black and tan, solid',
-    { CBD103: 'KB/ky: one colour (Dominant Black), not expressed with eA', ASIP: 'at/at: tan points' },
+    { CBD103: 'KB/ky: one colour (Dominant Black), not expressed with eA or eH', ASIP: 'at/at: tan points' },
   ],
   [
     'KB with eA/e',
     { 'CBD103 KB': 1, 'MC1R eA': 1, 'MC1R e1': 1, 'ASIP at': 2 },
     'Black and tan, solid',
-    { CBD103: 'KB/ky: one colour (Dominant Black), not expressed with eA' },
+    { CBD103: 'KB/ky: one colour (Dominant Black), not expressed with eA or eH' },
   ],
   [
     'merle and roan on a light beige dog',

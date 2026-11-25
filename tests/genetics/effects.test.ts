@@ -32,10 +32,16 @@ const CASES: readonly Case[] = [
   ['CBD103', ['KB', 'ky'], {}, 'one colour (Dominant Black)'],
   ['CBD103', ['KB', 'KB'], BEIGE, 'one colour (Dominant Black), hidden by beige'],
   ['CBD103', ['KB', 'ky'], ALBINO, 'one colour (Dominant Black), hidden by albino'],
-  ['CBD103', ['KB', 'ky'], { MC1R: ['eA', 'eA'] }, 'one colour (Dominant Black), not expressed with eA'],
-  ['CBD103', ['KB', 'ky'], { MC1R: ['eA', 'e'] }, 'one colour (Dominant Black), not expressed with eA'],
+  ['CBD103', ['KB', 'ky'], { MC1R: ['eA', 'eA'] }, 'one colour (Dominant Black), not expressed with eA or eH'],
+  ['CBD103', ['KB', 'ky'], { MC1R: ['eA', 'e'] }, 'one colour (Dominant Black), not expressed with eA or eH'],
   // Anderson 2020: E/eA dogs were unaffected.
   ['CBD103', ['KB', 'ky'], { MC1R: ['E', 'eA'] }, 'one colour (Dominant Black)'],
+  ['CBD103', ['KB', 'ky'], { MC1R: ['eH', 'e'] }, 'one colour (Dominant Black), not expressed with eA or eH'],
+  ['CBD103', ['KB', 'ky'], { MC1R: ['eA', 'eH'] }, 'one colour (Dominant Black), not expressed with eA or eH'],
+  ['CBD103', ['KB', 'ky'], { MC1R: ['eA', 'e'], ASIP: ['a', 'a'] }, 'one colour (Dominant Black), not expressed with eA or eH'],
+  // Dreger 2010: KB is epistatic to eG.
+  ['CBD103', ['KB', 'KB'], { MC1R: ['eG', 'eG'] }, 'one colour (Dominant Black)'],
+  ['CBD103', ['KB', 'ky'], { MC1R: ['E', 'eH'] }, 'one colour (Dominant Black)'],
   ['CBD103', ['ky', 'ky'], {}, 'no Dominant Black'],
   ['CBD103', ['ky', 'ky'], BEIGE, 'no Dominant Black'],
   ['MC1R', ['E', 'E'], {}, 'no effect'],
@@ -97,6 +103,11 @@ describe('pairEffect', () => {
   it('marks an effect hidden only when every candidate genotype hides it', () => {
     const candidates = [dog('ASIP', ['at', 'at'], KB), dog('ASIP', ['at', 'at'], {})];
     expect(pairEffect('ASIP', ['at', 'at'], candidates)).toBe('tan points');
+  });
+
+  it('notes no unexpressed Dominant Black when MC1R is unread', () => {
+    const unread: Genotype = { CBD103: ['KB', 'ky'], ASIP: ['at', 'at'] };
+    expect(pairEffect('CBD103', ['KB', 'ky'], [unread])).toBe('one colour (Dominant Black)');
   });
 
   it('marks nothing hidden when a locus that could hide it is unread', () => {
