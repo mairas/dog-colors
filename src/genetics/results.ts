@@ -69,6 +69,9 @@ export interface Table<V> {
 export type TraitRow = Row<Trait>;
 
 export interface CombinedOutcome {
+  /** The own-colour name every puppy in the outcome shares; show this, not a name derived from the merged phenotype. */
+  readonly name: string;
+  /** The merged phenotype, for its flags: a field its puppies disagree on is unknown. */
   readonly phenotype: Phenotype;
   readonly chance: Range;
 }
@@ -597,7 +600,7 @@ function buildCombined(gathered: Gathered, combiner: Combiner): PuppyPrediction[
     .map((id) => ({ id, chance: gathered.combined.range(id) }))
     .sort((left, right) => upperThenLower(left.chance, right.chance));
   const shown = ranked.slice(0, COMBINED_SHOWN);
-  const outcomes = shown.map(({ id, chance }): CombinedOutcome => ({ phenotype: combiner.phenotype(id), chance }));
+  const outcomes = shown.map(({ id, chance }): CombinedOutcome => ({ name: combiner.name(id), phenotype: combiner.phenotype(id), chance }));
   if (ranked.length <= COMBINED_SHOWN) {
     return { outcomes, other: null };
   }

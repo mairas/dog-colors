@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { crossScenarios, type CrossParent } from '../../src/genetics/cross.ts';
 import { resolveDog } from '../../src/genetics/dog.ts';
-import { ownColourName } from '../../src/genetics/phenotype.ts';
 import type { Range } from '../../src/genetics/range.ts';
 import { predictPuppies, scenarioTables, type PuppyPrediction } from '../../src/genetics/results.ts';
 import { CAVEAT_TEXT, COLOUR_WARNING_TEXT } from '../../src/genetics/warnings.ts';
@@ -129,9 +128,15 @@ describe('predictPuppies: combined outcomes', () => {
 
   it('lists each own-colour name once, merging the coats that share it', async () => {
     const prediction = await samples('b', 'c');
-    const names = prediction.combined.outcomes.map((outcome) => ownColourName(outcome.phenotype));
+    const names = prediction.combined.outcomes.map((outcome) => outcome.name);
     expect(names.length).toBeGreaterThan(1);
     expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("names a merged outcome by its group's name, not its merged phenotype", () => {
+    const prediction = predictPuppies({ loci: parentLoci({ CBD103: 'KB/ky', ASIP: 'a/a' }) }, { loci: parentLoci({ CBD103: 'ky/ky', ASIP: 'a/a' }) });
+    expect(prediction.combined.outcomes).toHaveLength(1);
+    expect(prediction.combined.outcomes[0]).toMatchObject({ name: 'Black, solid', chance: range('1'), phenotype: { pattern: 'unknown' } });
   });
 });
 

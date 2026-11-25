@@ -293,7 +293,7 @@ function checkAgainstEnumeration(first: CandidateSpec, second: CandidateSpec): v
 
   // The six most likely names by upper bound, then lower bound; ties may fall either way.
   const names = spreads.combined.keys();
-  const shown = prediction.combined.outcomes.map((outcome) => ownColourName(outcome.phenotype));
+  const shown = prediction.combined.outcomes.map((outcome) => outcome.name);
   expect(shown).toHaveLength(Math.min(6, names.length));
   expect(new Set(shown).size).toBe(shown.length);
   prediction.combined.outcomes.forEach((outcome, index) => {
@@ -386,6 +386,8 @@ describe('predictPuppies against a full enumeration', () => {
       { MC1R: ['E/eA', 'Em/eA'], TYRP1: ['B/b'], HPS3: ['co/+'], MLPH: ['D/d'], ASIP: ['ayt/at'] },
     ],
     ['every conception H/H in one scenario', { PSMB7: ['H/H', 'H/h'], PMEL: ['M/m'], MC1R: ['e/e'] }, { PSMB7: ['H/H'], MC1R: ['E/e'] }],
+    // Dominant Black and recessive black puppies share a name; their merged pattern is unknown.
+    ['one name from two patterns', { CBD103: ['KB/ky'], ASIP: ['a/a'] }, { CBD103: ['ky/ky'], ASIP: ['a/a'] }],
   ] as const)('%s', (_name, first, second) => {
     checkAgainstEnumeration(first, second);
   });
