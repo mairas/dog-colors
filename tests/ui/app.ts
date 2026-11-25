@@ -29,8 +29,23 @@ export interface Page {
   text(): string;
 }
 
-/** Files by name; a function result is called, so a reader failure can throw. */
-export type Library = Readonly<Record<string, ReadResult | (() => never)>>;
+/** Files by name; a function is called, so a read can throw or stay pending. */
+export type Library = Readonly<Record<string, ReadResult | (() => Promise<ReadResult>)>>;
+
+/** A read that stays pending until released. */
+export function slowRead(result: ReadResult): { readonly read: () => Promise<ReadResult>; release(): Promise<void> } {
+  let resolve: (value: ReadResult) => void = () => undefined;
+  const promise = new Promise<ReadResult>((done) => {
+    resolve = done;
+  });
+  return {
+    read: () => promise,
+    async release() {
+      resolve(result);
+      await promise;
+    },
+  };
+}
 
 export function pdf(name: string): File {
   return new File(['%PDF-'], name, { type: 'application/pdf' });
@@ -58,7 +73,7 @@ export function openPage(library: Library, options: { initial?: AppState; narrow
   return { app, root, text: () => root.textContent ?? '' };
 }
 
-/** Sample A with the given TYRP1 copies, a different name and no kit ID. */
+/** A sample with some genes' copies changed, its own name and no kit ID. */
 export async function variant(letter: string, name: string, colour: Report['colour']): Promise<Report> {
   const base = await sampleReport(letter);
   return { ...base, name, kitIdHash: null, colour: { ...base.colour, ...colour } };

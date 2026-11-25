@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Report } from '../../src/report/types.ts';
 import { stateFromQuery } from '../../src/ui/dev.ts';
 import { syntheticReport } from '../genetics/synthetic.ts';
-import { button, fixtureText, ok, openPage, parsed, pdf, sampleReport, tableRows, variant, type Library } from './app.ts';
+import { button, fixtureText, ok, openPage, parsed, pdf, sampleReport, slowRead, tableRows, variant, type Library } from './app.ts';
 
 const ANSWER_NOTE = "Some figures are ranges because a parent's genotype is uncertain. Answer the questions on the cards to narrow them.";
 const SETTLE_NOTE = "Some figures are ranges because the report can't settle a parent's genotype.";
@@ -137,7 +137,6 @@ describe('the colour page', () => {
     );
     expect(results(root)?.hidden).toBe(false);
 
-    root.querySelector<HTMLElement>('[data-key="why-1"] summary')?.click();
     button(root, 'remove-1').click();
     expect(card?.isConnected).toBe(false);
     expect(root.querySelector('[data-slot="0"] .card-alert')).toBeNull();
@@ -275,7 +274,14 @@ describe('the drop rules', () => {
       names: ['Parent 1No report yet', 'Parent 2No report yet'],
       alert: '⚠Drop at most two reports.',
     });
-    expect((await drop(['a.pdf', 'b.pdf', 'c.pdf'], 0, ['a.pdf'])).names[0]).toBe('Parent 1Sample A');
+    expect(await drop(['a.pdf', 'b.pdf', 'c.pdf'], 1, ['a.pdf'])).toEqual({
+      names: ['Parent 1Sample A', 'Parent 2No report yet'],
+      alert: '⚠Drop at most two reports.',
+    });
+    expect(await drop(['c.pdf', 'b.pdf', 'a.pdf'], 0, ['a.pdf', 'b.pdf'])).toEqual({
+      names: ['Parent 1Sample A', 'Parent 2Sample B'],
+      alert: '⚠Drop at most two reports.',
+    });
   });
 
   it('treats one file on a filled slot as Replace', async () => {
@@ -312,6 +318,85 @@ describe('the drop rules', () => {
     await page.app.drop(['a.pdf', 'b.pdf', 'c.pdf'].map(pdf), null);
     await page.app.load(0, pdf('a.pdf'));
     expect(page.root.querySelector('.drop-alert')?.textContent).toBe('');
+  });
+});
+
+describe('states between actions', () => {
+  const heading = (root: HTMLElement, slot: number) => root.querySelector(`[data-slot="${slot}"] h2`)?.textContent ?? '';
+
+  it('keeps a card removed when the replacement it was reading finishes', async () => {
+    const slow = slowRead(ok(c));
+    const { app, root } = openPage({ ...library, 'slow.pdf': slow.read });
+    await app.load(0, pdf('a.pdf'));
+    await app.load(1, pdf('b.pdf'));
+    const loading = app.load(1, pdf('slow.pdf'));
+    button(root, 'remove-1').click();
+    await slow.release();
+    await loading;
+    expect(heading(root, 1)).toBe('Parent 2No report yet');
+    expect(results(root)?.hidden).toBe(true);
+  });
+
+  it('counts a slot that is still reading as taken when one file is dropped anywhere', async () => {
+    const slow = slowRead(ok(a));
+    const { app, root } = openPage({ ...library, 'slow.pdf': slow.read });
+    const reading = app.load(0, pdf('slow.pdf'));
+    await app.drop([pdf('c.pdf')], null);
+    expect([heading(root, 0), heading(root, 1)]).toEqual(['Parent 1Reading report…', 'Parent 2Sample C']);
+    await slow.release();
+    await reading;
+    expect(heading(root, 0)).toBe('Parent 1Sample A');
+  });
+
+  it('settles the ranges note once the question is answered and only ASIP is left', async () => {
+    const { root, text } = await pair('nose.pdf', 'asip.pdf');
+    expect(text()).toContain(ANSWER_NOTE);
+    root.querySelector<HTMLInputElement>('[data-key="nose-0-brown"]')?.click();
+    expect(text()).toContain(SETTLE_NOTE);
+    expect(text()).not.toContain(ANSWER_NOTE);
+  });
+
+  it('keeps open disclosures and expanded caveats across a re-render', async () => {
+    const { root } = await pair('nose.pdf', 'b.pdf');
+    const why = root.querySelector<HTMLDetailsElement>('[data-key="why-1"]');
+    if (why !== null) {
+      why.open = true;
+    }
+    button(root, 'cav-white').click();
+    root.querySelector<HTMLInputElement>('[data-key="nose-0-brown"]')?.click();
+    expect(root.querySelector('[data-key="why-1"]')).not.toBe(why);
+    expect(root.querySelector<HTMLDetailsElement>('[data-key="why-1"]')?.open).toBe(true);
+    const badge = button(root, 'cav-white');
+    expect(badge.getAttribute('aria-expanded')).toBe('true');
+    expect(document.getElementById(badge.getAttribute('aria-controls') ?? '')?.hidden).toBe(false);
+  });
+
+});
+
+describe('drag and drop events', () => {
+  function dragEvent(type: 'dragover' | 'drop', files: readonly File[]): Event {
+    const event = new Event(type, { bubbles: true, cancelable: true });
+    const transfer = new DataTransfer();
+    files.forEach((file) => transfer.items.add(file));
+    Object.defineProperty(event, 'dataTransfer', { value: transfer });
+    return event;
+  }
+
+  it('lets a file be dragged over the page', () => {
+    openPage(library);
+    const event = dragEvent('dragover', [pdf('c.pdf')]);
+    window.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('loads a file dropped on the Parent 2 slot into Parent 2', async () => {
+    const { root } = openPage(library);
+    const target = root.querySelector('[data-slot="1"] .drop');
+    const event = dragEvent('drop', [pdf('c.pdf')]);
+    target?.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    await vi.waitFor(() => expect(root.querySelector('[data-slot="1"] h2')?.textContent).toBe('Parent 2Sample C'));
+    expect(root.querySelector('[data-slot="0"] h2')?.textContent).toBe('Parent 1No report yet');
   });
 });
 
