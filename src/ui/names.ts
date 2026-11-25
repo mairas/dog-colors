@@ -41,6 +41,18 @@ export const BASE_NAMES: Readonly<Record<BaseColour | Unknown, string>> = {
   unknown: 'Unknown',
 };
 
+/** A colour as one plain word or two, for qualifiers: "(blue puppies only)". */
+export const BASE_WORDS: Readonly<Record<BaseColour, string>> = {
+  black: 'black',
+  brown: 'brown',
+  cocoa: 'cocoa',
+  blue: 'blue',
+  lilac: 'lilac',
+  beige: 'beige',
+  'beige-light': 'light cream',
+  albino: 'albino',
+};
+
 export const PATTERN_NAMES: Readonly<Record<Pattern | Unknown, { readonly name: string; readonly detail?: string }>> = {
   'one-colour': {
     name: 'One colour: no tan points, sable or brindle',

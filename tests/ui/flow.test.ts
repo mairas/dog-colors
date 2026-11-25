@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Report } from '../../src/report/types.ts';
+import { stateFromQuery } from '../../src/ui/dev.ts';
 import { syntheticReport } from '../genetics/synthetic.ts';
 import { button, fixtureText, ok, openPage, parsed, pdf, sampleReport, tableRows, variant, type Library } from './app.ts';
 
@@ -375,9 +376,19 @@ describe('engine cases the page names', () => {
     expect(text()).toContain("Undocumented combination (TYRP1 in Parent 1's report): For the genes named");
   });
 
-  it('qualifies a hidden row that applies to one colour as all puppies of that colour', async () => {
-    const { root } = await pair('nose.pdf', 'b.pdf');
-    expect(tableRows(root, 'Hidden and carried').map(([label]) => label)).toContain('Carries brown (all black puppies)B/b');
+  it('qualifies a hidden row that applies to one colour without claiming every such puppy has it', async () => {
+    // Two dilute carriers: two thirds of the black puppies carry dilute, and no blue puppy does.
+    const { root } = openPage({}, { initial: await stateFromQuery(new URLSearchParams({ state: 'results-warnings' })) });
+    expect(tableRows(root, 'Hidden and carried')).toContainEqual(['Carries dilute (black puppies only)D/d', '50% (1 in 2)']);
+  });
+
+  it('qualifies a hidden row by the short colour word', async () => {
+    // d/d B/b × itself: blue and lilac puppies; only blue ones can carry brown once.
+    const dilute = syntheticReport({ 'MLPH d1': 2, 'TYRP1 bd': 1 });
+    const { app, root } = openPage({ 's.pdf': ok(dilute), 't.pdf': ok({ ...dilute, name: 'Sample T' }) });
+    await app.load(0, pdf('s.pdf'));
+    await app.load(1, pdf('t.pdf'));
+    expect(tableRows(root, 'Hidden and carried').map(([label]) => label)).toContain('Carries brown (blue puppies only)B/b');
   });
 
   it('names a combined outcome by the name its puppies share, not by its merged phenotype', async () => {

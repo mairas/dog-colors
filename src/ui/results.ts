@@ -10,6 +10,7 @@ import { h, present, svg, type Child } from './dom.ts';
 import { chance, chanceParts } from './format.ts';
 import {
   BASE_NAMES,
+  BASE_WORDS,
   copiesText,
   lowerFirst,
   parentLabel,
@@ -127,7 +128,8 @@ function hiddenTable(prediction: PuppyPrediction): HTMLTableElement {
     'Trait',
     prediction.hidden.map((row) => {
       const effect = HIDDEN_EFFECTS[row.id] + (row.hider === null ? '' : `, ${HIDER_LABELS[row.hider]}`);
-      const only = row.onlyIn === null ? '' : ` (all ${lowerFirst(BASE_NAMES[row.onlyIn])} puppies)`;
+      // The row's figure stays a chance per puppy; this only says which puppies can have it.
+      const only = row.onlyIn === null ? '' : ` (${BASE_WORDS[row.onlyIn]} puppies only)`;
       return chanceRow([effect + only, h('br'), h('span', { class: 'sec' }, row.genotypes.join(', '))], row);
     }),
   );
