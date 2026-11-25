@@ -5,14 +5,17 @@ import type { Phenotype } from '../../src/genetics/phenotype.ts';
 import type { ColourGene } from '../../src/report/loci.ts';
 import type { Report } from '../../src/report/types.ts';
 import { renderCard } from '../../src/ui/card.ts';
+import { coatChip } from '../../src/ui/coat.ts';
 import { syntheticReport } from '../genetics/synthetic.ts';
-import { sampleReport } from './app.ts';
+import { sampleReport, shapes } from './app.ts';
 
 const ACTIONS = { answer: () => undefined, replace: () => undefined, remove: () => undefined };
 
 interface Card {
   readonly ownColour: string;
   readonly rows: ReadonlyMap<string, string>;
+  /** The own-colour picture's shapes, as "tag class". */
+  readonly picture: readonly string[] | null;
 }
 
 function card(report: Report): Card {
@@ -20,7 +23,12 @@ function card(report: Report): Card {
   const rows = [...element.querySelectorAll('table.geno tbody tr')].map(
     (row): [string, string] => [row.querySelector('th')?.textContent ?? '', row.lastElementChild?.textContent ?? ''],
   );
-  return { ownColour: element.querySelector('.own-name')?.textContent ?? '', rows: new Map(rows) };
+  const picture = element.querySelector<SVGSVGElement>('.own svg.chip[aria-hidden="true"]');
+  return {
+    ownColour: element.querySelector('.own-name')?.textContent ?? '',
+    rows: new Map(rows),
+    picture: picture === null ? null : shapes(picture),
+  };
 }
 
 /**
@@ -123,5 +131,58 @@ describe('a card’s "Reads as" rows', () => {
       expect(rows.get('CBD103')).toBe('KB/KB: one colour (Dominant Black)');
       expect(rows.get('MFSD12')).toBe('i/i: light cream if beige, lighter tan, hidden');
     });
+  });
+});
+
+const NO_TYRP1 = { basd: 0, bc: 0, bd: 0, be: 0, bh: 0, bs: 0 };
+
+function onlyPhenotype(report: Report): Phenotype {
+  const [own, ...others] = resolveDog(report).ownColours;
+  if (own === undefined || others.length > 0) {
+    throw new Error('expected one own colour');
+  }
+  return own.phenotype;
+}
+
+describe('a card’s own-colour picture', () => {
+  let white: Report;
+  let solid: Report;
+  beforeAll(async () => {
+    [white, solid] = await Promise.all([sampleReport('a'), sampleReport('c')]);
+  });
+
+  it('draws a white ground with brown markings for a dog read as white with brown markings', () => {
+    const { ownColour, picture } = card(white);
+    expect(ownColour).toBe('White with brown markings');
+    const [ground, ...markings] = picture ?? [];
+    expect(ground).toBe('rect coat coat-white');
+    expect(markings.length).toBeGreaterThan(0);
+    expect(markings.every((shape) => shape.endsWith(' coat coat-brown'))).toBe(true);
+    expect(picture).toEqual(shapes(coatChip(onlyPhenotype(white))));
+  });
+
+  it('draws a single base-colour rect for a solid dog', () => {
+    const { ownColour, picture } = card(solid);
+    expect(ownColour).toBe('Brown, solid');
+    expect(picture).toEqual(['rect coat coat-brown']);
+  });
+
+  it('draws the merle picture for a merle dog', () => {
+    const merle: Report = { ...solid, colour: { ...solid.colour, PMEL: { ...solid.colour.PMEL, M: 1 } } };
+    expect(onlyPhenotype(merle).traits.merle).toBe('yes');
+    const { picture } = card(merle);
+    expect(picture?.[0]).toBe('rect coat coat-merle');
+    expect(picture).toEqual(shapes(coatChip(onlyPhenotype(merle))));
+  });
+
+  it('draws the unknown swatch with the shared white pattern when the possible colours differ only in base', () => {
+    const ambiguous: Report = { ...white, colour: { ...white.colour, TYRP1: { ...NO_TYRP1, bc: 1, bd: 1 } } };
+    const colours = resolveDog(ambiguous).ownColours.map((colour) => colour.phenotype);
+    expect(new Set(colours.map((colour) => colour.base)).size).toBeGreaterThan(1);
+    expect(colours.map((colour) => colour.white)).toEqual(['extensive', 'extensive']);
+    const [ground, ...markings] = card(ambiguous).picture ?? [];
+    expect(ground).toBe('rect coat coat-white');
+    expect(markings.length).toBeGreaterThan(0);
+    expect(markings.every((shape) => shape.endsWith(' coat coat-unknown'))).toBe(true);
   });
 });

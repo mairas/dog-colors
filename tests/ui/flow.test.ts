@@ -136,6 +136,14 @@ describe('the colour page', () => {
     expect(rows).toContainEqual(['TYRP1', 'B/b: black, carries brown (your answer)']);
   });
 
+  it('draws the answered colour in the card’s picture', async () => {
+    const { root } = await pair('nose.pdf', 'b.pdf');
+    const markings = () => root.querySelector('[data-slot="0"] .own svg.chip path')?.getAttribute('class');
+    expect(markings()).toBe('coat coat-unknown');
+    root.querySelector<HTMLInputElement>('[data-key="nose-0-black"]')?.click();
+    expect(markings()).toBe('coat coat-black');
+  });
+
   it('notes that the report can’t settle an ASIP-only ambiguity', async () => {
     const { root, text } = await pair('asip.pdf', 'b.pdf');
     expect(text()).toContain(SETTLE_NOTE);

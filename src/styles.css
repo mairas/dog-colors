@@ -327,12 +327,12 @@ summary:focus-visible {
   margin: 12px 0;
 }
 .chip {
-  width: 44px;
   height: 44px;
+  width: auto;
+  aspect-ratio: 4 / 3;
   border-radius: var(--radius);
   flex: none;
   border: 1px solid var(--swatch-edge);
-  background: var(--coat);
 }
 .tag {
   color: var(--mute);
@@ -782,7 +782,7 @@ dialog.dogs figcaption {
   .same-sex {
     border: 1px solid currentColor;
   }
-  /* Browsers drop backgrounds in print by default; the swatch is the colour. */
+  /* Browsers may economise colours in print by default; the picture is the colour. */
   .chip {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;

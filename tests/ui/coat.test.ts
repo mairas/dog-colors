@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Phenotype } from '../../src/genetics/phenotype.ts';
 import { coatChip } from '../../src/ui/coat.ts';
+import { shapes } from './app.ts';
 
 const SOLID_BROWN: Phenotype = {
   base: 'brown',
@@ -12,9 +13,6 @@ const SOLID_BROWN: Phenotype = {
   lethal: 'no',
   flags: [],
 };
-
-const shapes = (picture: SVGSVGElement): string[] =>
-  [...picture.children].map((shape) => `${shape.tagName.toLowerCase()} ${shape.getAttribute('class') ?? ''}`);
 
 describe('the coat picture', () => {
   it.each<readonly [string, Partial<Phenotype>, readonly string[]]>([
