@@ -16,7 +16,7 @@ import type { ColourGene } from '../report/loci.ts';
 import { comparePairs, copies, formatPair, orderedPair, type AllelePair, type Genotype } from './alleles.ts';
 import { candidateGenotypes, type GenotypeResolution } from './haplotypes.ts';
 import { PIGMENT_HIDDEN, WHITE_HIDDEN, type HiddenItem } from './hidden.ts';
-import { pigmentPhenotype, whitePhenotype, type PigmentPhenotype, type WhitePhenotype } from './phenotype.ts';
+import { pigmentPhenotype, skipsDominantBlack, whitePhenotype, type PigmentPhenotype, type WhitePhenotype } from './phenotype.ts';
 
 /** Epistatic loci first, so that the loci they hide drop out of the tree near its root. */
 export const PIGMENT_GENES = [
@@ -78,7 +78,8 @@ const CLASSES: Readonly<Record<ColourGene, (pair: readonly string[]) => string>>
     flags(
       copies(pair, 'e') === 2,
       has(pair, 'eH') || has(pair, 'eG'),
-      has(pair, 'eA') && copies(pair, 'eA') + copies(pair, 'e') === 2,
+      skipsDominantBlack(pair),
+      skipsDominantBlack(pair) && has(pair, 'eA'),
       has(pair, 'Em'),
     ),
   HPS3: (pair) => flags(copies(pair, 'co') === 2),

@@ -64,8 +64,8 @@ function hiddenRows(spec: Spec): string[] {
   const n = (gene: ColourGene, allele: string): number => count(pairOf(spec, gene), allele);
   const albino = n('SLC45A2', 'cal') === 2;
   const recessiveRed = n('MC1R', 'e') === 2;
-  // Anderson 2020: KB is not expressed with eA/eA or eA/e.
-  const kSkipped = n('MC1R', 'eA') > 0 && n('MC1R', 'eA') + n('MC1R', 'e') === 2;
+  // Anderson 2020, Honkanen 2024: KB is not expressed with eA or eH and no E or Em.
+  const kSkipped = n('MC1R', 'eA') + n('MC1R', 'eH') > 0 && n('MC1R', 'E') + n('MC1R', 'Em') === 0;
   const dominantBlack = n('CBD103', 'KB') > 0;
   const hider: Hider | null = albino ? 'albino' : recessiveRed ? 'beige' : dominantBlack && !kSkipped ? 'dominant-black' : null;
   const agouti =
