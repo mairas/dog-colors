@@ -36,11 +36,15 @@ function contentSecurityPolicy(): Plugin {
   };
 }
 
-export default defineConfig({
+// The dev-only fixture states (src/ui/dev.ts) ship in every mode but
+// production, where the constant folds to false and the branch is dropped.
+// `./run preview-fixtures` builds them with the policy in force.
+export default defineConfig(({ mode }) => ({
   // Served as a GitHub Pages project page, under the repository name.
   base: '/dog-colors/',
+  define: { __FIXTURES__: JSON.stringify(mode !== 'production') },
   plugins: [contentSecurityPolicy()],
   test: {
     include: ['tests/**/*.test.ts'],
   },
-});
+}));

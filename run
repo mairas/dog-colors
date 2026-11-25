@@ -37,6 +37,13 @@ function preview {
   npx --no-install vite preview "$@"
 }
 
+function preview-fixtures {
+  #@ Build with the dev-only fixture states into dist-fixtures/ and serve it with the CSP (extra arguments go to vite preview)
+  #@ Category: Development
+  npx --no-install vite build --mode fixtures --outDir dist-fixtures
+  npx --no-install vite preview --outDir dist-fixtures "$@"
+}
+
 function fixtures {
   #@ [samples-dir]: rewrite tests/fixtures/sample-*.json from the local sample reports
   #@ Category: Development

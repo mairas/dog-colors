@@ -11,6 +11,7 @@ A static single-page site, served from GitHub Pages, that reads two Wisdom Panel
 | `./run setup` | Install dependencies from the lockfile (`npm ci`) |
 | `./run dev` | Start the Vite dev server |
 | `./run preview` | Serve the production build from `dist/` (run after `build`) |
+| `./run preview-fixtures` | Build with the dev-only fixture states into `dist-fixtures/` and serve it with the Content-Security-Policy in force |
 | `./run typecheck` | Type-check every TypeScript file |
 | `./run fixtures [dir]` | Rewrite `tests/fixtures/sample-*.json` from the local sample reports in `_local/samples` (see *Sample reports and fixtures*) |
 | `./run conditions [dir]` | Rewrite `src/health/conditions.json`, the inheritance catalogue, from the local current-format sample reports |
@@ -19,7 +20,7 @@ A static single-page site, served from GitHub Pages, that reads two Wisdom Panel
 | `./run check-csp` | Check that `dist/index.html` carries the expected Content-Security-Policy meta tag (run after `build`) |
 | `./run check-pdfs [base]` | Fail if a tracked file is named `*.pdf` (any case) or starts with the PDF signature `%PDF-`; given a base ref, also fail if any commit in `base..HEAD` added a `*.pdf` path or added or changed a file to start with `%PDF-`, even one deleted later. A failing git command fails the check |
 
-CI runs every command except `dev`, `preview`, `fixtures` and `conditions` on every pull request, with `check-pdfs` given the pull request's base branch. The Pages deploy calls the same CI workflow on every push to `main` and on manual runs, and deploys only if it passes; there `check-pdfs` scans the tree only, since a PDF already in `main`'s history is public. A new check target runs in CI only after it is added as a step in `.github/workflows/ci.yml`. A new `./run` target is `function name {`, then a `#@ Description` line, then a `#@ Category: X` line, in that order; the help is generated from them.
+CI runs every command except `dev`, `preview`, `preview-fixtures`, `fixtures` and `conditions` on every pull request, with `check-pdfs` given the pull request's base branch. The Pages deploy calls the same CI workflow on every push to `main` and on manual runs, and deploys only if it passes; there `check-pdfs` scans the tree only, since a PDF already in `main`'s history is public. A new check target runs in CI only after it is added as a step in `.github/workflows/ci.yml`. A new `./run` target is `function name {`, then a `#@ Description` line, then a `#@ Category: X` line, in that order; the help is generated from them.
 
 ## Conventions
 
@@ -54,4 +55,26 @@ pdf.js is the legacy build everywhere: Node needs it, and it polyfills built-ins
 
 Run `./run setup` once, then `./run dev` and open <http://localhost:5173/dog-colors/>. The dev server serves without the Content-Security-Policy, because Vite injects inline scripts during development. To see the page as deployed, with the policy in force, run `./run build` and then `./run preview`, and open <http://localhost:4173/dog-colors/>.
 
-Fixture-driven states, selected through a dev-only query parameter so that each screen can be rendered without real reports, arrive with the UI units.
+Every state of the page can be rendered without real reports through a dev-only query parameter, handled by `src/ui/dev.ts` from the committed fixtures and synthetic reports built from them. The module is loaded only when the build-time constant `__FIXTURES__` is true: in the dev server and in `./run preview-fixtures`, never in `./run build`, so the production bundle carries none of it (grep `dist/` for `stateFromQuery` to check). Use `./run preview-fixtures` (<http://localhost:4173/dog-colors/>) to see a state with the policy in force, or `./run dev` (port 5173).
+
+`?state=<name>` gives one of the approved mockup's states:
+
+| State | URL |
+|---|---|
+| Both slots empty | `?state=slot-empty` |
+| One card, results hidden | `?state=results-hidden` |
+| Reading a report | `?state=slot-reading` |
+| Rejected file in an empty slot | `?state=slot-error` |
+| Both cards loaded | `?state=slot-loaded` |
+| Open nose question (bd 1 + bc 1) | `?state=slot-questions` |
+| Ambiguity no question settles (ASIP) | `?state=slot-unanswerable` |
+| Rejected replacement, kept card | `?state=slot-replace-error` |
+| Page-level drop message | `?state=page-drop-error` |
+| Locus missing from a report | `?state=slot-missing` |
+| Same report in both slots | `?state=pair-duplicate` |
+| Results | `?state=results-populated` |
+| Results with ranges | `?state=results-ranges` |
+| Results with warnings | `?state=results-warnings` |
+| Results with an unknown locus | `?state=results-partial` |
+
+`?fixtures=<first>,<second>` loads any two reports, unanswered: the samples `a` to `e`, or the synthetic `q` (nose question), `x` (ASIP ambiguity), `m` (TYRP1 missing), `w` and `v` (merle and dilute carriers with a bobtail). Their names are placeholders such as "Sample Q".
