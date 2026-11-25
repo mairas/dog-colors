@@ -371,6 +371,21 @@ describe('states between actions', () => {
     expect(root.querySelector('.drop-alert')?.textContent).toBe('⚠Both reports are still being read. Wait for them to finish, then use Replace on a card.');
     expect([heading(root, 0), heading(root, 1)]).toEqual(['Parent 1Reading report…', 'Parent 2Reading report…']);
     await Promise.all([first.release(), second.release(), ...reading]);
+    expect(root.querySelector('.drop-alert')?.textContent).not.toContain('still being read');
+    expect([heading(root, 0), heading(root, 1)]).toEqual(['Parent 1Sample A', 'Parent 2Sample B']);
+  });
+
+  it('stops saying both reports are being read once one of them fails', async () => {
+    const [first, second] = [slowRead({ ok: false, kind: 'not-wisdom-dog' }), slowRead(ok(b))];
+    const { app, root } = openPage({ ...library, '1.pdf': first.read, '2.pdf': second.read });
+    const reading = [app.load(0, pdf('1.pdf')), app.load(1, pdf('2.pdf'))];
+    await app.drop([pdf('c.pdf')], null);
+    expect(root.querySelector('.drop-alert')?.textContent).toContain('still being read');
+    await first.release();
+    await reading[0];
+    expect(root.querySelector('.drop-alert')?.textContent).not.toContain('still being read');
+    expect(heading(root, 1)).toBe('Parent 2Reading report…');
+    await Promise.all([second.release(), ...reading]);
   });
 
   it('settles the ranges note once the question is answered and only ASIP is left', async () => {

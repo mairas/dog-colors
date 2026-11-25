@@ -297,6 +297,10 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     if (token !== tokens[slot]) {
       return;
     }
+    // It says both reads are in progress, which stops being true once one settles.
+    if (state.pageAlert === DROP_READING) {
+      state = { ...state, pageAlert: null };
+    }
 
     const before = state.slots[slot];
     if (result?.ok === true) {
