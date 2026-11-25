@@ -21,7 +21,7 @@ const INHERITANCE: Readonly<Record<Inheritance, string>> = {
 const UNKNOWN_REASONS: Readonly<Record<UnknownReason, string>> = {
   'inheritance-unknown': "This condition's inheritance isn't known, so the odds can't be worked out.",
   'inheritance-conflict': 'The two reports give different inheritance, so the odds are unknown.',
-  'same-sex-parents': 'Both reports give the same sex, so X-linked odds are unknown.',
+  'same-sex-parents': 'Both reports give the same sex, so the odds are unknown.',
   'sex-unknown': "Neither report's sex could be read, so the odds are unknown.",
 };
 

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeAll, describe, expect, it } from 'vitest';
 import { analyseHealth } from '../../src/health/health.ts';
-import type { HealthRow, Report } from '../../src/report/types.ts';
+import type { HealthRow, Inheritance, Report, Sex } from '../../src/report/types.ts';
 import { healthRow } from '../health/rows.ts';
 import { ok, openPage, pdf, sampleReport } from './app.ts';
 
@@ -59,21 +59,48 @@ describe('the health section', () => {
     ]);
   });
 
-  it('marks X-linked odds unknown, with the reason, for same-sex parents', async () => {
-    const first = withHealth(b, 'Sample F', [XR(1)], { sex: 'female' });
-    const second = withHealth(b, 'Sample G', [XR(0)], { sex: 'female' });
+  const condition = (inheritance: Inheritance | null) => (copies: number) => healthRow('Some Condition', copies, inheritance);
+  it.each<{ case: string; rows: readonly [HealthRow, HealthRow]; sexes: readonly [Sex | null, Sex | null]; mode: string; reason: string }>([
+    {
+      case: 'no inheritance given',
+      rows: [condition(null)(1), condition(null)(0)],
+      sexes: ['female', 'male'],
+      mode: 'Inheritance not known',
+      reason: "This condition's inheritance isn't known, so the odds can't be worked out.",
+    },
+    {
+      case: 'different inheritance',
+      rows: [condition('AR')(1), condition('AD')(0)],
+      sexes: ['female', 'male'],
+      mode: 'Inheritance not known',
+      reason: 'The two reports give different inheritance, so the odds are unknown.',
+    },
+    {
+      case: 'X-linked, same sex',
+      rows: [condition('XR')(1), condition('XR')(0)],
+      sexes: ['female', 'female'],
+      mode: 'X-linked recessive: sons need one copy, daughters two',
+      reason: 'Both reports give the same sex, so the odds are unknown.',
+    },
+    {
+      case: 'mitochondrial, same sex',
+      rows: [condition('MT')(1), condition('MT')(0)],
+      sexes: ['male', 'male'],
+      mode: 'Mitochondrial: passed on by the dam only',
+      reason: 'Both reports give the same sex, so the odds are unknown.',
+    },
+    {
+      case: 'X-linked, neither sex read',
+      rows: [condition('XD')(1), condition('XD')(0)],
+      sexes: [null, null],
+      mode: 'X-linked dominant: one copy raises the risk',
+      reason: "Neither report's sex could be read, so the odds are unknown.",
+    },
+  ])('marks the odds unknown, with the reason, for $case', async ({ rows, sexes, mode, reason }) => {
+    const first = withHealth(a, 'Sample F', [rows[0]], { sex: sexes[0] });
+    const second = withHealth(b, 'Sample G', [rows[1]], { sex: sexes[1] });
     const { root } = await pairOf(first, second);
-    const [row] = healthRows(root);
-    expect(row?.[0]).toContain('Both reports give the same sex, so X-linked odds are unknown.');
-    expect(row?.slice(1)).toEqual(['unknown', '']);
-  });
-
-  it('notes the assumed pairing when one report’s sex is unreadable', async () => {
-    const first = withHealth(b, 'Sample F', [XR(1)], { sex: 'female' });
-    const second = withHealth(a, 'Sample N', [XR(0)], { sex: null });
-    const { root } = await pairOf(first, second);
-    expect(healthRows(root)[0]?.[0]).toContain('Assuming a female × male pairing.');
-    expect(healthRows(root)[1]).toEqual(['Sons', '50% (1 in 2)', '–']);
+    expect(healthRows(root)).toEqual([[`Some Condition${mode}${reason}`, 'unknown', '']]);
   });
 
   it('lists a condition tested in one parent only, with that parent’s result', async () => {
