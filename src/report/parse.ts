@@ -126,6 +126,7 @@ type LineRole = 'trait-header' | 'health-header' | 'health-row' | 'other';
 
 interface Anchor {
   readonly index: number;
+  readonly y: number;
   readonly copiesIndex: number;
   readonly knownInBreed: boolean;
   readonly headerNameParts: readonly Cell[];
@@ -175,9 +176,51 @@ function joinCells(cells: readonly { cell: Cell; y: number }[]): string {
   );
 }
 
+/** Index of the first item for which `isAfter` holds, in items sorted so that it holds for a suffix. */
+function firstWhere<T>(sorted: readonly T[], isAfter: (item: T) => boolean): number {
+  let low = 0;
+  let high = sorted.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    const item = sorted[middle];
+    if (item !== undefined && isAfter(item)) {
+      high = middle;
+    } else {
+      low = middle + 1;
+    }
+  }
+  return low;
+}
+
+/**
+ * The anchor a fragment line belongs to: the nearest within the fragment
+ * distance, and of equally near ones the latest in the document. `group`
+ * holds the anchors that share the line's page and have no table header
+ * between them and the line, sorted by baseline and then document order.
+ */
+function nearestAnchor(group: readonly Anchor[], y: number): Anchor | undefined {
+  const firstAbove = firstWhere(group, (anchor) => anchor.y >= y);
+  const below = group[firstAbove - 1];
+  const nearestAbove = group[firstAbove];
+  // Of anchors on one baseline, the latest is last.
+  const above = nearestAbove && group[firstWhere(group, (anchor) => anchor.y > nearestAbove.y) - 1];
+  const belowDistance = below ? y - below.y : Number.POSITIVE_INFINITY;
+  const aboveDistance = above ? above.y - y : Number.POSITIVE_INFINITY;
+  const nearest =
+    belowDistance < aboveDistance || (belowDistance === aboveDistance && (below?.index ?? 0) > (above?.index ?? 0))
+      ? below
+      : above;
+  const distance = Math.min(belowDistance, aboveDistance);
+  return distance <= MAX_FRAGMENT_DISTANCE ? nearest : undefined;
+}
+
 /** Finds the rows of the health tables, which are introduced by a header line with a "Risk Variant" column. */
 export function findHealthRows(lines: readonly Line[], format: ReportFormat): SourcedHealthRow[] {
   const roles: LineRole[] = [];
+  // Per line, its page and the count of table headers up to it: a fragment
+  // line and an anchor share the key when no header lies between them.
+  const groupKeys: string[] = [];
+  let headers = 0;
   const anchors: Anchor[] = [];
   let inHealthTable = false;
   let knownInBreed = false;
@@ -195,6 +238,8 @@ export function findHealthRows(lines: readonly Line[], format: ReportFormat): So
       sectionTitle = line;
     }
     const header = headerRole(line);
+    headers += header ? 1 : 0;
+    groupKeys.push(`${line.page} ${headers}`);
     if (header) {
       roles.push(header);
       inHealthTable = header === 'health-header';
@@ -214,6 +259,7 @@ export function findHealthRows(lines: readonly Line[], format: ReportFormat): So
     roles.push('health-row');
     anchors.push({
       index,
+      y: line.y,
       copiesIndex,
       knownInBreed,
       headerNameParts: pendingNameParts,
@@ -222,28 +268,32 @@ export function findHealthRows(lines: readonly Line[], format: ReportFormat): So
     pendingNameParts = [];
   });
 
+  const groups = new Map<string, Anchor[]>();
+  // A baseline that is not a finite number is never within the fragment distance.
+  for (const anchor of anchors.filter(({ y }) => Number.isFinite(y))) {
+    const key = groupKeys[anchor.index] ?? '';
+    const group = groups.get(key);
+    if (group) {
+      group.push(anchor);
+    } else {
+      groups.set(key, [anchor]);
+    }
+  }
+  for (const group of groups.values()) {
+    group.sort((a, b) => a.y - b.y || a.index - b.index);
+  }
+
   const fragments = new Map<number, Line[]>();
   lines.forEach((line, index) => {
-    if (roles[index] !== 'other' || isPageFurniture(line)) {
+    if (roles[index] !== 'other' || isPageFurniture(line) || !Number.isFinite(line.y)) {
       return;
     }
-    let nearest: Anchor | undefined;
-    let nearestDistance = MAX_FRAGMENT_DISTANCE;
-    for (const anchor of anchors) {
-      const anchorLine = lines[anchor.index];
-      if (!anchorLine || anchorLine.page !== line.page) {
-        continue;
-      }
-      const [from, to] = anchor.index < index ? [anchor.index, index] : [index, anchor.index];
-      const separatedByHeader = roles.slice(from + 1, to).some((role) => role.endsWith('header'));
-      const distance = Math.abs(anchorLine.y - line.y);
-      if (!separatedByHeader && distance <= nearestDistance) {
-        nearest = anchor;
-        nearestDistance = distance;
-      }
-    }
-    if (nearest) {
-      fragments.set(nearest.index, [...(fragments.get(nearest.index) ?? []), line]);
+    const nearest = nearestAnchor(groups.get(groupKeys[index] ?? '') ?? [], line.y);
+    const attached = nearest && fragments.get(nearest.index);
+    if (attached) {
+      attached.push(line);
+    } else if (nearest) {
+      fragments.set(nearest.index, [line]);
     }
   });
 

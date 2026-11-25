@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { FIXTURE_LETTERS } from '../../scripts/extract-fixtures.ts';
 import { COLOUR_VARIANTS } from '../../src/report/loci.ts';
-import { parseReport } from '../../src/report/parse.ts';
-import type { DocumentInfo, Line, PdfText } from '../../src/report/pdfText.ts';
+import { findHealthRows, parseReport, type SourcedHealthRow } from '../../src/report/parse.ts';
+import {
+  MAX_TEXT_ITEMS_PER_DOCUMENT,
+  MAX_TEXT_ITEMS_PER_PAGE,
+  type DocumentInfo,
+  type Line,
+  type PdfText,
+} from '../../src/report/pdfText.ts';
 import type { ReadResult, Report } from '../../src/report/types.ts';
 import { fixtureText } from './fixtures.ts';
 import { line } from './lines.ts';
+import { fastestRunMs, PASS_BUDGET_MS } from './timing.ts';
 
 const NO_INFO: DocumentInfo = { creator: null, producer: null };
 const ADOBE_PRINTER: DocumentInfo = { creator: 'PScript5.dll Version 5.2.2', producer: null };
@@ -316,6 +323,32 @@ describe('parseReport: health rows', () => {
       line(13, 13, [34, 'Wisdom Panel™ Genetics Report'], [519, 'page 13 of 27']),
     ]);
     expect(report.health.map(({ name, gene }) => ({ name, gene }))).toEqual([{ name: 'Xanthinuria', gene: 'MOCOS' }]);
+  });
+
+  it('pairs wrapped fragments with their rows quickly on full pages of interleaved rows and fragments', () => {
+    const rowCells = 6;
+    const fragmentCells = 1;
+    const pages = Math.floor(MAX_TEXT_ITEMS_PER_DOCUMENT / MAX_TEXT_ITEMS_PER_PAGE);
+    const rowsPerPage = Math.floor(MAX_TEXT_ITEMS_PER_PAGE / (rowCells + fragmentCells));
+    // Each fragment sits a quarter point below its own row and three quarters above the next.
+    const lines = Array.from({ length: pages }, (_, pageIndex) => {
+      const page = pageIndex + 1;
+      return [
+        currentHealthHeader(page, 800),
+        ...Array.from({ length: rowsPerPage }, (_, index) => [
+          line(page, 790 - index, [43, `Condition ${index}`], [301, 'GENE'], [370, 'G>A'], [431, '0'], [482, 'AR'], [531, 'Clear']),
+          line(page, 790 - index - 0.25, [43, 'wrapped']),
+        ]).flat(),
+      ];
+    }).flat();
+    let rows: SourcedHealthRow[] = [];
+    const elapsed = fastestRunMs(() => {
+      rows = findHealthRows(lines, 'current');
+    });
+    // Scanning every row for every fragment line took minutes here.
+    expect(elapsed).toBeLessThan(PASS_BUDGET_MS);
+    expect(rows).toHaveLength(pages * rowsPerPage);
+    expect(rows.every(({ row }) => /^Condition \d+ wrapped$/.test(row.name))).toBe(true);
   });
 
   it('does not read trait rows as health rows', async () => {
