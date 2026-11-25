@@ -392,6 +392,8 @@ function capitalise(text: string): string {
 /**
  * A plain name for a dog's own coat, e.g. "Brown, mostly white"; with an
  * unknown base colour, comma-separated parts: "Colour unknown, tan points, solid".
+ * A merle or harlequin the report can't settle is named as unknown, and so is
+ * white spotting short of mostly white when a double merle can't be ruled out.
  */
 export function ownColourName(value: Phenotype): string {
   if (value.base === 'albino') {
@@ -406,14 +408,19 @@ export function ownColourName(value: Phenotype): string {
     beige: 'beige',
     'beige-light': 'beige, light cream likely',
   };
+  const { harlequin, merle, doubleMerle } = value.traits;
   const marking =
-    value.traits.harlequin === 'yes'
+    harlequin === 'yes'
       ? 'harlequin'
-      : value.traits.merle === 'yes'
+      : merle === 'yes'
         ? 'merle'
-        : value.traits.doubleMerle === 'yes'
+        : doubleMerle === 'yes'
           ? 'double merle'
           : undefined;
+  const unsettled = [
+    merle === 'unknown' && marking === undefined ? 'merle unknown' : undefined,
+    harlequin === 'unknown' ? 'harlequin unknown' : undefined,
+  ].filter((part) => part !== undefined);
   const whiteName: Record<WhiteSpotting | Unknown, string> = {
     solid: 'solid',
     limited: 'with limited white',
@@ -421,7 +428,14 @@ export function ownColourName(value: Phenotype): string {
     unknown: 'white spotting unknown',
   };
   // M/M alone makes a dog mostly white, whatever MITF holds.
-  const white = whiteName[value.traits.doubleMerle === 'yes' ? 'extensive' : value.white];
+  const white =
+    whiteName[
+      doubleMerle === 'yes'
+        ? 'extensive'
+        : doubleMerle === 'unknown' && value.white !== 'extensive'
+          ? 'unknown'
+          : value.white
+    ];
 
   if (value.base === 'unknown') {
     const patternPart: Partial<Record<Pattern | Unknown, string>> = {
@@ -430,7 +444,7 @@ export function ownColourName(value: Phenotype): string {
       'tan-points': 'tan points',
       unknown: 'pattern unknown',
     };
-    const parts = ['Colour unknown', marking, patternPart[value.pattern], white];
+    const parts = ['Colour unknown', marking, patternPart[value.pattern], ...unsettled, white];
     return parts.filter((part) => part !== undefined).join(', ');
   }
 
@@ -440,7 +454,11 @@ export function ownColourName(value: Phenotype): string {
     'tan-points': ' and tan',
     unknown: ', pattern unknown',
   };
-  const name = baseName[value.base] + (marking === undefined ? '' : ` ${marking}`) + (patternSuffix[value.pattern] ?? '');
+  const name =
+    baseName[value.base] +
+    (marking === undefined ? '' : ` ${marking}`) +
+    (patternSuffix[value.pattern] ?? '') +
+    unsettled.map((part) => `, ${part}`).join('');
   const joiner = white === whiteName.limited && !name.includes(',') ? ' ' : ', ';
   return capitalise(name + joiner + white);
 }
