@@ -161,6 +161,19 @@ describe('the health section', () => {
     expect(panel && outcomes && panel.compareDocumentPosition(outcomes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it('orders the panel colour first, then bobtail, then carrier × carrier', async () => {
+    const prcd = (copies: number) => healthRow('Progressive Rod-Cone Degeneration (prcd-PRA)', copies, 'AR', { gene: 'PRCD' });
+    const merle = (base: Report): Report['colour'] => ({ ...base.colour, PMEL: { M: 1 } });
+    const first = withHealth(a, 'Sample T', [prcd(1)], { shortTail: 1, colour: merle(a) });
+    const second = withHealth(b, 'Sample U', [prcd(1)], { shortTail: 1, colour: merle(b) });
+    const { root } = await pairOf(first, second);
+    expect([...root.querySelectorAll('.warnings .err b')].map((title) => title.textContent)).toEqual([
+      'Double merle: 25% (1 in 4).',
+      'Bobtail × bobtail.',
+      'Progressive Rod-Cone Degeneration (prcd-PRA): 25% (1 in 4).',
+    ]);
+  });
+
   it('warns about affected daughters from an X-linked variant both parents carry', async () => {
     const dam = withHealth(b, 'Sample F', [XR(1)], { sex: 'female' });
     const sire = withHealth(a, 'Sample M', [XR(1)], { sex: 'male' });

@@ -165,6 +165,8 @@ function healthWarning(warning: HealthWarning, analysis: HealthAnalysis): PanelI
   }
 }
 
+/** Bobtail first, then the conditions in table order, as in the approved mockup. */
 export function healthWarnings(analysis: HealthAnalysis): PanelItem[] {
-  return analysis.warnings.map((warning) => healthWarning(warning, analysis));
+  const bobtailFirst = analysis.warnings.toSorted((x, y) => Number(y.kind === 'bobtail') - Number(x.kind === 'bobtail'));
+  return bobtailFirst.map((warning) => healthWarning(warning, analysis));
 }
