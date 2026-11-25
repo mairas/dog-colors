@@ -53,6 +53,12 @@ export interface AppOptions {
   readonly narrow?: () => boolean;
 }
 
+interface ViewState {
+  readonly active: string | undefined;
+  readonly open: ReadonlyMap<string, boolean>;
+  readonly expanded: ReadonlySet<string>;
+}
+
 export interface App {
   /** Loads a file into a slot, as the slot's picker does; replaces a loaded report. */
   load(slot: ParentIndex, file: File): Promise<void>;
@@ -159,7 +165,16 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     input.click();
   };
 
-  const resolve = (slot: LoadedSlot): ResolvedDog => resolveDog(slot.report, slot.nose === undefined ? {} : { nose: slot.nose });
+  // A loaded slot is replaced, never changed, so its resolved dog can be kept with it.
+  const resolved = new WeakMap<LoadedSlot, ResolvedDog>();
+  const resolve = (slot: LoadedSlot): ResolvedDog => {
+    let dog = resolved.get(slot);
+    if (dog === undefined) {
+      dog = resolveDog(slot.report, slot.nose === undefined ? {} : { nose: slot.nose });
+      resolved.set(slot, dog);
+    }
+    return dog;
+  };
 
   const predict = (first: LoadedSlot, second: LoadedSlot, dogs: readonly [ResolvedDog, ResolvedDog]): PuppyPrediction => {
     const key = [first.report, first.nose, second.report, second.nose];
@@ -181,8 +196,8 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     pairEl.replaceChildren(message);
   }
 
-  function render(): void {
-    const active = document.activeElement instanceof HTMLElement ? document.activeElement.dataset['key'] : undefined;
+  /** The keyboard position, open disclosures and expanded caveats, by data-key. */
+  function snapshot(): ViewState {
     const open = new Map<string, boolean>();
     root.querySelectorAll<HTMLDetailsElement>('details[data-key]').forEach((details) => {
       open.set(details.dataset['key'] ?? '', details.open);
@@ -191,19 +206,44 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     root.querySelectorAll<HTMLElement>('.cav[aria-expanded="true"][data-key]').forEach((badge) => {
       expanded.add(badge.dataset['key'] ?? '');
     });
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement.dataset['key'] : undefined;
+    return { active, open, expanded };
+  }
+
+  /** Puts a snapshot back on the new elements; `collapse` closes the genotype tables. */
+  function restore(view: ViewState, collapse: boolean): void {
+    root.querySelectorAll<HTMLDetailsElement>('details[data-key]').forEach((details) => {
+      const key = details.dataset['key'] ?? '';
+      if (collapse && details.classList.contains('gd')) {
+        details.open = false;
+      } else if (view.open.has(key)) {
+        details.open = view.open.get(key) ?? details.open;
+      }
+    });
+    root.querySelectorAll<HTMLElement>('.cav[data-key]').forEach((badge) => {
+      if (view.expanded.has(badge.dataset['key'] ?? '')) {
+        badge.click();
+      }
+    });
+    const target = focusKey ?? view.active;
+    focusKey = null;
+    if (target !== undefined) {
+      root.querySelector<HTMLElement>(`[data-key="${CSS.escape(target)}"]`)?.focus();
+    }
+  }
+
+  function render(): void {
+    const view = snapshot();
 
     dropAlert.replaceChildren(...(state.pageAlert === null ? [] : [alertBox({ text: state.pageAlert })]));
 
-    const resolveSlot = (slot: SlotState): ResolvedDog | null => (slot.kind === 'loaded' ? resolve(slot) : null);
-    const dogs = [resolveSlot(state.slots[0]), resolveSlot(state.slots[1])] as const;
     const cards = SLOTS.map((slot) => {
       const current = state.slots[slot];
-      const dog = dogs[slot];
-      if (current.kind !== 'loaded' || dog === null) {
-        return renderOpenSlot(slot, current.kind === 'loaded' ? EMPTY : current, pick);
+      if (current.kind !== 'loaded') {
+        return renderOpenSlot(slot, current, pick);
       }
       return renderCard(
-        { slot, report: current.report, dog, nose: current.nose, replacing: current.replacing, alert: current.alert },
+        { slot, report: current.report, dog: resolve(current), nose: current.nose, replacing: current.replacing, alert: current.alert },
         { answer, replace: pick, remove },
       );
     });
@@ -214,15 +254,14 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     renderPair();
 
     const pair = loaded();
-    const [firstDog, secondDog] = dogs;
-    const show = pair !== null && !duplicate() && firstDog !== null && secondDog !== null;
+    const show = pair !== null && !duplicate();
     if (show) {
-      const prediction = predict(pair[0], pair[1], [firstDog, secondDog]);
+      const prediction = predict(pair[0], pair[1], [resolve(pair[0]), resolve(pair[1])]);
       resultsEl.replaceChildren(
         ...renderResults({
           names: [dogName(pair[0].report, 0), dogName(pair[1].report, 1)],
           prediction,
-          openQuestion: SLOTS.some((slot) => pair[slot].nose === undefined && (dogs[slot]?.questions.length ?? 0) > 0),
+          openQuestion: pair.some((slot) => slot.nose === undefined && resolve(slot).questions.length > 0),
         }),
       );
     } else {
@@ -232,25 +271,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     root.classList.toggle('has-results', show);
     const collapse = show && !resultsShown && narrow();
     resultsShown = show;
-
-    root.querySelectorAll<HTMLDetailsElement>('details[data-key]').forEach((details) => {
-      const key = details.dataset['key'] ?? '';
-      if (collapse && details.classList.contains('gd')) {
-        details.open = false;
-      } else if (open.has(key)) {
-        details.open = open.get(key) ?? details.open;
-      }
-    });
-    root.querySelectorAll<HTMLElement>('.cav[data-key]').forEach((badge) => {
-      if (expanded.has(badge.dataset['key'] ?? '')) {
-        badge.click();
-      }
-    });
-    const target = focusKey ?? active;
-    focusKey = null;
-    if (target !== undefined) {
-      root.querySelector<HTMLElement>(`[data-key="${CSS.escape(target)}"]`)?.focus();
-    }
+    restore(view, collapse);
   }
 
   const resultsStatus = (): string => {
