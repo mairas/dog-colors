@@ -81,6 +81,8 @@
   --warn: light-dark(#8a3b00, #ffb37a);
   --warn-bg: light-dark(#fff3e6, #33220f);
   --panel: light-dark(#faf7f2, #1e1915);
+  /* The band colour has no contrast on the dark page, so the rule turns tan there. */
+  --rule: light-dark(#3b2418, #d2ad84);
   --target: 44px;
   --radius: 6px;
   --gap: 20px;
@@ -150,6 +152,46 @@ a {
   max-width: 62ch;
   margin: 10px 0 0;
   color: var(--band-mute);
+}
+
+.ethics {
+  position: relative;
+  margin: 28px 0 8px;
+  padding: 20px 22px;
+  border-left: 6px solid var(--rule);
+  border-radius: 0 8px 8px 0;
+  background: var(--beige);
+}
+.ethics h2 {
+  padding-right: 40px;
+  font-size: clamp(20px, 2.6vw, 26px);
+}
+.ethics h2:focus {
+  outline: none;
+}
+.ethics h2:focus-visible {
+  outline: 3px solid var(--acc);
+  outline-offset: 2px;
+}
+.ethics button.close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: var(--target);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--mute);
+}
+.ethics button.close:hover {
+  color: var(--ink);
+}
+.ethics p {
+  margin: 12px 0 0;
+  max-width: 70ch;
+}
+.ethics .lead {
+  font-size: 17px;
 }
 
 .privacy {
@@ -411,6 +453,15 @@ details.gd summary {
 }
 .slot .note {
   margin: 10px 0;
+}
+.ethics-line {
+  margin: 14px 0;
+  padding: 8px 12px;
+  border-left: 4px solid var(--rule);
+  background: var(--panel);
+}
+.ethics-line a {
+  white-space: nowrap;
 }
 .warnings {
   display: grid;

@@ -56,6 +56,8 @@ pdf.js is the legacy build everywhere: Node needs it, and it polyfills built-ins
 
 Run `./run setup` once, then `./run dev` and open <http://localhost:5173/dog-colors/>. The dev server serves without the Content-Security-Policy, because Vite injects inline scripts during development. To see the page as deployed, with the policy in force, run `./run build` and then `./run preview`, and open <http://localhost:4173/dog-colors/>.
 
+The breeding note's close cross hides it for 30 days by storing the expiry, in epoch milliseconds, under the localStorage key `dog-colors:breeding-note-hidden-until`; on the plain page, remove that key to see the note again. The fixture states below keep it in memory instead, so a dismissal lasts until the next load and never reaches localStorage; add `&note=hidden` to start one with the note dismissed.
+
 Every state of the page can be rendered without real reports through a dev-only query parameter, handled by `src/ui/dev.ts` from the committed fixtures and synthetic reports built from them. The module is loaded only when the build-time constant `__FIXTURES__` is true: in the dev server and in `./run preview-fixtures`, never in `./run build`, so the production bundle carries none of it; `./run check-fixtures` checks this, in CI and before every Pages deploy. Use `./run preview-fixtures` (<http://localhost:4173/dog-colors/>) to see a state with the policy in force, or `./run dev` (port 5173).
 
 `?state=<name>` gives one of the approved mockup's states:
@@ -63,6 +65,7 @@ Every state of the page can be rendered without real reports through a dev-only 
 | State | URL |
 |---|---|
 | Both slots empty | `?state=slot-empty` |
+| Note dismissed, start | `?state=slot-empty&note=hidden` |
 | One card, results hidden | `?state=results-hidden` |
 | Reading a report | `?state=slot-reading` |
 | Rejected file in an empty slot | `?state=slot-error` |
@@ -74,6 +77,7 @@ Every state of the page can be rendered without real reports through a dev-only 
 | Locus missing from a report | `?state=slot-missing` |
 | Same report in both slots | `?state=pair-duplicate` |
 | Results | `?state=results-populated` |
+| Note dismissed, results | `?state=results-populated&note=hidden` |
 | Results with ranges | `?state=results-ranges` |
 | Results with warnings | `?state=results-warnings` |
 | Results with an unknown locus | `?state=results-partial` |

@@ -4,7 +4,7 @@ import { resolveDog } from '../../src/genetics/dog.ts';
 import { predictPuppies } from '../../src/genetics/results.ts';
 import { analyseHealth, type HealthAnalysis } from '../../src/health/health.ts';
 import type { AppState, LoadedSlot } from '../../src/ui/app.ts';
-import { STATE_NAMES, stateFromQuery } from '../../src/ui/dev.ts';
+import { STATE_NAMES, fixtureOptions, stateFromQuery } from '../../src/ui/dev.ts';
 import { openPage } from './app.ts';
 
 const state = (name: string): Promise<AppState> => stateFromQuery(new URLSearchParams({ state: name }));
@@ -92,5 +92,28 @@ describe('the dev-only fixture states', () => {
   it('loads any two reports by name', async () => {
     const app = await stateFromQuery(new URLSearchParams({ fixtures: 'c,m' }));
     expect(loaded(app).map((slot) => slot.report.missingLoci)).toEqual([[], ['TYRP1']]);
+  });
+});
+
+describe('the fixture states’ breeding note', () => {
+  const note = (root: HTMLElement) => root.querySelector<HTMLElement>('section.ethics');
+
+  async function open(query: Record<string, string>): Promise<HTMLElement> {
+    const { root } = openPage({}, await fixtureOptions(new URLSearchParams(query)));
+    return root;
+  }
+
+  it.each([{ state: 'slot-empty' }, { state: 'results-populated' }, { fixtures: 'a,b' }])('starts dismissed with note=hidden in %o', async (query) => {
+    expect(note(await open({ ...query, note: 'hidden' }))?.hidden).toBe(true);
+  });
+
+  it('shows without note=hidden, and a dismissal stays in memory', async () => {
+    window.localStorage.clear();
+    const root = await open({ state: 'slot-empty' });
+    expect(note(root)?.hidden).toBe(false);
+    root.querySelector<HTMLButtonElement>('section.ethics button.close')?.click();
+    expect(note(root)?.hidden).toBe(true);
+    expect(window.localStorage.length).toBe(0);
+    expect(note(await open({ state: 'slot-empty' }))?.hidden).toBe(false);
   });
 });
