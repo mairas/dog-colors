@@ -8,6 +8,8 @@ const PER_CENT = 100;
 const ODDS_IN_TENTHS = 10;
 /** Up to this denominator a fraction's own odds read plainly ("3 in 4"). */
 const PLAIN_ODDS_DENOMINATOR = 4;
+/** Up to this share odds read as "about 1 in N"; above it, in tenths, where 1 in N moves in big steps. */
+const ONE_IN_N_SHARE = 1 / 3;
 
 export function percent(value: Fraction): string {
   const share = toNumber(value);
@@ -36,7 +38,7 @@ export function odds(value: Fraction): string | null {
     return `${numerator} in ${denominator}`;
   }
   const share = numerator / denominator;
-  if (share <= 1 / 2) {
+  if (share <= ONE_IN_N_SHARE) {
     return `about 1 in ${Math.round(denominator / numerator)}`;
   }
   const tenths = Math.round(share * ODDS_IN_TENTHS);
@@ -45,7 +47,8 @@ export function odds(value: Fraction): string | null {
 
 export function chanceParts(range: Range): { readonly figure: string; readonly odds: string | null } {
   if (!isSingle(range)) {
-    return { figure: `${percent(range.min).replace('%', '')}–${percent(range.max)}`, odds: null };
+    const [low, high] = [percent(range.min), percent(range.max)];
+    return { figure: low === high ? high : `${low.replace('%', '')}–${high}`, odds: null };
   }
   return { figure: percent(range.max), odds: odds(range.max) };
 }
