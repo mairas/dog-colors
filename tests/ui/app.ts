@@ -135,3 +135,8 @@ export function button(root: HTMLElement, key: string): HTMLButtonElement {
   }
   return found;
 }
+
+/** A coat picture's shapes, as "tag class". */
+export function shapes(picture: SVGSVGElement): string[] {
+  return [...picture.children].map((shape) => `${shape.tagName.toLowerCase()} ${shape.getAttribute('class') ?? ''}`);
+}

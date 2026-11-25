@@ -5,11 +5,12 @@ import type { AllelePair } from '../genetics/alleles.ts';
 import type { OwnColour, ResolvedDog } from '../genetics/dog.ts';
 import { pairEffect } from '../genetics/effects.ts';
 import { OWN_COLOUR_LIMITS } from '../genetics/warnings.ts';
-import { FLAG_INFO, type BaseColour, type Unknown } from '../genetics/phenotype.ts';
+import { FLAG_INFO, mergePhenotypes } from '../genetics/phenotype.ts';
 import type { NoseAnswer } from '../genetics/questions.ts';
 import type { ParentIndex } from '../health/health.ts';
 import { COLOUR_GENES, COLOUR_VARIANTS, type ColourGene } from '../report/loci.ts';
 import type { Report } from '../report/types.ts';
+import { coatChip } from './coat.ts';
 import { h } from './dom.ts';
 import { flagTags } from './results.ts';
 import type { Message } from './messages.ts';
@@ -36,10 +37,15 @@ const SEX_NAMES = { male: 'Male', female: 'Female' } as const;
 
 export const dogName = (report: Report, slot: ParentIndex): string => report.name ?? parentLabel(slot);
 
-function swatchColour(colours: readonly OwnColour[]): BaseColour | Unknown {
-  const bases = new Set(colours.map((colour) => colour.phenotype.base));
-  const [only] = bases;
-  return bases.size === 1 && only !== undefined ? only : 'unknown';
+/** The coat picture of what the possible own colours share: a part they disagree on is unknown or left out. */
+function ownPicture(colours: readonly OwnColour[]): SVGSVGElement | null {
+  const [first, ...others] = colours;
+  if (first === undefined) {
+    return null;
+  }
+  const picture = coatChip(others.reduce((shared, colour) => mergePhenotypes(shared, colour.phenotype), first.phenotype));
+  picture.classList.add('chip');
+  return picture;
 }
 
 function pairOf(genotype: OwnColour['genotypes'][number], gene: ColourGene): AllelePair<ColourGene> | undefined {
@@ -239,7 +245,7 @@ export function renderCard(input: CardInput, actions: CardActions): HTMLElement 
     h(
       'div',
       { class: 'own' },
-      h('span', { class: `chip coat-${swatchColour(dog.ownColours)}`, 'aria-hidden': 'true' }),
+      ownPicture(dog.ownColours),
       h(
         'div',
         {},
