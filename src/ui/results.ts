@@ -3,7 +3,7 @@
 // carried alleles, and every caveat collected at the end.
 
 import { HIDDEN_EFFECTS, HIDER_LABELS } from '../genetics/hidden.ts';
-import { FLAG_INFO, FLAGS, ownColourName, type BaseColour, type Flag, type Phenotype, type Unknown } from '../genetics/phenotype.ts';
+import { FLAG_INFO, FLAGS, type BaseColour, type Flag, type Phenotype, type Unknown } from '../genetics/phenotype.ts';
 import type { PuppyPrediction, Row, Table, TraitRow, UndocumentedLocus } from '../genetics/results.ts';
 import { caveatText, COLOUR_WARNING_TEXT, type CaveatId, type ColourWarning } from '../genetics/warnings.ts';
 import { h, present, svg, type Child } from './dom.ts';
@@ -187,7 +187,7 @@ function combinedOutcomes(prediction: PuppyPrediction): Child[] {
       coatChip(outcome.phenotype),
       h('span', { class: 'p' }, parts.figure),
       parts.odds === null ? null : h('span', { class: 'sec' }, parts.odds),
-      h('span', { class: 'n' }, ownColourName(outcome.phenotype), flagTags(outcome.phenotype.flags)),
+      h('span', { class: 'n' }, outcome.name, flagTags(outcome.phenotype.flags)),
     );
   });
   return [

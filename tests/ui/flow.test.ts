@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Report } from '../../src/report/types.ts';
+import { syntheticReport } from '../genetics/synthetic.ts';
 import { button, fixtureText, ok, openPage, parsed, pdf, sampleReport, tableRows, variant, type Library } from './app.ts';
 
 const ANSWER_NOTE = "Some figures are ranges because a parent's genotype is uncertain. Answer the questions on the cards to narrow them.";
@@ -367,6 +368,17 @@ describe('engine cases the page names', () => {
   it('qualifies a hidden row that applies to one colour as all puppies of that colour', async () => {
     const { root } = await pair('nose.pdf', 'b.pdf');
     expect(tableRows(root, 'Hidden and carried').map(([label]) => label)).toContain('Carries brown (all black puppies)B/b');
+  });
+
+  it('names a combined outcome by the name its puppies share, not by its merged phenotype', async () => {
+    // KB/ky a/aw × itself: Dominant Black and recessive black puppies are both "Black, solid".
+    const solid = syntheticReport({ 'CBD103 KB': 1, 'ASIP a': 1, 'ASIP at': 1 });
+    const { app, root } = openPage({ 's.pdf': ok(solid), 't.pdf': ok({ ...solid, name: 'Sample T' }) });
+    await app.load(0, pdf('s.pdf'));
+    await app.load(1, pdf('t.pdf'));
+    const names = [...root.querySelectorAll('.out .n')].map((name) => name.textContent);
+    expect(names).toContain('Black, solid');
+    expect(names.some((name) => name?.includes('pattern unknown'))).toBe(false);
   });
 
   it('says the merle figure includes harlequin puppies', async () => {
