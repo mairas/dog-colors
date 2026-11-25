@@ -313,6 +313,13 @@ export function renderResults(input: ResultsInput): (Node | string)[] {
       `Puppy colours: ${names[0]} × ${names[1]}`,
     ),
     h('p', { class: 'sec' }, 'Odds for each puppy, not the make-up of a litter.'),
+    h(
+      'p',
+      { class: 'ethics-line' },
+      h('b', {}, 'Colour is never a reason to choose a pairing:'),
+      ' health, temperament, fitness for purpose and genetic diversity are. ',
+      h('a', { href: '#ethics', 'data-key': 'ethics-link' }, 'Before you plan a litter'),
+    ),
     warningPanel([...prediction.warnings.map(colourWarning), ...(input.healthWarnings ?? [])]),
     ...notes(input),
     ...combinedOutcomes(prediction),

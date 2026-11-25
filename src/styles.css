@@ -432,6 +432,15 @@ details.gd summary {
 .slot .note {
   margin: 10px 0;
 }
+.ethics-line {
+  margin: 14px 0;
+  padding: 8px 12px;
+  border-left: 4px solid var(--rule);
+  background: var(--panel);
+}
+.ethics-line a {
+  white-space: nowrap;
+}
 .warnings {
   display: grid;
   gap: 10px;
