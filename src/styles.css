@@ -749,4 +749,9 @@ dialog.dogs figcaption {
   table.t {
     break-inside: avoid;
   }
+  /* The table moves whole to the next page; its heading and intro go with it. */
+  .health > h2,
+  .health > h2 + p {
+    break-after: avoid;
+  }
 }
