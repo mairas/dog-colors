@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { formatPair } from '../../src/genetics/alleles.ts';
 import { resolveDog, type ResolvedDog } from '../../src/genetics/dog.ts';
+import { ownColourName } from '../../src/genetics/phenotype.ts';
+import type { ColourGene } from '../../src/report/loci.ts';
 import { sampleReport, syntheticReport } from './reports.ts';
 
 const names = (dog: ResolvedDog): string[] => dog.ownColours.map((colour) => colour.name);
@@ -87,6 +89,20 @@ describe('resolveDog: ambiguity', () => {
   ])('names every own colour differently: %s', (_name, copies) => {
     const listed = names(resolveDog(syntheticReport(copies)));
     expect(new Set(listed).size).toBe(listed.length);
+  });
+
+  it.each<[string, Readonly<Record<string, number>>, readonly ColourGene[]]>([
+    ['ASIP ay 1 + at 1', { 'ASIP ay': 1, 'ASIP at': 1 }, []],
+    ['ASIP ay 1 + at 1 under KB', { 'ASIP ay': 1, 'ASIP at': 1, 'CBD103 KB': 2 }, []],
+    ['TYRP1 bd 1 + bc 1 on e/e', { 'TYRP1 bd': 1, 'TYRP1 bc': 1, 'MC1R e1': 2 }, []],
+    ['TYRP1 bd 1 + bc 1, dilute', { 'TYRP1 bd': 1, 'TYRP1 bc': 1, 'CBD103 KB': 1, 'MLPH d1': 2 }, []],
+    ['ASIP and TYRP1 ambiguous, merle, PSMB7 missing', { 'ASIP ay': 1, 'ASIP at': 1, 'TYRP1 bd': 1, 'TYRP1 bc': 1, 'PMEL M': 1 }, ['PSMB7']],
+    ['TYRP1 ambiguous, PMEL missing', { 'TYRP1 bd': 1, 'TYRP1 bc': 1, 'CBD103 KB': 1, 'MITF sp': 1 }, ['PMEL']],
+    ['ASIP ambiguous, CBD103 and MITF missing', { 'ASIP ay': 1, 'ASIP at': 1 }, ['CBD103', 'MITF']],
+  ])('names every merged own colour by its merged phenotype: %s', (_name, copies, missing) => {
+    for (const colour of resolveDog(syntheticReport(copies, missing)).ownColours) {
+      expect(colour.name).toBe(ownColourName(colour.phenotype));
+    }
   });
 
   it('merges candidates that look the same, and still reports the locus unsettled', () => {
