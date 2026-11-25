@@ -299,6 +299,18 @@ describe('parseReport: health rows', () => {
     ]);
   });
 
+  it('reads the X-linked dominant inheritance mode', async () => {
+    const report = await parsed([
+      ...currentHeader(),
+      currentHealthHeader(18, 654),
+      line(18, 627, [43, 'X-Linked Hereditary Nephropathy'], [301, 'COL4A5'], [370, 'C>T'], [431, '0'], [482, 'XD'], [531, 'Clear']),
+      CURRENT_FOOTER,
+    ]);
+    expect(report.health.map(({ gene, inheritance }) => ({ gene, inheritance }))).toEqual([
+      { gene: 'COL4A5', inheritance: 'XD' },
+    ]);
+  });
+
   it('keeps two conditions with the same gene and variant apart by name', async () => {
     const report = await parsed([
       ...currentHeader(),
