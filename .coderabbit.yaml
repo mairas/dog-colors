@@ -69,8 +69,6 @@ reviews:
           is that reports never leave the browser. Anything that sends report
           content, or anything derived from it, off the page breaks that
           promise, whatever it is for.
-        - **A CDN, hosted fonts, or analytics.** The page makes no third-party
-          requests, and the Content-Security-Policy enforces it.
         - **A CHANGELOG.** There has never been one.
 
         ## Scope
@@ -88,10 +86,12 @@ reviews:
         handler — even when the value looks like it came from a fixed column of
         the report, because a crafted PDF controls every column.
 
-        **Nothing is saved.** Flag any write of report content, or anything
-        derived from it, to `localStorage`, `sessionStorage`, IndexedDB,
-        cookies, the Cache API or the URL. A breeder is told that closing the
-        page discards the reports.
+        **Storage matches the privacy note.** The page's privacy note, in
+        `src/ui/app.ts`, tells a breeder what happens to their reports. Flag
+        any write of report content, or anything derived from it, to
+        `localStorage`, `sessionStorage`, IndexedDB, cookies, the Cache API or
+        the URL, unless the same PR updates that note to say what is kept and
+        how to clear it.
 
         **No network.** Flag `fetch`, `XMLHttpRequest`, `WebSocket`,
         `sendBeacon`, or an image or link whose URL carries report data.
