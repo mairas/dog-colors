@@ -16,9 +16,11 @@ export function coatChip(phenotype: Phenotype): SVGSVGElement {
     svg('svg', { viewBox: '0 0 160 120', 'aria-hidden': 'true', focusable: 'false' }, ...shapes);
   const rect = (className: string) => svg('rect', { width: '160', height: '120', class: className });
   if (phenotype.traits.doubleMerle === 'yes') {
+    // Two copies still whiten the coat where the merle pattern itself cannot show.
+    const patch = phenotype.flags.includes('merle-hidden') ? coat : 'coat coat-merle';
     return frame(
       rect('coat coat-white'),
-      svg('circle', { cx: '46', cy: '38', r: '16', class: 'coat coat-merle' }),
+      svg('circle', { cx: '46', cy: '38', r: '16', class: patch }),
       svg('circle', { cx: '56', cy: '42', r: '7', class: coat }),
     );
   }

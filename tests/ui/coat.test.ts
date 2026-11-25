@@ -34,6 +34,11 @@ describe('the coat picture', () => {
       { traits: { ...SOLID_BROWN.traits, merle: 'yes', doubleMerle: 'yes' } },
       ['rect coat coat-white', 'circle coat coat-merle', 'circle coat coat-brown'],
     ],
+    [
+      'double merle that the coat hides',
+      { traits: { ...SOLID_BROWN.traits, merle: 'yes', doubleMerle: 'yes' }, flags: ['merle-hidden'] },
+      ['rect coat coat-white', 'circle coat coat-brown', 'circle coat coat-brown'],
+    ],
   ])('draws %s', (_label, change, expected) => {
     expect(shapes(coatChip({ ...SOLID_BROWN, ...change }))).toEqual(expected);
   });
