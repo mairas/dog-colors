@@ -101,7 +101,7 @@ describe('resolveLocus: impossible copy counts', () => {
   it('rejects three single variants with no documented placement, whose other placements disagree', () => {
     // TYRP1: all three on one chromosome gives B/b, two and one gives b/b.
     expect(resolveLocus('TYRP1', { bc: 1, bs: 1, be: 1 })).toEqual({ status: 'inconsistent', reason: 'no-phasing' });
-    // MC1R: Em+e1 / eA gives e/eA, Em / e1+eA gives Em/e.
+    // MC1R: every placement puts two of Em, e1 and eA, which decode differently, on one chromosome.
     expect(resolveLocus('MC1R', { Em: 1, e1: 1, eA: 1 })).toEqual({ status: 'inconsistent', reason: 'no-phasing' });
   });
 });
@@ -123,12 +123,50 @@ describe('resolveLocus: no documented placement', () => {
     });
   });
 
-  it('reads ASIP a without at, whose only placement is undocumented, as aw/a, flagged', () => {
+  it('reads ASIP a without at, whose only placement is undocumented, as aw/a or a/a, flagged', () => {
     expect(resolveLocus('ASIP', { a: 1, at: 0 })).toEqual({
       status: 'resolved',
       candidates: [['aw', 'a']],
       undocumented: true,
     });
+    expect(resolveLocus('ASIP', { a: 2, at: 0 })).toEqual({
+      status: 'resolved',
+      candidates: [['a', 'a']],
+      undocumented: true,
+    });
+  });
+
+  it('reads MLPH d1 2 + d2 1 as d/d, flagged', () => {
+    expect(resolveLocus('MLPH', { d1: 2, d2: 1 })).toEqual({
+      status: 'resolved',
+      candidates: [['d', 'd']],
+      undocumented: true,
+    });
+  });
+
+  it('reads a placement that keeps each variant apart, when the others would mix effects, flagged', () => {
+    // ay+a on one chromosome would decode as a, hiding ay; only ay / a keeps both.
+    expect(resolveLocus('ASIP', { ay: 1, a: 1 })).toEqual({
+      status: 'resolved',
+      candidates: [['ay', 'a']],
+      undocumented: true,
+    });
+    // e1 and e2 both decode alone to e, so e1+e2 / Em is the one placement kept.
+    expect(resolveLocus('MC1R', { Em: 1, e1: 1, e2: 1 })).toEqual({
+      status: 'resolved',
+      candidates: [['Em', 'e']],
+      undocumented: true,
+    });
+  });
+
+  it.each<[string, ColourGene, Readonly<Record<string, number>>]>([
+    ['MC1R eA 2 + eH 1', 'MC1R', { eA: 2, eH: 1 }],
+    ['MC1R eH 2 + eA 1', 'MC1R', { eH: 2, eA: 1 }],
+    ['MC1R Em 2 + eA 1', 'MC1R', { Em: 2, eA: 1 }],
+    ['MC1R Em 2 + e1 2', 'MC1R', { Em: 2, e1: 2 }],
+    ['ASIP ay 2 + a 2', 'ASIP', { ay: 2, a: 2 }],
+  ])('rejects %s: a chromosome would carry variants that decode alone to different alleles', (_name, gene, copies) => {
+    expect(resolveLocus(gene, copies)).toEqual({ status: 'inconsistent', reason: 'no-phasing' });
   });
 
   it('leaves documented placements unflagged, even beside undocumented ones', () => {

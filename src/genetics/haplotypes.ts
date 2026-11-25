@@ -2,8 +2,9 @@
 // report gives no phase, so each gene's variant copies are placed on the dog's
 // two chromosomes in every way the documented cis haplotypes allow; each
 // placement decodes to one allele pair, and equal pairs merge. When no
-// documented placement fits at all, every placement is tried: if they all
-// decode to the same pair, that pair is used and marked undocumented.
+// documented placement fits at all, the placements whose chromosomes each carry
+// only variants that alone decode to that chromosome's allele are tried: if
+// they all decode to the same pair, that pair is used and marked undocumented.
 
 import { COLOUR_GENES, type ColourGene } from '../report/loci.ts';
 import type { Report } from '../report/types.ts';
@@ -21,8 +22,8 @@ import {
 
 /**
  * Why a locus's copy counts fit no genotype: a count outside 0–2, or variants
- * that fit no documented placement and whose other placements decode to
- * different pairs.
+ * that fit no documented placement and whose other placements either put
+ * variants with different effects on one chromosome or decode to different pairs.
  */
 export type Inconsistency = 'invalid-count' | 'no-phasing';
 
@@ -32,7 +33,7 @@ export type LocusResolution<G extends ColourGene> =
   | {
       readonly status: 'resolved';
       readonly candidates: readonly AllelePair<G>[];
-      /** Set when no documented placement fits and every other placement gives this one pair. */
+      /** Set when no documented placement fits and every placement that keeps each variant's own effect gives this one pair. */
       readonly undocumented?: true;
     };
 
@@ -80,7 +81,11 @@ export function resolveLocus<G extends ColourGene>(
   if (documented.length > 0) {
     return { status: 'resolved', candidates: decoded(documented) };
   }
-  const candidates = decoded(placements);
+  // On a chromosome carrying a variant that alone decodes to another allele,
+  // decode order, not the report, would settle the allele.
+  const keepsEffects = (chromosome: Chromosome): boolean =>
+    [...chromosome].every((code) => rule.decode(new Set([code])) === rule.decode(chromosome));
+  const candidates = decoded(placements.filter(([first, second]) => keepsEffects(first) && keepsEffects(second)));
   return candidates.length === 1
     ? { status: 'resolved', candidates, undocumented: true }
     : { status: 'inconsistent', reason: 'no-phasing' };
