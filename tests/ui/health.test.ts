@@ -206,6 +206,33 @@ describe('the health section', () => {
     );
   });
 
+  it('says the daughters warning assumes a female × male pairing when one sex is unread', async () => {
+    const dam = withHealth(b, 'Sample F', [XR(1)], { sex: 'female' });
+    const unread = withHealth(a, 'Sample N', [XR(1)], { sex: null });
+    const { root } = await pairOf(dam, unread);
+    expect(root.querySelector('.warnings .err')?.textContent).toBe(
+      '⚠Hemophilia A: 50% (1 in 2) of daughters. The dam carries this X-linked recessive variant and the sire has it, so daughters can be affected. Assuming a female × male pairing.',
+    );
+  });
+
+  it.each([
+    {
+      case: 'one parent',
+      tails: [2, 1],
+      text: "Both parents carry the short-tail variant. About 1 in 2 embryos get two copies (T/T), which is not viable, so litters may be smaller. Parent 1's report shows 2 copies, which is unexpected in a live dog.",
+    },
+    {
+      case: 'both parents',
+      tails: [2, 2],
+      text: "Both parents carry the short-tail variant. Every embryo gets two copies (T/T), which is not viable, so litters may be smaller. Parent 1's report shows 2 copies, which is unexpected in a live dog. Parent 2's report shows 2 copies, which is unexpected in a live dog.",
+    },
+  ])('names $case reported with two bobtail copies', async ({ tails, text }) => {
+    const first = withHealth(a, 'Sample T', [], { shortTail: tails[0] ?? 0 });
+    const second = withHealth(b, 'Sample U', [], { shortTail: tails[1] ?? 0 });
+    const { root } = await pairOf(first, second);
+    expect(root.querySelector('.warnings .err')?.textContent).toBe(`⚠Bobtail × bobtail. ${text}`);
+  });
+
   it('warns when both parents carry a variant of unknown inheritance', async () => {
     const odd = (copies: number) => healthRow('Unlisted Condition', copies, null, { gene: 'XYZ1' });
     const { root } = await pairOf(withHealth(a, 'Sample A', [odd(1)]), withHealth(b, 'Sample B', [odd(1)]));
