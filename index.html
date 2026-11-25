@@ -3,10 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
     <title>Puppy colour predictor</title>
   </head>
   <body>
-    <main id="app"></main>
+    <header class="band">
+      <div class="wrap">
+        <h1>Puppy colour predictor</h1>
+        <p>
+          Load the Wisdom Panel genetic report PDF of each parent to see which coat colours their puppies can have, and
+          how likely each one is.
+        </p>
+      </div>
+    </header>
+    <main id="app" class="wrap"></main>
+    <footer>
+      <div class="wrap">
+        Predictions cover only the variants Wisdom Panel tests. They are not breeding or veterinary advice. Coat colour
+        also changes with age: greying and ticking are common in Spanish Water Dogs and are not predicted here.
+      </div>
+    </footer>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
