@@ -2,7 +2,7 @@
 // (brown, beige) where they differ from generic ones.
 
 import type { AllelePair } from '../genetics/alleles.ts';
-import type { BaseColour, Flag, Pattern, Trait, Unknown, WhiteSpotting } from '../genetics/phenotype.ts';
+import { BASE_COLOUR_WORDS, type BaseColour, type Flag, type Pattern, type Trait, type Unknown, type WhiteSpotting } from '../genetics/phenotype.ts';
 import type { UnknownLocus } from '../genetics/results.ts';
 import type { ParentIndex } from '../health/health.ts';
 import type { ColourGene } from '../report/loci.ts';
@@ -29,15 +29,21 @@ export const parentLabel = (parent: ParentIndex): string => `Parent ${parent + 1
 
 export const copiesText = (copies: number): string => (copies === 1 ? '1 copy' : `${copies} copies`);
 
+const tableName = (base: BaseColour): string => {
+  const words = BASE_COLOUR_WORDS[base];
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
+/** The base colour table's labels: the engine's words, with what blue and lilac dilute. */
 export const BASE_NAMES: Readonly<Record<BaseColour | Unknown, string>> = {
-  black: 'Black',
-  brown: 'Brown',
-  cocoa: 'Cocoa',
-  blue: 'Blue (dilute black)',
-  lilac: 'Lilac (dilute brown)',
-  beige: 'Beige',
-  'beige-light': 'Beige, light cream likely',
-  albino: 'White or cream, pink nose',
+  black: tableName('black'),
+  brown: tableName('brown'),
+  cocoa: tableName('cocoa'),
+  blue: `${tableName('blue')} (dilute black)`,
+  lilac: `${tableName('lilac')} (dilute brown)`,
+  beige: tableName('beige'),
+  'beige-light': tableName('beige-light'),
+  albino: tableName('albino'),
   unknown: 'Unknown',
 };
 

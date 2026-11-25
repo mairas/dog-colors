@@ -76,6 +76,12 @@ export const CAVEAT_TEXT: Readonly<Record<CrossCaveat, string>> = {
   'untested-loci': "Greying, ticking and other genes the report doesn't test can change how a puppy looks.",
 };
 
+/** What a dog's predicted own colour can't account for, whatever its report says. */
+export const OWN_COLOUR_LIMITS: readonly string[] = [
+  "Brindle and greying can't be tested.",
+  `Rare variants (eA, eG, eH) are ${FLAG_INFO['not-modelled-eA'].label}.`,
+];
+
 const isCrossCaveat = (id: CaveatId): id is CrossCaveat => (CROSS_CAVEATS as readonly string[]).includes(id);
 
 /** The text of any caveat badge: a cross caveat's own, or a phenotype flag's caveat. */

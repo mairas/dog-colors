@@ -88,6 +88,12 @@ describe('the colour page', () => {
     );
   });
 
+  it('lists what a predicted colour can’t account for under “Doesn’t match your dog?”', async () => {
+    const { root } = await pair('a.pdf', 'b.pdf');
+    const items = [...root.querySelectorAll('[data-key="why-0"] li')].map((item) => item.textContent);
+    expect(items.slice(0, 2)).toEqual(["Brindle and greying can't be tested.", 'Rare variants (eA, eG, eH) are not modelled precisely.']);
+  });
+
   it('lists both candidate colours above the question', async () => {
     const { root } = await pair('nose.pdf', 'b.pdf');
     expect(root.querySelector('.own-name')?.textContent).toBe('Black, mostly white (B/b) or brown, mostly white (b/b)');
@@ -530,6 +536,7 @@ describe('engine cases the page names', () => {
     await app.load(0, pdf('s.pdf'));
     await app.load(1, pdf('t.pdf'));
     expect(tableRows(root, 'Hidden and carried').map(([label]) => label)).toContain('Carries brown (blue puppies only)B/b');
+    expect(tableRows(root, 'Base colour').map(([label]) => label)).toEqual(['Blue (dilute black)', 'Lilac (dilute brown)']);
   });
 
   it('names a combined outcome by the name its puppies share, not by its merged phenotype', async () => {

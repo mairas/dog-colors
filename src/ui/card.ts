@@ -4,6 +4,7 @@
 import type { AllelePair } from '../genetics/alleles.ts';
 import type { OwnColour, ResolvedDog } from '../genetics/dog.ts';
 import { pairEffect } from '../genetics/effects.ts';
+import { OWN_COLOUR_LIMITS } from '../genetics/warnings.ts';
 import { FLAG_INFO, type BaseColour, type Unknown } from '../genetics/phenotype.ts';
 import type { NoseAnswer } from '../genetics/questions.ts';
 import type { ParentIndex } from '../health/health.ts';
@@ -161,8 +162,7 @@ function mismatchHelp(input: CardInput): HTMLElement {
     h(
       'ul',
       {},
-      h('li', {}, "Brindle and greying can't be tested."),
-      h('li', {}, 'Rare variants (eA, eG, eH) are not modelled precisely.'),
+      ...OWN_COLOUR_LIMITS.map((limit) => h('li', {}, limit)),
       unread === null ? null : h('li', {}, `${unread}.`),
       dog.undocumentedLoci.length > 0
         ? h('li', {}, `Undocumented combination (${dog.undocumentedLoci.join(', ')}): ${FLAG_INFO['undocumented-haplotype'].caveat}`)

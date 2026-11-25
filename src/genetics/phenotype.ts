@@ -450,6 +450,18 @@ export const FLAG_INFO: Readonly<Record<Flag, { readonly label: string; readonly
   },
 };
 
+/** Each base colour in the words every name of it uses. */
+export const BASE_COLOUR_WORDS: Readonly<Record<BaseColour, string>> = {
+  black: 'black',
+  brown: 'brown',
+  cocoa: 'cocoa',
+  blue: 'blue',
+  lilac: 'lilac',
+  beige: 'beige',
+  'beige-light': 'beige, light cream likely',
+  albino: 'white or cream, pink nose',
+};
+
 function capitalise(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
@@ -464,17 +476,8 @@ function capitalise(text: string): string {
  */
 export function ownColourName(value: Phenotype): string {
   if (value.base === 'albino') {
-    return 'White or cream, pink nose';
+    return capitalise(BASE_COLOUR_WORDS.albino);
   }
-  const baseName: Record<Exclude<BaseColour, 'albino'>, string> = {
-    black: 'black',
-    brown: 'brown',
-    cocoa: 'cocoa',
-    blue: 'blue',
-    lilac: 'lilac',
-    beige: 'beige',
-    'beige-light': 'beige, light cream likely',
-  };
   const { harlequin, merle, doubleMerle } = value.traits;
   const marking =
     harlequin === 'yes'
@@ -531,7 +534,7 @@ export function ownColourName(value: Phenotype): string {
   const beige = value.base === 'beige' || value.base === 'beige-light';
   const nose = beige && value.nose !== 'black' ? (value.nose === 'unknown' ? 'nose unknown' : `${value.nose} nose`) : undefined;
   const name =
-    baseName[value.base] +
+    BASE_COLOUR_WORDS[value.base] +
     (marking === undefined ? '' : ` ${marking}`) +
     (patternSuffix[value.pattern] ?? '') +
     [nose, ...unsettled]
