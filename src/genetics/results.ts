@@ -38,6 +38,12 @@ export interface UnknownLocus {
   readonly reason: 'missing' | 'inconsistent';
 }
 
+/** A parent's locus read from a combination no source documents (ResolvedDog.undocumentedLoci). */
+export interface UndocumentedLocus {
+  readonly gene: ColourGene;
+  readonly parent: ParentIndex;
+}
+
 export interface Row<V> {
   readonly value: V;
   readonly chance: Range;
@@ -55,6 +61,8 @@ export interface Table<V> {
   readonly caveats: readonly CaveatId[];
   /** Why some puppies' value is unknown; empty when none is. */
   readonly unknown: readonly UnknownLocus[];
+  /** Undocumented parent loci this table's figures read; the undocumented-haplotype caveat names their genes. */
+  readonly undocumented: readonly UndocumentedLocus[];
 }
 
 /** A "Chance of each trait" row, phrased positively ("Merle 50%"). */
@@ -100,6 +108,7 @@ export interface PuppyPrediction {
   };
   readonly hidden: readonly HiddenRow[];
   readonly unknownLoci: readonly UnknownLocus[];
+  readonly undocumentedLoci: readonly UndocumentedLocus[];
   /** Every caveat shown anywhere, plus those that always apply, for the collected list. */
   readonly caveats: readonly CaveatId[];
 }
@@ -321,6 +330,15 @@ function unknownLociOf(first: CrossParent, second: CrossParent): UnknownLocus[] 
       const status = parent.loci[gene].status;
       const slot: ParentIndex = index === 0 ? 0 : 1;
       return status === 'resolved' ? [] : [{ gene, parent: slot, reason: status }];
+    }),
+  );
+}
+
+function undocumentedLociOf(first: CrossParent, second: CrossParent): UndocumentedLocus[] {
+  return COLOUR_GENES.flatMap((gene) =>
+    ([first, second] as const).flatMap((parent, index): UndocumentedLocus[] => {
+      const locus = parent.loci[gene];
+      return locus.status === 'resolved' && locus.undocumented === true ? [{ gene, parent: index === 0 ? 0 : 1 }] : [];
     }),
   );
 }
@@ -648,11 +666,19 @@ export function predictPuppies(first: CrossParent, second: CrossParent): PuppyPr
     ...(rows.white.some((row) => row.value === 'extensive') ? (['deafness'] as const) : []),
     ...(traits.possible.some((row) => row.value === 'doubleMerle') ? (['white-piebald-only'] as const) : []),
   ];
-  const table = <V>(tableRows: readonly Row<V>[], caveats: readonly CaveatId[], genes: readonly ColourGene[]): Table<V> => ({
-    rows: tableRows,
-    caveats,
-    unknown: tableRows.some((row) => row.value === 'unknown') ? unknownIn(genes) : [],
-  });
+  const undocumentedLoci = undocumentedLociOf(first, second);
+  const table = <V>(tableRows: readonly Row<V>[], caveats: readonly CaveatId[], genes: readonly ColourGene[]): Table<V> => {
+    const undocumented = undocumentedLoci.filter((locus) => genes.includes(locus.gene));
+    return {
+      rows: tableRows,
+      caveats: [...(undocumented.length > 0 ? (['undocumented-haplotype'] as const) : []), ...caveats],
+      unknown: tableRows.some((row) => row.value === 'unknown') ? unknownIn(genes) : [],
+      undocumented,
+    };
+  };
+  const base = table(rows.base, [], READS.base);
+  const pattern = table(rows.pattern, patternCaveats, READS.pattern);
+  const white = table(rows.white, whiteCaveats, READS.white);
 
   const ranges = [
     ...[...rows.base, ...rows.pattern, ...rows.white, ...traits.possible].map((row) => row.chance),
@@ -667,12 +693,13 @@ export function predictPuppies(first: CrossParent, second: CrossParent): PuppyPr
     hasRanges: ranges.some((range) => !isSingle(range)),
     warnings,
     combined,
-    base: table(rows.base, [], READS.base),
-    pattern: table(rows.pattern, patternCaveats, READS.pattern),
-    white: table(rows.white, whiteCaveats, READS.white),
+    base,
+    pattern,
+    white,
     traits,
     hidden,
     unknownLoci,
-    caveats: collectCaveats(rows, [...patternCaveats, ...whiteCaveats], traits, combined),
+    undocumentedLoci,
+    caveats: collectCaveats(rows, [...base.caveats, ...pattern.caveats, ...white.caveats], traits, combined),
   };
 }

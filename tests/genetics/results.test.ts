@@ -350,6 +350,22 @@ describe('predictPuppies: warnings and caveats', () => {
     expect(prediction.caveats).toContain('not-modelled-eA');
   });
 
+  it("carries a parent's undocumented combination to the tables that read the gene, naming it", () => {
+    const undocumented = resolveDog(syntheticReport({ 'TYRP1 bc': 2, 'TYRP1 bs': 1 }));
+    expect(undocumented.undocumentedLoci).toEqual(['TYRP1']);
+    const prediction = predictPuppies(resolveDog(syntheticReport({})), undocumented);
+    expect(prediction.undocumentedLoci).toEqual([{ gene: 'TYRP1', parent: 1 }]);
+    expect(prediction.base).toMatchObject({ caveats: ['undocumented-haplotype'], undocumented: [{ gene: 'TYRP1', parent: 1 }] });
+    expect(prediction.pattern).toMatchObject({ caveats: [], undocumented: [] });
+    expect(prediction.caveats).toContain('undocumented-haplotype');
+  });
+
+  it('has no undocumented-combination caveat when every locus is documented', async () => {
+    const prediction = await samples('a', 'b');
+    expect(prediction.undocumentedLoci).toEqual([]);
+    expect(prediction.caveats).not.toContain('undocumented-haplotype');
+  });
+
   it('always lists the independence, untested-loci and linkage caveats', async () => {
     const prediction = await samples('a', 'b');
     expect(prediction.caveats).toEqual(
