@@ -380,22 +380,22 @@ describe('phenotypeKey', () => {
 
 describe('ownColourName', () => {
   it.each<[Spec, string]>([
-    [{ CBD103: 'KB/KB', TYRP1: 'b/b', MITF: 'sp/sp' }, 'Brown, mostly white'],
-    [{ CBD103: 'KB/ky', TYRP1: 'b/b', MITF: 'sp/+' }, 'Brown with limited white'],
+    [{ CBD103: 'KB/KB', TYRP1: 'b/b', MITF: 'sp/sp' }, 'White with brown markings'],
+    [{ CBD103: 'KB/ky', TYRP1: 'b/b', MITF: 'sp/+' }, 'Brown with white markings'],
     [{ CBD103: 'KB/ky', TYRP1: 'b/b' }, 'Brown, solid'],
     [{ ASIP: 'at/at' }, 'Black and tan, solid'],
     [{ ASIP: 'ay/ay', TYRP1: 'b/b' }, 'Brown sable, solid'],
     [{ CBD103: 'KB/ky', PMEL: 'M/m' }, 'Black merle, solid'],
     [{ CBD103: 'KB/ky', PMEL: 'M/m', PSMB7: 'H/h' }, 'Black harlequin, solid'],
     [{}, 'Black wolf sable, solid'],
-    [{ ASIP: 'aw/at', MITF: 'sp/+' }, 'Black wolf sable with limited white'],
-    [{ CBD103: 'KB/ky', PMEL: 'M/M' }, 'Black double merle, mostly white'],
-    [{ CBD103: 'KB/ky', PMEL: 'M/M', MITF: 'sp/+' }, 'Black double merle, mostly white'],
-    [{ MC1R: 'e/e', PMEL: 'M/M' }, 'Beige double merle, mostly white'],
+    [{ ASIP: 'aw/at', MITF: 'sp/+' }, 'Black wolf sable with white markings'],
+    [{ CBD103: 'KB/ky', PMEL: 'M/M' }, 'White with black double merle markings'],
+    [{ CBD103: 'KB/ky', PMEL: 'M/M', MITF: 'sp/+' }, 'White with black double merle markings'],
+    [{ MC1R: 'e/e', PMEL: 'M/M' }, 'White with beige double merle markings'],
     [{ CBD103: 'KB/ky', MLPH: 'd/d' }, 'Blue, solid'],
-    [{ MC1R: 'e/e', MFSD12: 'i/i', MITF: 'sp/+' }, 'Beige, light cream likely, with limited white'],
+    [{ MC1R: 'e/e', MFSD12: 'i/i', MITF: 'sp/+' }, 'Beige with white markings, light cream likely'],
     [{ SLC45A2: 'cal/cal', MITF: 'sp/sp' }, 'White or cream, pink nose'],
-    [{ CBD103: 'KB/ky', PMEL: 'M/M', PSMB7: 'H/h' }, 'Black harlequin double merle, mostly white'],
+    [{ CBD103: 'KB/ky', PMEL: 'M/M', PSMB7: 'H/h' }, 'White with black harlequin double merle markings'],
   ])('%j → %s', (spec, name) => expect(ownColourName(of(spec))).toBe(name));
 
   it.each<[Spec, readonly ColourGene[], string]>([
@@ -403,9 +403,9 @@ describe('ownColourName', () => {
     [{ MC1R: 'e/e', TYRP1: 'b/b' }, [], 'Beige, brown nose, solid'],
     [{ MC1R: 'e/e', HPS3: 'co/co' }, [], 'Beige, brown nose, solid'],
     [{ MC1R: 'e/e', MLPH: 'd/d' }, [], 'Beige, blue nose, solid'],
-    [{ MC1R: 'e/e', MLPH: 'd/d', TYRP1: 'b/b', MITF: 'sp/+' }, [], 'Beige, lilac nose, with limited white'],
+    [{ MC1R: 'e/e', MLPH: 'd/d', TYRP1: 'b/b', MITF: 'sp/+' }, [], 'Beige with white markings, lilac nose'],
     [{ MC1R: 'e/e', MFSD12: 'i/i', TYRP1: 'b/b' }, [], 'Beige, light cream likely, brown nose, solid'],
-    [{ MC1R: 'e/e', TYRP1: 'b/b', PMEL: 'M/M' }, [], 'Beige double merle, brown nose, mostly white'],
+    [{ MC1R: 'e/e', TYRP1: 'b/b', PMEL: 'M/M' }, [], 'White with beige double merle markings, brown nose'],
     [{ MC1R: 'e/e' }, ['TYRP1'], 'Beige, nose unknown, solid'],
     [{ MC1R: 'e/e', MLPH: 'd/d' }, ['PMEL'], 'Beige, blue nose, white spotting unknown'],
   ])('names the nose of a beige coat unless it is black: %j with %j unknown → %s', (spec, unknown, name) =>
@@ -414,7 +414,7 @@ describe('ownColourName', () => {
 
   it.each<[Spec, readonly ColourGene[], string]>([
     [{ CBD103: 'KB/ky' }, ['PMEL'], 'Black, merle unknown, white spotting unknown'],
-    [{ CBD103: 'KB/ky', MITF: 'sp/sp' }, ['PMEL'], 'Black, merle unknown, mostly white'],
+    [{ CBD103: 'KB/ky', MITF: 'sp/sp' }, ['PMEL'], 'White with black markings, merle unknown'],
     [{ ASIP: 'at/at', MITF: 'sp/+' }, ['PMEL'], 'Black and tan, merle unknown, white spotting unknown'],
     [{ CBD103: 'KB/ky', PSMB7: 'H/h' }, ['PMEL'], 'Black, merle unknown, harlequin unknown, white spotting unknown'],
     [{ MC1R: 'e/e' }, ['PMEL'], 'Beige, white spotting unknown'],
@@ -446,8 +446,8 @@ describe('ownColourName', () => {
 
   it.each<[Spec, readonly ColourGene[], string]>([
     [{ CBD103: 'KB/ky', PMEL: 'M/m' }, ['PSMB7'], 'Black merle, harlequin unknown, solid'],
-    [{ CBD103: 'KB/ky', PMEL: 'M/m', MITF: 'sp/+' }, ['PSMB7'], 'Black merle, harlequin unknown, with limited white'],
-    [{ CBD103: 'KB/ky', PMEL: 'M/M' }, ['PSMB7'], 'Black double merle, harlequin unknown, mostly white'],
+    [{ CBD103: 'KB/ky', PMEL: 'M/m', MITF: 'sp/+' }, ['PSMB7'], 'Black merle with white markings, harlequin unknown'],
+    [{ CBD103: 'KB/ky', PMEL: 'M/M' }, ['PSMB7'], 'White with black double merle markings, harlequin unknown'],
     [{ CBD103: 'KB/ky' }, ['PSMB7'], 'Black, solid'],
     [{ MC1R: 'e/e', PMEL: 'M/m' }, ['PSMB7'], 'Beige, solid'],
   ])('names an unknown harlequin: %j with %j unknown → %s', (spec, unknown, name) =>
@@ -456,10 +456,10 @@ describe('ownColourName', () => {
 
   it.each<[Spec, readonly ColourGene[], string]>([
     [{ ASIP: 'at/at' }, ['CBD103'], 'Black, pattern unknown, solid'],
-    [{ ASIP: 'at/at', MITF: 'sp/+' }, ['CBD103'], 'Black, pattern unknown, with limited white'],
+    [{ ASIP: 'at/at', MITF: 'sp/+' }, ['CBD103'], 'Black with white markings, pattern unknown'],
     [{ CBD103: 'KB/ky' }, ['MITF'], 'Black, white spotting unknown'],
     [{ ASIP: 'at/at', TYRP1: 'b/b' }, ['MITF'], 'Brown and tan, white spotting unknown'],
-    [{ CBD103: 'KB/ky', PMEL: 'M/M' }, ['MITF'], 'Black double merle, mostly white'],
+    [{ CBD103: 'KB/ky', PMEL: 'M/M' }, ['MITF'], 'White with black double merle markings'],
   ])('%j with %j unknown → %s', (spec, unknown, name) => expect(ownColourName(of(spec, unknown))).toBe(name));
 
   it.each<[Spec, readonly ColourGene[], string]>([
@@ -474,6 +474,16 @@ describe('ownColourName', () => {
   ])('names an unknown base colour: %j with %j unknown → %s', (spec, unknown, name) =>
     expect(ownColourName(of(spec, unknown))).toBe(name),
   );
+});
+
+// Owners' wording: two piebald copies give a white dog with coloured markings.
+describe('ownColourName: white with markings', () => {
+  it.each<[Spec, readonly ColourGene[], string]>([
+    [{ ASIP: 'ay/ay', TYRP1: 'b/b', MITF: 'sp/sp' }, [], 'White with brown sable markings'],
+    [{ ASIP: 'at/at', MITF: 'sp/sp' }, [], 'White with black and tan markings'],
+    [{ MC1R: 'e/e', MFSD12: 'i/i', MITF: 'sp/sp' }, [], 'White with beige markings, light cream likely'],
+    [{ ASIP: 'at/at', MITF: 'sp/sp' }, ['CBD103'], 'White with black markings, pattern unknown'],
+  ])('%j with %j unknown → %s', (spec, unknown, name) => expect(ownColourName(of(spec, unknown))).toBe(name));
 });
 
 describe('FLAG_INFO', () => {

@@ -96,7 +96,7 @@ describe('the colour page', () => {
 
   it('lists both candidate colours above the question', async () => {
     const { root } = await pair('nose.pdf', 'b.pdf');
-    expect(root.querySelector('.own-name')?.textContent).toBe('Black, mostly white (B/b) or brown, mostly white (b/b)');
+    expect(root.querySelector('.own-name')?.textContent).toBe('White with black markings (B/b) or white with brown markings (b/b)');
     expect(root.querySelector('legend')?.textContent).toBe('Nose and paw pads: black or brown?');
   });
 

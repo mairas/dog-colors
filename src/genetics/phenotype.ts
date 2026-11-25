@@ -450,7 +450,7 @@ export const FLAG_INFO: Readonly<Record<Flag, { readonly label: string; readonly
   },
 };
 
-/** Each base colour in the words every name of it uses. */
+/** Each base colour in the words every name of it uses. Text after ", " qualifies the colour, and a coat name moves it after the markings. */
 export const BASE_COLOUR_WORDS: Readonly<Record<BaseColour, string>> = {
   black: 'black',
   brown: 'brown',
@@ -467,7 +467,8 @@ function capitalise(text: string): string {
 }
 
 /**
- * A plain name for a dog's own coat, e.g. "Brown, mostly white"; with an
+ * A plain name for a dog's own coat in owners' words, e.g. "White with brown
+ * markings" (two piebald copies) or "Brown with white markings" (one); with an
  * unknown base colour, comma-separated parts: "Colour unknown, tan points, solid".
  * A merle or harlequin the report can't settle is named as unknown, and so is
  * white spotting short of mostly white when a double merle can't be ruled out.
@@ -498,21 +499,9 @@ export function ownColourName(value: Phenotype): string {
       : undefined,
     harlequin === 'unknown' ? 'harlequin unknown' : undefined,
   ].filter((part) => part !== undefined);
-  const whiteName: Record<WhiteSpotting | Unknown, string> = {
-    solid: 'solid',
-    limited: 'with limited white',
-    extensive: 'mostly white',
-    unknown: 'white spotting unknown',
-  };
   // M/M usually makes a dog mostly white whatever MITF holds; the mostly-white caveat carries the exceptions.
-  const white =
-    whiteName[
-      doubleMerle === 'yes'
-        ? 'extensive'
-        : doubleMerle === 'unknown' && value.white !== 'extensive'
-          ? 'unknown'
-          : value.white
-    ];
+  const white: WhiteSpotting | Unknown =
+    doubleMerle === 'yes' ? 'extensive' : doubleMerle === 'unknown' && value.white !== 'extensive' ? 'unknown' : value.white;
 
   if (value.base === 'unknown') {
     const patternPart: Partial<Record<Pattern | Unknown, string>> = {
@@ -521,7 +510,13 @@ export function ownColourName(value: Phenotype): string {
       'tan-points': 'tan points',
       unknown: 'pattern unknown',
     };
-    const parts = ['Colour unknown', marking, patternPart[value.pattern], ...unsettled, white];
+    const whitePart: Record<WhiteSpotting | Unknown, string> = {
+      solid: 'solid',
+      limited: 'with limited white',
+      extensive: 'mostly white',
+      unknown: 'white spotting unknown',
+    };
+    const parts = ['Colour unknown', marking, patternPart[value.pattern], ...unsettled, whitePart[white]];
     return parts.filter((part) => part !== undefined).join(', ');
   }
 
@@ -529,18 +524,21 @@ export function ownColourName(value: Phenotype): string {
     sable: ' sable',
     'wolf-sable': ' wolf sable',
     'tan-points': ' and tan',
-    unknown: ', pattern unknown',
   };
+  // The colour the markings are named by, then what qualifies the whole dog.
+  const [baseWord, ...baseQualifiers] = BASE_COLOUR_WORDS[value.base].split(', ');
+  const coat = `${baseWord ?? ''}${marking === undefined ? '' : ` ${marking}`}${patternSuffix[value.pattern] ?? ''}`;
   const beige = value.base === 'beige' || value.base === 'beige-light';
   const nose = beige && value.nose !== 'black' ? (value.nose === 'unknown' ? 'nose unknown' : `${value.nose} nose`) : undefined;
-  const name =
-    BASE_COLOUR_WORDS[value.base] +
-    (marking === undefined ? '' : ` ${marking}`) +
-    (patternSuffix[value.pattern] ?? '') +
-    [nose, ...unsettled]
-      .filter((part) => part !== undefined)
-      .map((part) => `, ${part}`)
-      .join('');
-  const joiner = white === whiteName.limited && !name.includes(',') ? ' ' : ', ';
-  return capitalise(name + joiner + white);
+  const qualifiers = [...baseQualifiers, value.pattern === 'unknown' ? 'pattern unknown' : undefined, nose, ...unsettled].filter(
+    (part) => part !== undefined,
+  );
+  // Markings name the coat and the qualifiers follow; otherwise the white part closes the name.
+  const parts: Record<WhiteSpotting | Unknown, readonly string[]> = {
+    solid: [coat, ...qualifiers, 'solid'],
+    limited: [`${coat} with white markings`, ...qualifiers],
+    extensive: [`white with ${coat} markings`, ...qualifiers],
+    unknown: [coat, ...qualifiers, 'white spotting unknown'],
+  };
+  return capitalise(parts[white].join(', '));
 }

@@ -9,10 +9,10 @@ const names = (dog: ResolvedDog): string[] => dog.ownColours.map((colour) => col
 
 describe('resolveDog: the sample reports', () => {
   it.each([
-    ['a', 'Brown, mostly white'],
-    ['b', 'Brown with limited white'],
+    ['a', 'White with brown markings'],
+    ['b', 'Brown with white markings'],
     ['c', 'Brown, solid'],
-    ['d', 'Brown, mostly white'],
+    ['d', 'White with brown markings'],
     ['e', 'Brown, solid'],
   ])('Sample %s → %s, with no question and no ambiguity', async (letter, name) => {
     const dog = resolveDog(await sampleReport(letter));
@@ -25,12 +25,12 @@ describe('resolveDog: the sample reports', () => {
     expect(dog.undocumentedLoci).toEqual([]);
   });
 
-  it('Sample A is brown, one colour, piebald to mostly white', async () => {
+  it('Sample A is white with brown markings, one colour', async () => {
     const [own] = resolveDog(await sampleReport('a')).ownColours;
     expect(own?.phenotype).toMatchObject({ base: 'brown', pattern: 'one-colour', white: 'extensive' });
   });
 
-  it('Sample B is brown with limited white', async () => {
+  it('Sample B is brown with white markings', async () => {
     const [own] = resolveDog(await sampleReport('b')).ownColours;
     expect(own?.phenotype).toMatchObject({ base: 'brown', pattern: 'one-colour', white: 'limited' });
   });
@@ -47,14 +47,14 @@ describe('resolveDog: ambiguity', () => {
     expect(
       dog.ownColours.map((colour) => [colour.name, colour.genotypes.map((genotype) => formatPair(genotype.TYRP1 ?? ['?', '?']))]),
     ).toEqual([
-      ['Black, mostly white', ['B/b']],
-      ['Brown, mostly white', ['b/b']],
+      ['White with black markings', ['B/b']],
+      ['White with brown markings', ['b/b']],
     ]);
   });
 
   it('narrows to one own colour once the nose question is answered, and keeps the question', () => {
     const dog = resolveDog(bdBc, { nose: 'brown' });
-    expect(names(dog)).toEqual(['Brown, mostly white']);
+    expect(names(dog)).toEqual(['White with brown markings']);
     expect(dog.ambiguousLoci).toEqual([]);
     expect(dog.questions.map((question) => question.id)).toEqual(['nose']);
   });

@@ -46,7 +46,7 @@ function pairOf(genotype: OwnColour['genotypes'][number], gene: ColourGene): All
   return genotype[gene];
 }
 
-/** "Brown, mostly white (b/b) or black, mostly white (B/b)" when the genotype is ambiguous. */
+/** "White with brown markings (b/b) or white with black markings (B/b)" when the genotype is ambiguous. */
 function ownColourText(dog: ResolvedDog): string {
   const [first, ...others] = dog.ownColours;
   if (first === undefined) {
