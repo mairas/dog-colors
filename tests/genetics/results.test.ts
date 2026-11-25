@@ -112,11 +112,82 @@ describe('predictPuppies: Sample A × Sample B', () => {
 });
 
 describe('predictPuppies: combined outcomes', () => {
+  it('gives the share of the outcomes not listed as other', () => {
+    const parent = { loci: parentLoci({ TYRP1: 'B/b', MLPH: 'D/d', MITF: 'sp/+', CBD103: 'KB/KB' }) };
+    const prediction = predictPuppies(parent, parent);
+    // Four colours × three white classes; the six listed hold 18 + 9 + 9 + 6 + 6 + 3 of 64.
+    expect(prediction.combined.outcomes).toHaveLength(6);
+    expect(prediction.combined.other).toEqual(range('13/64'));
+  });
+
   it('lists each own-colour name once, merging the coats that share it', async () => {
     const prediction = await samples('b', 'c');
     const names = prediction.combined.outcomes.map((outcome) => ownColourName(outcome.phenotype));
     expect(names.length).toBeGreaterThan(1);
     expect(new Set(names).size).toBe(names.length);
+  });
+});
+
+describe('predictPuppies: hidden and carried rows', () => {
+  const hiddenRow = (prediction: PuppyPrediction, id: string, hider: string | null = null) =>
+    prediction.hidden.find((row) => row.id === id && row.hider === hider);
+
+  it('hides merle and harlequin on beige and on albino puppies', () => {
+    const prediction = predictPuppies(
+      { loci: parentLoci({ PMEL: 'M/m', PSMB7: 'H/h', MC1R: 'E/e', SLC45A2: 'cal/+' }) },
+      { loci: parentLoci({ MC1R: 'E/e', SLC45A2: 'cal/+' }) },
+    );
+    // M/m 1/2, H/h 1/2, albino 1/4, beige 3/4 × 1/4.
+    expect(hiddenRow(prediction, 'merle-hidden', 'albino')).toMatchObject({ genotypes: ['M/m'], chance: range('1/8') });
+    expect(hiddenRow(prediction, 'merle-hidden', 'beige')).toMatchObject({ genotypes: ['M/m'], chance: range('3/32') });
+    expect(hiddenRow(prediction, 'harlequin-hidden', 'albino')).toMatchObject({ genotypes: ['H/h'], chance: range('1/16') });
+    expect(hiddenRow(prediction, 'harlequin-hidden', 'beige')).toMatchObject({ genotypes: ['H/h'], chance: range('3/64') });
+  });
+
+  it('does not count harlequin as hidden on a beige puppy without merle', () => {
+    const prediction = predictPuppies({ loci: parentLoci({ PSMB7: 'H/h', MC1R: 'e/e' }) }, { loci: parentLoci({ MC1R: 'e/e' }) });
+    expect(hiddenRow(prediction, 'harlequin-hidden', 'beige')).toBeUndefined();
+  });
+
+  it('hides Dominant Black on beige and on albino puppies', () => {
+    const prediction = predictPuppies(
+      { loci: parentLoci({ CBD103: 'KB/ky', MC1R: 'E/e', SLC45A2: 'cal/+' }) },
+      { loci: parentLoci({ MC1R: 'E/e', SLC45A2: 'cal/+' }) },
+    );
+    expect(hiddenRow(prediction, 'dominant-black-hidden', 'albino')).toMatchObject({ genotypes: ['KB/ky'], chance: range('1/8') });
+    expect(hiddenRow(prediction, 'dominant-black-hidden', 'beige')).toMatchObject({ genotypes: ['KB/ky'], chance: range('3/32') });
+  });
+
+  it('hides sable, wolf sable and recessive black under Dominant Black', () => {
+    const prediction = predictPuppies({ loci: parentLoci({ ASIP: 'ay/a', CBD103: 'KB/KB' }) }, { loci: parentLoci({ ASIP: 'aw/a' }) });
+    expect(hiddenRow(prediction, 'sable-hidden', 'dominant-black')).toMatchObject({ genotypes: ['ay/aw', 'ay/a'], chance: range('1/2') });
+    expect(hiddenRow(prediction, 'wolf-sable-hidden', 'dominant-black')).toMatchObject({ genotypes: ['aw/a'], chance: range('1/4') });
+    expect(hiddenRow(prediction, 'recessive-black-hidden', 'dominant-black')).toMatchObject({ genotypes: ['a/a'], chance: range('1/4') });
+    expect(hiddenRow(prediction, 'carries-recessive-black')).toMatchObject({ genotypes: ['ay/a', 'aw/a'], chance: range('1/2') });
+  });
+
+  it('hides roan on puppies without white spotting', () => {
+    const prediction = predictPuppies({ loci: parentLoci({ USH2A: 'R/+', MITF: 'sp/+' }) }, { loci: parentLoci({ MITF: 'sp/+' }) });
+    // R/+ 1/2, solid (+/+) 1/4.
+    expect(hiddenRow(prediction, 'roan-hidden')).toMatchObject({ genotypes: ['R/+'], chance: range('1/8') });
+  });
+});
+
+describe('predictPuppies: trait flags', () => {
+  it('tags the merle row hard to see when merle puppies can be sable', () => {
+    const prediction = predictPuppies({ loci: parentLoci({ PMEL: 'M/m', ASIP: 'ay/ay' }) }, { loci: parentLoci({ ASIP: 'ay/ay' }) });
+    expect(prediction.traits.possible.find((row) => row.value === 'merle')).toMatchObject({
+      chance: range('1/2'),
+      flags: ['merle-hard-to-see'],
+    });
+  });
+
+  it('tags the roan row uncertain when roan puppies can have one copy', () => {
+    const prediction = predictPuppies({ loci: parentLoci({ USH2A: 'R/+', MITF: 'sp/sp' }) }, { loci: parentLoci({ MITF: 'sp/sp' }) });
+    expect(prediction.traits.possible.find((row) => row.value === 'roan')).toMatchObject({
+      chance: range('1/2'),
+      flags: ['roan-single-copy'],
+    });
   });
 });
 
