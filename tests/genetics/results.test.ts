@@ -4,6 +4,7 @@ import { resolveDog } from '../../src/genetics/dog.ts';
 import { ownColourName } from '../../src/genetics/phenotype.ts';
 import type { Range } from '../../src/genetics/range.ts';
 import { predictPuppies, scenarioTables, type PuppyPrediction } from '../../src/genetics/results.ts';
+import { CAVEAT_TEXT, COLOUR_WARNING_TEXT } from '../../src/genetics/warnings.ts';
 import { add, fraction, ZERO, type Fraction } from '../../src/health/fraction.ts';
 import { COLOUR_GENES } from '../../src/report/loci.ts';
 import { parentLoci } from './genotypes.ts';
@@ -364,6 +365,24 @@ describe('predictPuppies: warnings and caveats', () => {
     const prediction = await samples('a', 'b');
     expect(prediction.undocumentedLoci).toEqual([]);
     expect(prediction.caveats).not.toContain('undocumented-haplotype');
+  });
+
+  it('puts the albino health caveat on the base table when puppies can be albino', () => {
+    const prediction = predictPuppies({ loci: parentLoci({ SLC45A2: 'cal/+' }) }, { loci: parentLoci({ SLC45A2: 'cal/+' }) });
+    expect(prediction.base.caveats).toEqual(['albino-health']);
+    expect(prediction.caveats).toContain('albino-health');
+    expect(CAVEAT_TEXT['albino-health']).toMatch(/light.*vision.*skin tumours.*OMIA 001821/);
+  });
+
+  it('has no albino caveat when no puppy can be albino', () => {
+    const prediction = predictPuppies({ loci: parentLoci({ SLC45A2: 'cal/+' }) }, { loci: parentLoci({}) });
+    expect(prediction.base.caveats).toEqual([]);
+    expect(prediction.caveats).not.toContain('albino-health');
+  });
+
+  it('words deafness without naming a breed, and H/H as not seen alive', () => {
+    expect(CAVEAT_TEXT.deafness).not.toMatch(/Spanish Water Dog/);
+    expect(COLOUR_WARNING_TEXT['harlequin-lethal'].text).toMatch(/not seen alive; they are thought to die early in pregnancy/);
   });
 
   it('always lists the independence, untested-loci and linkage caveats', async () => {

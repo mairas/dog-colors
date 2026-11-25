@@ -14,7 +14,7 @@ export type ColourWarning =
   | { readonly kind: 'double-merle'; readonly chance: Range }
   /** One parent can carry M and the other's PMEL is unknown, so M/M can't be ruled out; `unknown` names the gene and parent. */
   | { readonly kind: 'double-merle-unknown'; readonly unknown: readonly UnknownLocus[] }
-  /** H/H conceptions, as a share of all conceptions; they die before birth and are left out of every other figure. */
+  /** H/H conceptions, as a share of all conceptions; thought to die before birth, they are left out of every other figure. */
   | { readonly kind: 'harlequin-lethal'; readonly chance: Range }
   /** One parent can carry H and the other's PSMB7 is unknown, so H/H can't be ruled out; `unknown` names the gene and parent. */
   | { readonly kind: 'harlequin-lethal-unknown'; readonly unknown: readonly UnknownLocus[] };
@@ -33,7 +33,7 @@ export const COLOUR_WARNING_TEXT: Readonly<Record<ColourWarning['kind'], { reado
   },
   'harlequin-lethal': {
     title: 'Harlequin × harlequin',
-    text: 'Both parents carry harlequin. Puppies with two copies (H/H) die before birth, so litters may be smaller. The other chances are for live puppies.',
+    text: 'Both parents carry harlequin. Puppies with two copies (H/H) are not seen alive; they are thought to die early in pregnancy, so litters may be smaller. The other chances are for live puppies.',
   },
   'harlequin-lethal-unknown': {
     title: 'Harlequin × harlequin possible',
@@ -42,6 +42,7 @@ export const COLOUR_WARNING_TEXT: Readonly<Record<ColourWarning['kind'], { reado
 };
 
 export const CROSS_CAVEATS = [
+  'albino-health',
   'deafness',
   'white-piebald-only',
   'dilution-alopecia',
@@ -57,8 +58,9 @@ export type CrossCaveat = (typeof CROSS_CAVEATS)[number];
 export type CaveatId = CrossCaveat | Flag;
 
 export const CAVEAT_TEXT: Readonly<Record<CrossCaveat, string>> = {
-  deafness:
-    "Very white heads are linked to deafness in many breeds, including Spanish Water Dogs. The report can't predict how white the head will be.",
+  'albino-health':
+    'Albino dogs (two copies of SLC45A2 cal) can be sensitive to light, can have vision defects, and have a higher risk of skin tumours with sun exposure (OMIA 001821).',
+  deafness: "Very white heads are linked to deafness in many breeds. The report can't predict how white the head will be.",
   'white-piebald-only':
     'These rows describe piebald (MITF) white only. Double merle puppies are usually mostly white whatever their row here; see the double merle warning.',
   'dilution-alopecia': 'Dilute dogs can develop colour dilution alopecia (hair loss in dilute areas).',

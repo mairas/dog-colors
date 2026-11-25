@@ -676,7 +676,8 @@ export function predictPuppies(first: CrossParent, second: CrossParent): PuppyPr
       undocumented,
     };
   };
-  const base = table(rows.base, [], READS.base);
+  const baseCaveats: CaveatId[] = rows.base.some((row) => row.value === 'albino') ? ['albino-health'] : [];
+  const base = table(rows.base, baseCaveats, READS.base);
   const pattern = table(rows.pattern, patternCaveats, READS.pattern);
   const white = table(rows.white, whiteCaveats, READS.white);
 
