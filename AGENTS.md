@@ -26,7 +26,7 @@ CI runs every command except `dev`, `preview`, `preview-fixtures`, `fixtures` an
 ## Conventions
 
 - TypeScript in strict mode, with no `any`.
-- Vite builds the site and Vitest runs the tests; tests live under `tests/` as `*.test.ts`. No UI framework.
+- Vite builds the site and Vitest runs the tests; tests live under `tests/` as `*.test.ts`. A test whose wall-clock budget is close to its measured time is a `*.perf.test.ts`: the `perf` project in `vite.config.ts` runs those after the rest, one file at a time, so no other test file loads the machine. No UI framework.
 - Conventional commits: `<type>(<scope>): <subject>`, at most 50 characters, imperative mood.
 - Text derived from a PDF is untrusted. Insert it with `textContent` or text nodes only, never `innerHTML`, `insertAdjacentHTML` or HTML template strings.
 - The production build carries a Content-Security-Policy meta tag, added by a build-only plugin in `vite.config.ts`. `scripts/csp-check.ts` states the same policy independently; change both together.

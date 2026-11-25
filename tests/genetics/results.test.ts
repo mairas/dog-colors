@@ -6,25 +6,8 @@ import { predictPuppies, scenarioTables, type PuppyPrediction } from '../../src/
 import { CAVEAT_TEXT, COLOUR_WARNING_TEXT } from '../../src/genetics/warnings.ts';
 import { add, fraction, ZERO, type Fraction } from '../../src/health/fraction.ts';
 import { COLOUR_GENES, type ColourGene } from '../../src/report/loci.ts';
-import { parentLoci } from './genotypes.ts';
+import { HETEROZYGOUS, parentLoci } from './genotypes.ts';
 import { sampleReport, syntheticReport } from './reports.ts';
-
-/** Heterozygous at every locus, with four candidates at ASIP and MC1R: 16 per parent, 256 scenarios for a pair. */
-const HETEROZYGOUS = {
-  ASIP: ['ay/at', 'ayt/aw', 'aw/at', 'at/a'],
-  MC1R: ['Em/e', 'E/e', 'Em/eA', 'eH/e'],
-  CBD103: 'KB/ky',
-  HPS3: 'co/+',
-  MFSD12: 'i/+',
-  MLPH: 'D/d',
-  TYRP1: 'B/b',
-  PMEL: 'M/m',
-  PSMB7: 'H/h',
-  RALY: '+/dup',
-  SLC45A2: 'cal/+',
-  MITF: 'sp/+',
-  USH2A: 'R/+',
-};
 
 /** One candidate per locus, heterozygous wherever a locus has a variant. */
 const HETEROZYGOUS_SINGLE = Object.fromEntries(
@@ -567,20 +550,5 @@ describe('scenarioTables', () => {
         expect([...table.values()].reduce(add, ZERO)).toEqual(frac('1'));
       }
     }
-  });
-});
-
-describe('predictPuppies: performance', () => {
-  it('computes 256 scenarios of a pair heterozygous at every pigment locus in under 500 ms', () => {
-    // Test files run in parallel, so one timing measures the machine's load as
-    // much as the code. After a warm-up run, the fastest of three measures the cost.
-    const parent = { loci: parentLoci(HETEROZYGOUS) };
-    expect(predictPuppies(parent, parent).scenarios).toBe(256);
-    const timings = [0, 1, 2].map(() => {
-      const start = performance.now();
-      predictPuppies(parent, parent);
-      return performance.now() - start;
-    });
-    expect(Math.min(...timings)).toBeLessThan(500);
   });
 });

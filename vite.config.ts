@@ -46,6 +46,13 @@ export default defineConfig(({ mode }) => ({
   define: { __FIXTURES__: JSON.stringify(mode !== 'production') },
   plugins: [contentSecurityPolicy()],
   test: {
-    include: ['tests/**/*.test.ts'],
+    projects: [
+      { extends: true, test: { name: 'unit', include: ['tests/**/*.test.ts'], exclude: ['tests/**/*.perf.test.ts'] } },
+      // Timings run after the rest, one file at a time, so no other test file loads the machine.
+      {
+        extends: true,
+        test: { name: 'perf', include: ['tests/**/*.perf.test.ts'], sequence: { groupOrder: 1 }, fileParallelism: false },
+      },
+    ],
   },
 }));
