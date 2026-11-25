@@ -399,6 +399,20 @@ describe('ownColourName', () => {
   ])('%j → %s', (spec, name) => expect(ownColourName(of(spec))).toBe(name));
 
   it.each<[Spec, readonly ColourGene[], string]>([
+    [{ MC1R: 'e/e' }, [], 'Beige, solid'],
+    [{ MC1R: 'e/e', TYRP1: 'b/b' }, [], 'Beige, brown nose, solid'],
+    [{ MC1R: 'e/e', HPS3: 'co/co' }, [], 'Beige, brown nose, solid'],
+    [{ MC1R: 'e/e', MLPH: 'd/d' }, [], 'Beige, blue nose, solid'],
+    [{ MC1R: 'e/e', MLPH: 'd/d', TYRP1: 'b/b', MITF: 'sp/+' }, [], 'Beige, lilac nose, with limited white'],
+    [{ MC1R: 'e/e', MFSD12: 'i/i', TYRP1: 'b/b' }, [], 'Beige, light cream likely, brown nose, solid'],
+    [{ MC1R: 'e/e', TYRP1: 'b/b', PMEL: 'M/M' }, [], 'Beige double merle, brown nose, mostly white'],
+    [{ MC1R: 'e/e' }, ['TYRP1'], 'Beige, nose unknown, solid'],
+    [{ MC1R: 'e/e', MLPH: 'd/d' }, ['PMEL'], 'Beige, blue nose, white spotting unknown'],
+  ])('names the nose of a beige coat unless it is black: %j with %j unknown → %s', (spec, unknown, name) =>
+    expect(ownColourName(of(spec, unknown))).toBe(name),
+  );
+
+  it.each<[Spec, readonly ColourGene[], string]>([
     [{ CBD103: 'KB/ky' }, ['PMEL'], 'Black, merle unknown, white spotting unknown'],
     [{ CBD103: 'KB/ky', MITF: 'sp/sp' }, ['PMEL'], 'Black, merle unknown, mostly white'],
     [{ ASIP: 'at/at', MITF: 'sp/+' }, ['PMEL'], 'Black and tan, merle unknown, white spotting unknown'],

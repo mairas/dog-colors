@@ -459,6 +459,8 @@ function capitalise(text: string): string {
  * unknown base colour, comma-separated parts: "Colour unknown, tan points, solid".
  * A merle or harlequin the report can't settle is named as unknown, and so is
  * white spotting short of mostly white when a double merle can't be ruled out.
+ * A beige coat names its nose unless it is black ("Beige, brown nose, solid"):
+ * the nose is the one place eumelanin shows on it.
  */
 export function ownColourName(value: Phenotype): string {
   if (value.base === 'albino') {
@@ -526,11 +528,16 @@ export function ownColourName(value: Phenotype): string {
     'tan-points': ' and tan',
     unknown: ', pattern unknown',
   };
+  const beige = value.base === 'beige' || value.base === 'beige-light';
+  const nose = beige && value.nose !== 'black' ? (value.nose === 'unknown' ? 'nose unknown' : `${value.nose} nose`) : undefined;
   const name =
     baseName[value.base] +
     (marking === undefined ? '' : ` ${marking}`) +
     (patternSuffix[value.pattern] ?? '') +
-    unsettled.map((part) => `, ${part}`).join('');
+    [nose, ...unsettled]
+      .filter((part) => part !== undefined)
+      .map((part) => `, ${part}`)
+      .join('');
   const joiner = white === whiteName.limited && !name.includes(',') ? ' ' : ', ';
   return capitalise(name + joiner + white);
 }

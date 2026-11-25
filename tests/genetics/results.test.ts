@@ -138,6 +138,15 @@ describe('predictPuppies: combined outcomes', () => {
     expect(prediction.combined.outcomes).toHaveLength(1);
     expect(prediction.combined.outcomes[0]).toMatchObject({ name: 'Black, solid', chance: range('1'), phenotype: { pattern: 'unknown' } });
   });
+
+  it('keeps beige puppies with a brown nose apart from those with a black one', () => {
+    const parent = { loci: parentLoci({ MC1R: 'e/e', TYRP1: 'B/b' }) };
+    const outcomes = predictPuppies(parent, parent).combined.outcomes;
+    expect(outcomes.map(({ name, chance }) => [name, chance])).toEqual([
+      ['Beige, solid', range('3/4')],
+      ['Beige, brown nose, solid', range('1/4')],
+    ]);
+  });
 });
 
 describe('predictPuppies: hidden and carried rows', () => {

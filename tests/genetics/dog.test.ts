@@ -75,9 +75,14 @@ describe('resolveDog: ambiguity', () => {
   });
 
   it('makes a field the merged candidates disagree on unknown', () => {
+    const dog = resolveDog(syntheticReport({ 'TYRP1 bd': 1, 'TYRP1 bc': 1, 'MC1R e1': 2 }, ['MFSD12']));
+    expect(names(dog)).toEqual(['Colour unknown, solid']);
+    expect(dog.ownColours[0]?.phenotype).toMatchObject({ base: 'unknown', nose: 'unknown' });
+  });
+
+  it('lists a beige dog whose nose TYRP1 leaves open once per nose', () => {
     const dog = resolveDog(syntheticReport({ 'TYRP1 bd': 1, 'TYRP1 bc': 1, 'MC1R e1': 2 }));
-    expect(names(dog)).toEqual(['Beige, solid']);
-    expect(dog.ownColours[0]?.phenotype).toMatchObject({ base: 'beige', nose: 'unknown' });
+    expect(names(dog)).toEqual(['Beige, solid', 'Beige, brown nose, solid']);
   });
 
   it.each<[string, Readonly<Record<string, number>>]>([
