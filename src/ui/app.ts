@@ -62,6 +62,7 @@ export interface App {
 
 const EMPTY: OpenSlot = { kind: 'empty', error: null };
 const SLOTS = [0, 1] as const;
+/** The stylesheet's narrow layout. */
 const NARROW_QUERY = '(max-width: 700px)';
 
 const sameReport = (first: Report, second: Report): boolean =>
@@ -119,7 +120,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   const inputs = [fileInput(0), fileInput(1)] as const;
   root.replaceChildren(
     privacyNote(),
-    h('a', { class: 'ready btn', href: '#results' }, 'Results ready', h('span', { 'aria-hidden': 'true' }, ' ↓')),
+    h('a', { class: 'ready btn', href: '#results' }, 'Results ready', h('span', { 'aria-hidden': 'true' }, '↓')),
     dropAlert,
     slotsEl,
     pairEl,

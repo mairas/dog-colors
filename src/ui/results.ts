@@ -149,14 +149,14 @@ function coatChip(phenotype: Phenotype): SVGSVGElement {
   const rect = (className: string) => svg('rect', { width: '160', height: '120', class: className });
   if (phenotype.traits.doubleMerle === 'yes') {
     return frame(
-      rect('coat-white'),
-      svg('circle', { cx: '46', cy: '38', r: '16', class: 'coat-merle' }),
+      rect('coat coat-white'),
+      svg('circle', { cx: '46', cy: '38', r: '16', class: 'coat coat-merle' }),
       svg('circle', { cx: '56', cy: '42', r: '7', class: coat }),
     );
   }
   if (phenotype.traits.merle === 'yes') {
     return frame(
-      rect('coat-merle'),
+      rect('coat coat-merle'),
       svg('circle', { cx: '40', cy: '40', r: '22', class: coat }),
       svg('circle', { cx: '110', cy: '76', r: '28', class: coat }),
       svg('circle', { cx: '124', cy: '22', r: '12', class: coat }),
@@ -164,7 +164,7 @@ function coatChip(phenotype: Phenotype): SVGSVGElement {
   }
   if (phenotype.white === 'extensive') {
     return frame(
-      rect('coat-white'),
+      rect('coat coat-white'),
       svg('path', { d: COAT_SHAPES.patch, class: coat }),
       svg('circle', { cx: '118', cy: '70', r: '20', class: coat }),
       svg('circle', { cx: '62', cy: '96', r: '9', class: coat }),
@@ -173,8 +173,8 @@ function coatChip(phenotype: Phenotype): SVGSVGElement {
   if (phenotype.white === 'limited') {
     return frame(
       rect(coat),
-      svg('path', { d: COAT_SHAPES.limitedWhite, class: 'coat-white' }),
-      svg('ellipse', { cx: '80', cy: '30', rx: '7', ry: '16', class: 'coat-white' }),
+      svg('path', { d: COAT_SHAPES.limitedWhite, class: 'coat coat-white' }),
+      svg('ellipse', { cx: '80', cy: '30', rx: '7', ry: '16', class: 'coat coat-white' }),
     );
   }
   return frame(rect(coat));
