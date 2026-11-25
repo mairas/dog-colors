@@ -56,6 +56,8 @@ pdf.js is the legacy build everywhere: Node needs it, and it polyfills built-ins
 
 Run `./run setup` once, then `./run dev` and open <http://localhost:5173/dog-colors/>. The dev server serves without the Content-Security-Policy, because Vite injects inline scripts during development. To see the page as deployed, with the policy in force, run `./run build` and then `./run preview`, and open <http://localhost:4173/dog-colors/>.
 
+The breeding note's close cross hides it for 30 days by storing the expiry, in epoch milliseconds, under the localStorage key `dog-colors:breeding-note-hidden-until`; remove that key to see the note again.
+
 Every state of the page can be rendered without real reports through a dev-only query parameter, handled by `src/ui/dev.ts` from the committed fixtures and synthetic reports built from them. The module is loaded only when the build-time constant `__FIXTURES__` is true: in the dev server and in `./run preview-fixtures`, never in `./run build`, so the production bundle carries none of it; `./run check-fixtures` checks this, in CI and before every Pages deploy. Use `./run preview-fixtures` (<http://localhost:4173/dog-colors/>) to see a state with the policy in force, or `./run dev` (port 5173).
 
 `?state=<name>` gives one of the approved mockup's states:

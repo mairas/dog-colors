@@ -302,6 +302,9 @@ function sameSexCard(sex: Sex): HTMLElement {
   );
 }
 
+/** The data-key of the link to the breeding note. */
+export const ETHICS_LINK_KEY = 'ethics-link';
+
 /** The results section's content. */
 export function renderResults(input: ResultsInput): (Node | string)[] {
   const { prediction, names, sameSex } = input;
@@ -318,7 +321,7 @@ export function renderResults(input: ResultsInput): (Node | string)[] {
       { class: 'ethics-line' },
       h('b', {}, 'Colour is never a reason to choose a pairing:'),
       ' health, temperament, fitness for purpose and genetic diversity are. ',
-      h('a', { href: '#ethics', 'data-key': 'ethics-link' }, 'Before you plan a litter'),
+      h('a', { href: '#ethics', 'data-key': ETHICS_LINK_KEY }, 'Before you plan a litter'),
     ),
     warningPanel([...prediction.warnings.map(colourWarning), ...(input.healthWarnings ?? [])]),
     ...notes(input),

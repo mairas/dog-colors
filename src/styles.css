@@ -155,6 +155,7 @@ a {
 }
 
 .ethics {
+  position: relative;
   margin: 28px 0 8px;
   padding: 20px 22px;
   border-left: 6px solid var(--rule);
@@ -162,7 +163,28 @@ a {
   background: var(--beige);
 }
 .ethics h2 {
+  padding-right: 40px;
   font-size: clamp(20px, 2.6vw, 26px);
+}
+.ethics h2:focus {
+  outline: none;
+}
+.ethics h2:focus-visible {
+  outline: 3px solid var(--acc);
+  outline-offset: 2px;
+}
+.ethics button.close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: var(--target);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--mute);
+}
+.ethics button.close:hover {
+  color: var(--ink);
 }
 .ethics p {
   margin: 12px 0 0;

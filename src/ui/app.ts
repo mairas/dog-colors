@@ -1,7 +1,8 @@
-// The page's state and its one render path. State lives in memory only; every
-// change re-renders the slots and recomputes the results. Elements with a
-// data-key keep their focus, open disclosures and expanded caveats across
-// renders, so answering a question doesn't lose the keyboard position.
+// The page's state and its one render path. State lives in memory only, apart
+// from the breeding note's dismissal; every change re-renders the slots and
+// recomputes the results. Elements with a data-key keep their focus, open
+// disclosures and expanded caveats across renders, so answering a question
+// doesn't lose the keyboard position.
 
 import { resolveDog, type ResolvedDog } from '../genetics/dog.ts';
 import type { NoseAnswer } from '../genetics/questions.ts';
@@ -23,8 +24,8 @@ import {
   type Message,
 } from './messages.ts';
 import { parentLabel } from './names.ts';
-import { renderResults, sameSexLead } from './results.ts';
-import { alertBox, renderOpenSlot, type OpenSlot } from './slots.ts';
+import { ETHICS_LINK_KEY, renderResults, sameSexLead } from './results.ts';
+import { alertBox, renderOpenSlot, slotHeadingId, type OpenSlot } from './slots.ts';
 
 /** Reads a chosen file; throws only when the reader itself fails. */
 export type ReadFile = (file: File) => Promise<ReadResult>;
@@ -47,11 +48,17 @@ export interface AppState {
   readonly pageAlert: string | null;
 }
 
+/** Where the breeding note's dismissal is kept: localStorage in the browser. */
+export type NoteStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+
 export interface AppOptions {
   readonly read: ReadFile;
   readonly initial?: AppState;
   /** Whether the viewport is narrow enough to collapse the genotype tables once results exist. */
   readonly narrow?: () => boolean;
+  readonly storage?: NoteStorage;
+  /** The current time in epoch milliseconds. */
+  readonly now?: () => number;
 }
 
 interface ViewState {
@@ -71,6 +78,9 @@ const EMPTY: OpenSlot = { kind: 'empty', error: null };
 const SLOTS = [0, 1] as const;
 /** The stylesheet's narrow layout. */
 const NARROW_QUERY = '(max-width: 700px)';
+/** Holds the epoch milliseconds until which the breeding note stays hidden. */
+const NOTE_HIDDEN_KEY = 'dog-colors:breeding-note-hidden-until';
+const NOTE_HIDDEN_MS = 30 * 24 * 60 * 60 * 1000;
 
 /** The parents' sex when both reports give the same one; an unread sex settles nothing. */
 const sameSex = (first: Sex | null, second: Sex | null): Sex | undefined => (first !== null && first === second ? first : undefined);
@@ -100,7 +110,25 @@ function breedingNote(): HTMLElement {
   return h(
     'section',
     { class: 'ethics', id: 'ethics', 'aria-labelledby': 'ethics-h' },
-    h('h2', { id: 'ethics-h' }, 'Colour is never a reason to choose a pairing'),
+    h(
+      'button',
+      { type: 'button', class: 'close', 'aria-label': 'Hide this note for 30 days', title: 'Hide for 30 days' },
+      svg(
+        'svg',
+        {
+          width: '20',
+          height: '20',
+          viewBox: '0 0 24 24',
+          fill: 'none',
+          stroke: 'currentColor',
+          'stroke-width': '2.2',
+          'stroke-linecap': 'round',
+          'aria-hidden': 'true',
+        },
+        svg('path', { d: 'M6 6l12 12M18 6L6 18' }),
+      ),
+    ),
+    h('h2', { id: 'ethics-h', tabindex: '-1' }, 'Colour is never a reason to choose a pairing'),
     h(
       'p',
       { class: 'lead' },
@@ -121,8 +149,52 @@ function breedingNote(): HTMLElement {
   );
 }
 
+/**
+ * Hides the note while a stored dismissal lasts, and wires its close cross and
+ * the results link that brings it back.
+ */
+function wireBreedingNote(root: HTMLElement, note: HTMLElement, storage: () => NoteStorage, now: () => number): void {
+  try {
+    const stored = storage().getItem(NOTE_HIDDEN_KEY);
+    if (stored !== null) {
+      const until = Number(stored);
+      const current = now();
+      // An expiry further ahead than one dismissal gives came from a clock that was wrong.
+      if (Number.isFinite(until) && until > current && until <= current + NOTE_HIDDEN_MS) {
+        note.hidden = true;
+      } else {
+        storage().removeItem(NOTE_HIDDEN_KEY);
+      }
+    }
+  } catch {
+    // Storage that fails leaves the note showing: missing it costs more than seeing it again.
+  }
+  note.querySelector('button.close')?.addEventListener('click', () => {
+    note.hidden = true;
+    try {
+      storage().setItem(NOTE_HIDDEN_KEY, String(now() + NOTE_HIDDEN_MS));
+    } catch {
+      // Hidden for this visit only.
+    }
+    root.querySelector<HTMLElement>(`#${slotHeadingId(0)}`)?.focus();
+  });
+  // The results link is rebuilt on every render, so its clicks are caught here.
+  // Following the link itself would leave focus on the body, since the section cannot take focus.
+  root.addEventListener('click', (event) => {
+    if (event.target instanceof Element && event.target.closest(`[data-key="${ETHICS_LINK_KEY}"]`) !== null) {
+      event.preventDefault();
+      note.hidden = false;
+      note.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true });
+      note.scrollIntoView({ block: 'start' });
+    }
+  });
+}
+
 export function startApp(root: HTMLElement, options: AppOptions): App {
   const narrow = options.narrow ?? (() => window.matchMedia(NARROW_QUERY).matches);
+  const now = options.now ?? Date.now;
+  // Even reading window.localStorage throws where storage is disabled.
+  const storage = (): NoteStorage => options.storage ?? window.localStorage;
   let state: AppState = options.initial ?? { slots: [EMPTY, EMPTY], pageAlert: null };
   const tokens: [number, number] = [0, 0];
   let focusKey: string | null = null;
@@ -153,8 +225,9 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     return input;
   };
   const inputs = [fileInput(0), fileInput(1)] as const;
+  const note = breedingNote();
   root.replaceChildren(
-    breedingNote(),
+    note,
     privacyNote(),
     h('a', { class: 'ready btn', href: '#results' }, 'Results ready', h('span', { 'aria-hidden': 'true' }, '↓')),
     dropAlert,
@@ -164,6 +237,8 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     announcer.region,
     ...inputs,
   );
+
+  wireBreedingNote(root, note, storage, now);
 
   const setSlot = (slot: ParentIndex, value: SlotState): void => {
     const slots: [SlotState, SlotState] = [state.slots[0], state.slots[1]];

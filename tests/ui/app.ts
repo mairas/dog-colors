@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { parseReport } from '../../src/report/parse.ts';
 import type { Line, PdfText } from '../../src/report/pdfText.ts';
 import type { ReadResult, Report } from '../../src/report/types.ts';
-import { startApp, type App, type AppState } from '../../src/ui/app.ts';
+import { startApp, type App, type AppState, type NoteStorage } from '../../src/ui/app.ts';
 
 // happy-dom replaces the global URL, which the shared fixture helpers resolve
 // paths with, so the DOM tests read the fixtures by directory instead.
@@ -55,7 +55,36 @@ export function ok(report: Report): ReadResult {
   return { ok: true, report };
 }
 
-export function openPage(library: Library, options: { initial?: AppState; narrow?: boolean } = {}): Page {
+/** A storage that forgets everything when the test ends. */
+export class MemoryStorage implements NoteStorage {
+  readonly items: Map<string, string>;
+
+  constructor(entries: Readonly<Record<string, string>> = {}) {
+    this.items = new Map(Object.entries(entries));
+  }
+
+  getItem(key: string): string | null {
+    return this.items.get(key) ?? null;
+  }
+
+  setItem(key: string, value: string): void {
+    this.items.set(key, value);
+  }
+
+  removeItem(key: string): void {
+    this.items.delete(key);
+  }
+}
+
+export interface PageOptions {
+  readonly initial?: AppState;
+  readonly narrow?: boolean;
+  readonly storage?: NoteStorage;
+  /** The clock's fixed reading, in epoch milliseconds. */
+  readonly now?: number;
+}
+
+export function openPage(library: Library, options: PageOptions = {}): Page {
   document.body.replaceChildren();
   const root = document.createElement('main');
   document.body.append(root);
@@ -68,6 +97,8 @@ export function openPage(library: Library, options: { initial?: AppState; narrow
       return typeof entry === 'function' ? entry() : entry;
     },
     narrow: () => options.narrow ?? false,
+    storage: options.storage ?? new MemoryStorage(),
+    now: () => options.now ?? Date.now(),
     ...(options.initial === undefined ? {} : { initial: options.initial }),
   });
   return { app, root, text: () => root.textContent ?? '' };
