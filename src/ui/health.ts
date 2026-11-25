@@ -3,7 +3,7 @@
 // reports and go in as text.
 
 import type { Fraction, Range } from '../health/fraction.ts';
-import type { ConditionOdds, ConditionRow, HealthAnalysis, HealthWarning, PuppyOdds, UnknownReason } from '../health/health.ts';
+import type { ConditionRow, HealthAnalysis, HealthWarning, PuppyOdds, UnknownReason } from '../health/health.ts';
 import type { Inheritance } from '../report/types.ts';
 import { h, type Child } from './dom.ts';
 import { chance, exactChance, odds } from './format.ts';
@@ -31,11 +31,6 @@ const NO_CARRIER_STATE = '–';
 const inheritanceText = (mode: Inheritance | null): string => (mode === null ? 'Inheritance not known' : INHERITANCE[mode]);
 
 const isRange = (value: Fraction | Range): value is Range => 'min' in value;
-
-/** A dam-clear MT condition: every puppy is clear, so it counts as clear rather than as a risk. */
-function allClear(odds: ConditionOdds): boolean {
-  return odds.kind === 'puppies' && odds.puppies.atRisk.numerator === 0 && (odds.puppies.carrier?.numerator ?? 0) === 0;
-}
 
 function figures(odds: PuppyOdds): HTMLElement[] {
   return [
@@ -77,10 +72,9 @@ function conditionRows(row: ConditionRow): HTMLElement[] {
 }
 
 export function renderHealth(analysis: HealthAnalysis): HTMLElement {
-  const shown = analysis.rows.filter((row) => !allClear(row.odds));
-  const clear = analysis.clearInBoth.length + analysis.rows.length - shown.length;
+  const clear = analysis.clearInBoth.length;
   const table =
-    shown.length === 0
+    analysis.rows.length === 0
       ? null
       : h(
           'table',
@@ -97,7 +91,7 @@ export function renderHealth(analysis: HealthAnalysis): HTMLElement {
               h('th', { class: 'sec v', scope: 'col' }, 'Carrier'),
             ),
           ),
-          h('tbody', {}, ...shown.flatMap(conditionRows)),
+          h('tbody', {}, ...analysis.rows.flatMap(conditionRows)),
         );
   const oneParent =
     analysis.oneParentOnly.length === 0

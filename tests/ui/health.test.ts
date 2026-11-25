@@ -83,12 +83,15 @@ describe('the health section', () => {
     expect(root.querySelector('.health .one-parent')?.textContent).toContain('Sensory Ataxic Neuropathy: tested in Parent 1 only: Clear');
   });
 
-  it('counts an MT condition clear in the dam as clear, not as a risk', async () => {
+  it.each([
+    { sire: 'untested', sireHealth: [] },
+    { sire: 'at risk', sireHealth: [healthRow('Mito Disease', 1, 'MT')] },
+  ])('keeps an MT condition clear in the dam as a no-risk row, with the sire $sire', async ({ sireHealth }) => {
     const dam = withHealth(b, 'Sample F', [healthRow('Mito Disease', 0, 'MT')], { sex: 'female' });
-    const sire = withHealth(a, 'Sample M', [], { sex: 'male' });
+    const sire = withHealth(a, 'Sample M', sireHealth, { sex: 'male' });
     const { root } = await pairOf(sire, dam);
-    expect(healthRows(root)).toEqual([]);
-    expect(root.querySelector('.health .clear')?.textContent).toBe('Clear in both parents: 1 other condition.');
+    expect(healthRows(root)).toEqual([['Mito DiseaseMitochondrial: passed on by the dam only', '0%', '–']]);
+    expect(root.querySelector('.health .clear')?.textContent).toBe('Clear in both parents: 0 other conditions.');
   });
 
   it('puts the bobtail and carrier × carrier warnings in the panel above the colour results', async () => {
