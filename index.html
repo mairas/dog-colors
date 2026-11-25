@@ -68,9 +68,24 @@
           </ul>
         </details>
         <p class="author">
-          Made by Matti Airas · <a href="mailto:mairas@iki.fi">mairas@iki.fi</a> ·
+          Made by Matti Airas &lt;<a href="mailto:mairas@iki.fi">mairas@iki.fi</a>&gt;, human daddy of
+          <button type="button" class="link" aria-controls="dogs" aria-haspopup="dialog">Haru and Allu</button> ·
           <a href="https://github.com/mairas/dog-colors">Source code on GitHub</a>
         </p>
+        <dialog id="dogs" class="dogs" aria-label="Haru and Allu">
+          <div class="dogs-body">
+            <figure>
+              <img
+                src="/dogs.jpg"
+                width="900"
+                height="853"
+                alt="Haru and Allu, two curly-coated Spanish Water Dogs in the heather: one brown, one white with a brown patch."
+              />
+              <figcaption>Haru and Allu</figcaption>
+            </figure>
+            <button type="button" class="btn">Close</button>
+          </div>
+        </dialog>
       </div>
     </footer>
     <script type="module" src="/src/main.ts"></script>

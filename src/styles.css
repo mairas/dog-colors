@@ -601,6 +601,46 @@ details.sources ul {
 details.sources li {
   margin: 4px 0;
 }
+/* A link-sized button inside a sentence, exempt from the 44px target like the links beside it. */
+button.link {
+  display: inline;
+  min-height: 0;
+  font: inherit;
+  color: var(--acc);
+  background: none;
+  border: 0;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+dialog.dogs {
+  max-width: min(92vw, 560px);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--ink);
+}
+/* The padding sits on the body, so a click that targets the dialog itself is on the backdrop. */
+.dogs-body {
+  padding: 16px;
+}
+dialog.dogs::backdrop {
+  background: rgb(0 0 0 / 60%);
+}
+dialog.dogs figure {
+  margin: 0 0 12px;
+}
+dialog.dogs img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+}
+dialog.dogs figcaption {
+  margin-top: 8px;
+  font-weight: 600;
+}
 
 .ready,
 .print-only {
@@ -658,6 +698,12 @@ details.sources li {
   }
   .screen-only {
     display: none;
+  }
+  /* The author line's button is text in print. */
+  footer .author button.link {
+    display: inline !important;
+    color: inherit;
+    text-decoration: none;
   }
   /* Without its background the same-sex card needs a border to stand out. */
   .same-sex {

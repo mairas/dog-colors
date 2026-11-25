@@ -1,6 +1,7 @@
 import './styles.css';
 import type { ReadResult } from './report/types.ts';
 import { startApp, type AppState } from './ui/app.ts';
+import { wireDogsDialog } from './ui/dogs.ts';
 
 const found = document.querySelector<HTMLElement>('#app');
 if (!found) {
@@ -29,3 +30,5 @@ async function main(): Promise<void> {
 }
 
 void main();
+// After the app starts, so a footer fault cannot stop it.
+wireDogsDialog(document);
