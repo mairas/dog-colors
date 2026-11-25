@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fraction, ONE, ZERO } from '../../src/health/fraction.ts';
+import { fraction, ONE, ZERO, type Fraction } from '../../src/health/fraction.ts';
 import { analyseHealth, type ConditionRow, type HealthAnalysis, type HealthParent } from '../../src/health/health.ts';
 import { parseReport } from '../../src/report/parse.ts';
 import type { HealthRow, Inheritance, Report, Sex } from '../../src/report/types.ts';
@@ -404,6 +404,51 @@ describe('analyseHealth: parent sex', () => {
         [null, null],
       ] as const) {
         expect(xrPair(firstSex, secondSex, [1, 0]).warnings).toEqual([]);
+      }
+    });
+  });
+
+  describe('both parents carry an XD or MT variant and a sex is unreadable: never a warning', () => {
+    const bothCarry = (mode: 'XD' | 'MT', first: Sex | null, second: Sex | null, copies: readonly [number, number]) =>
+      analyseHealth(parent(first, [condition(mode, copies[0])]), parent(second, [condition(mode, copies[1])]));
+    const xd = (sons: Fraction) => ({
+      kind: 'by-sex',
+      sons: { atRisk: sons, carrier: null },
+      daughters: { atRisk: ONE, carrier: null },
+    });
+    const mt = { kind: 'puppies', puppies: { atRisk: ONE, carrier: null } };
+
+    it('one sex read: odds computed with Parent 2 as the dam, marked inferred', () => {
+      for (const [firstSex, secondSex] of [
+        ['male', null],
+        [null, 'female'],
+      ] as const) {
+        for (const [mode, copies, odds] of [
+          ['XD', [1, 2], xd(ONE)],
+          ['XD', [2, 1], xd(fraction(1, 2))],
+          ['MT', [1, 2], mt],
+          ['MT', [2, 1], mt],
+        ] as const) {
+          const analysis = bothCarry(mode, firstSex, secondSex, copies);
+          const label = `${mode}, ${firstSex} × ${secondSex}, copies ${copies.join(' and ')}`;
+          expect(onlyRow(analysis).odds, label).toEqual(odds);
+          expect(onlyRow(analysis).sexInferred, label).toBe(true);
+          expect(analysis.warnings, label).toEqual([]);
+        }
+      }
+    });
+
+    it('neither sex read: odds unknown', () => {
+      for (const mode of ['XD', 'MT'] as const) {
+        for (const copies of [
+          [1, 2],
+          [2, 1],
+        ] as const) {
+          const analysis = bothCarry(mode, null, null, copies);
+          const label = `${mode}, copies ${copies.join(' and ')}`;
+          expect(onlyRow(analysis), label).toMatchObject({ odds: { kind: 'unknown', reason: 'sex-unknown' }, sexInferred: false });
+          expect(analysis.warnings, label).toEqual([]);
+        }
       }
     });
   });
