@@ -7,7 +7,7 @@ import { compare, fraction, type Fraction } from '../health/fraction.ts';
 import type { ParentIndex } from '../health/health.ts';
 import { COLOUR_GENES, type ColourGene } from '../report/loci.ts';
 import { ALLELES } from './alleles.ts';
-import { crossScenarios, PIGMENT_GENES, WHITE_GENES, type CrossParent, type GroupResult, type Scenario } from './cross.ts';
+import { crossScenarios, PIGMENT_GENES, sum, WHITE_GENES, type CrossParent, type GroupResult, type Scenario } from './cross.ts';
 import { PIGMENT_HIDDEN, WHITE_HIDDEN, type HiddenId, type Hider } from './hidden.ts';
 import {
   BASE_COLOURS,
@@ -214,10 +214,6 @@ class Combiner {
   }
 }
 
-function sum(values: readonly number[]): number {
-  return values.reduce((total, value) => total + value, 0);
-}
-
 function increment<K>(map: Map<K, number>, key: K, count: number): void {
   map.set(key, (map.get(key) ?? 0) + count);
 }
@@ -318,12 +314,12 @@ const upperThenLower = (left: Range, right: Range): number => compare(right.max,
 
 const positive = (range: Range): boolean => range.max.numerator > 0;
 
-function addFlags<K>(map: Map<K, Set<Flag>>, key: K, flags: readonly Flag[], allowed: readonly Flag[]): void {
-  const set = map.get(key) ?? new Set<Flag>();
-  for (const flag of flags) {
-    if (allowed.includes(flag)) {
-      set.add(flag);
-    }
+const hiddenKey = (item: { readonly id: HiddenId; readonly hider: Hider | null }): string => `${item.id}|${item.hider ?? ''}`;
+
+function addAll<K, V>(map: Map<K, Set<V>>, key: K, values: Iterable<V>): void {
+  const set = map.get(key) ?? new Set<V>();
+  for (const value of values) {
+    set.add(value);
   }
   map.set(key, set);
 }
@@ -336,13 +332,8 @@ function pairOrder(gene: ColourGene, pair: string): number {
   return alleles.indexOf(first) * alleles.length + alleles.indexOf(second);
 }
 
-export function predictPuppies(first: CrossParent, second: CrossParent): PuppyPrediction {
-  const scenarios = crossScenarios(first, second);
-  const unknownLoci = unknownLociOf(first, second);
-  const unknownIn = (genes: readonly ColourGene[]): UnknownLocus[] => unknownLoci.filter((locus) => genes.includes(locus.gene));
-
-  // Scenarios with the same offspring distributions share their group results.
-  const combiner = new Combiner();
+/** Scenarios with the same offspring distributions share their group results, so each is counted once. */
+function countDistinct(scenarios: readonly Scenario[], combiner: Combiner): ScenarioCounts[] {
   const unique = new Map<GroupResult<PigmentPhenotype>, Map<GroupResult<WhitePhenotype>, ScenarioCounts>>();
   for (const { pigment, white } of scenarios) {
     const byWhite = unique.get(pigment) ?? new Map<GroupResult<WhitePhenotype>, ScenarioCounts>();
@@ -351,197 +342,286 @@ export function predictPuppies(first: CrossParent, second: CrossParent): PuppyPr
     }
     unique.set(pigment, byWhite);
   }
-  const counted = [...unique.values()].flatMap((byWhite) => [...byWhite.values()]);
+  return [...unique.values()].flatMap((byWhite) => [...byWhite.values()]);
+}
 
-  const base = new Ranges<BaseColour | Unknown>();
-  const pattern = new Ranges<Pattern | Unknown>();
-  const whiteRows = new Ranges<WhiteSpotting | Unknown>();
-  const traits = new Ranges<Trait>();
-  const combinedRanges = new Ranges<number>();
-  const hiddenRanges = new Ranges<string>();
+/** Every scenario's figures as ranges, with what the rows need besides. */
+interface Gathered {
+  /** Scenarios with live puppies; the figures below come from these alone. */
+  readonly live: readonly ScenarioCounts[];
+  readonly base: Ranges<BaseColour | Unknown>;
+  readonly pattern: Ranges<Pattern | Unknown>;
+  readonly white: Ranges<WhiteSpotting | Unknown>;
+  readonly traits: Ranges<Trait>;
+  readonly combined: Ranges<number>;
+  /** Keyed by hiddenKey. */
+  readonly hidden: Ranges<string>;
+  /** The H/H share of conceptions, over every scenario. */
+  readonly lethal: Range;
+  readonly unknownTraits: ReadonlySet<Trait>;
+  readonly hiddenPairs: ReadonlyMap<string, ReadonlySet<string>>;
+  readonly hiddenBases: ReadonlyMap<string, ReadonlySet<BaseColour | Unknown>>;
+  /** Scenarios share coat objects, so each coat is listed once. */
+  readonly pigmentCoats: ReadonlySet<PigmentPhenotype>;
+  readonly whiteCoats: ReadonlySet<WhitePhenotype>;
+}
+
+function gather(counted: readonly ScenarioCounts[]): Gathered {
   const lethal = new Ranges<'lethal'>();
-  const unknownTraits = new Set<Trait>();
-  const baseFlags = new Map<BaseColour | Unknown, Set<Flag>>();
-  const patternFlags = new Map<Pattern | Unknown, Set<Flag>>();
-  const traitFlags = new Map<Trait, Set<Flag>>();
-  const allBases = new Set<BaseColour | Unknown>();
-  const hiddenPairs = new Map<string, Set<string>>();
-  const hiddenBases = new Map<string, Set<BaseColour | Unknown>>();
-  // Scenarios share coat objects, so each coat's flags are collected once.
-  const pigmentCoats = new Set<PigmentPhenotype>();
-  const whiteCoats = new Set<WhitePhenotype>();
-
-  for (const scenario of counted) {
-    const { pigment, white } = scenario;
+  for (const { pigment } of counted) {
     lethal.nextScenario();
     if (pigment.lethal.numerator > 0) {
       lethal.add('lethal', pigment.lethal.numerator, pigment.lethal.denominator);
     }
-    // A scenario in which every conception dies has no live puppies to share out.
-    if (pigment.total === 0) {
-      continue;
-    }
-    for (const ranges of [base, pattern, whiteRows, traits, combinedRanges, hiddenRanges]) {
+  }
+
+  // A scenario in which every conception dies has no live puppies to share out.
+  const live = counted.filter(({ pigment }) => pigment.total > 0);
+  const base = new Ranges<BaseColour | Unknown>();
+  const pattern = new Ranges<Pattern | Unknown>();
+  const white = new Ranges<WhiteSpotting | Unknown>();
+  const traits = new Ranges<Trait>();
+  const combined = new Ranges<number>();
+  const hidden = new Ranges<string>();
+  const unknownTraits = new Set<Trait>();
+  const hiddenPairs = new Map<string, Set<string>>();
+  const hiddenBases = new Map<string, Set<BaseColour | Unknown>>();
+  const pigmentCoats = new Set<PigmentPhenotype>();
+  const whiteCoats = new Set<WhitePhenotype>();
+
+  for (const scenario of live) {
+    const pigmentTotal = scenario.pigment.total;
+    const whiteTotal = scenario.white.total;
+    for (const ranges of [base, pattern, white, traits, combined, hidden]) {
       ranges.nextScenario();
     }
-    scenario.base.forEach((count, key) => base.add(key, count, pigment.total));
-    scenario.pattern.forEach((count, key) => pattern.add(key, count, pigment.total));
-    scenario.whiteRows.forEach((count, key) => whiteRows.add(key, count, white.total));
-    scenario.traits.forEach((count, trait) => traits.add(trait, count, trait === 'roan' ? white.total : pigment.total));
-    scenario.combined.ids.forEach((id, index) => combinedRanges.add(id, scenario.combined.counts[index] ?? 0, pigment.total * white.total));
+    scenario.base.forEach((count, key) => base.add(key, count, pigmentTotal));
+    scenario.pattern.forEach((count, key) => pattern.add(key, count, pigmentTotal));
+    scenario.whiteRows.forEach((count, key) => white.add(key, count, whiteTotal));
+    scenario.traits.forEach((count, trait) => traits.add(trait, count, trait === 'roan' ? whiteTotal : pigmentTotal));
+    scenario.combined.ids.forEach((id, index) => combined.add(id, scenario.combined.counts[index] ?? 0, pigmentTotal * whiteTotal));
     scenario.unknownTraits.forEach((trait) => unknownTraits.add(trait));
-
-    for (const { phenotype: coat } of pigment.outcomes) {
-      pigmentCoats.add(coat);
+    scenario.pigment.outcomes.forEach(({ phenotype: coat }) => pigmentCoats.add(coat));
+    scenario.white.outcomes.forEach(({ phenotype: spotting }) => whiteCoats.add(spotting));
+    for (const { item, count, pairs, coats } of scenario.pigment.hidden) {
+      const key = hiddenKey(item);
+      hidden.add(key, count, pigmentTotal);
+      addAll(hiddenPairs, key, pairs);
+      addAll(
+        hiddenBases,
+        key,
+        coats.map((coat) => coat.base),
+      );
     }
-    for (const { phenotype: spotting } of white.outcomes) {
-      whiteCoats.add(spotting);
-    }
-
-    for (const { item, count, pairs, coats } of pigment.hidden) {
-      const key = `${item.id}|${item.hider ?? ''}`;
-      hiddenRanges.add(key, count, pigment.total);
-      pairs.forEach((pair) => hiddenPairs.set(key, (hiddenPairs.get(key) ?? new Set()).add(pair)));
-      coats.forEach((coat) => hiddenBases.set(key, (hiddenBases.get(key) ?? new Set()).add(coat.base)));
-    }
-    for (const { item, count, pairs } of white.hidden) {
-      const key = `${item.id}|${item.hider ?? ''}`;
-      hiddenRanges.add(key, count, white.total);
-      pairs.forEach((pair) => hiddenPairs.set(key, (hiddenPairs.get(key) ?? new Set()).add(pair)));
+    for (const { item, count, pairs } of scenario.white.hidden) {
+      const key = hiddenKey(item);
+      hidden.add(key, count, whiteTotal);
+      addAll(hiddenPairs, key, pairs);
     }
   }
 
-  let brindle = false;
+  return {
+    live,
+    base,
+    pattern,
+    white,
+    traits,
+    combined,
+    hidden,
+    lethal: lethal.range('lethal'),
+    unknownTraits,
+    hiddenPairs,
+    hiddenBases,
+    pigmentCoats,
+    whiteCoats,
+  };
+}
+
+/** The flags each row shows: those some of its puppies have, among the ones the row shows. */
+interface RowFlags {
+  readonly base: ReadonlyMap<BaseColour | Unknown, ReadonlySet<Flag>>;
+  readonly pattern: ReadonlyMap<Pattern | Unknown, ReadonlySet<Flag>>;
+  readonly traits: ReadonlyMap<Trait, ReadonlySet<Flag>>;
+}
+
+function rowFlags({ pigmentCoats, whiteCoats }: Gathered): RowFlags {
+  const base = new Map<BaseColour | Unknown, Set<Flag>>();
+  const pattern = new Map<Pattern | Unknown, Set<Flag>>();
+  const traits = new Map<Trait, Set<Flag>>();
+  const among = (flags: readonly Flag[], shown: readonly Flag[]): Flag[] => flags.filter((flag) => shown.includes(flag));
   for (const coat of pigmentCoats) {
-    allBases.add(coat.base);
-    brindle ||= coat.flags.includes('brindle-possible');
-    addFlags(baseFlags, coat.base, coat.flags, BASE_FLAGS);
-    addFlags(patternFlags, coat.pattern, coat.flags, PATTERN_FLAGS);
+    addAll(base, coat.base, among(coat.flags, BASE_FLAGS));
+    addAll(pattern, coat.pattern, among(coat.flags, PATTERN_FLAGS));
     for (const trait of PIGMENT_TRAITS) {
       if (coat[trait] === 'yes') {
-        addFlags(traitFlags, trait, coat.flags, TRAIT_FLAGS[trait] ?? []);
+        addAll(traits, trait, among(coat.flags, TRAIT_FLAGS[trait] ?? []));
       }
     }
   }
   for (const spotting of whiteCoats) {
     if (spotting.roan === 'yes') {
-      addFlags(traitFlags, 'roan', spotting.flags, TRAIT_FLAGS.roan ?? []);
+      addAll(traits, 'roan', among(spotting.flags, TRAIT_FLAGS.roan ?? []));
     }
   }
+  return { base, pattern, traits };
+}
 
-  const tableRows = <V>(
-    ranges: Ranges<V>,
-    order: readonly (V | Unknown)[],
-    extra: (value: V) => { copies: number | null; flags: readonly Flag[] },
-    sort: (left: Row<V>, right: Row<V>) => number,
-  ): Row<V>[] =>
-    ranges
-      .keys()
-      .map((value): Row<V> => ({ value, chance: ranges.range(value), caveats: [], ...extra(value) }))
-      .sort((left, right) => sort(left, right) || order.indexOf(left.value) - order.indexOf(right.value));
+/** Rows by chance, most likely first, or in display order alone. */
+function tableRows<V>(
+  ranges: Ranges<V>,
+  order: readonly V[],
+  extra: (value: V) => { copies: number | null; flags: readonly Flag[] },
+  byChance: boolean,
+): Row<V>[] {
+  return ranges
+    .keys()
+    .map((value): Row<V> => ({ value, chance: ranges.range(value), caveats: [], ...extra(value) }))
+    .sort(
+      (left, right) =>
+        (byChance ? upperThenLower(left.chance, right.chance) : 0) || order.indexOf(left.value) - order.indexOf(right.value),
+    );
+}
 
-  const baseOrder: readonly (BaseColour | Unknown)[] = [...BASE_COLOURS, 'unknown'];
-  const patternOrder: readonly (Pattern | Unknown)[] = [...PATTERNS, 'unknown'];
-  const whiteOrder: readonly (WhiteSpotting | Unknown)[] = [...[...WHITE_SPOTTING].reverse(), 'unknown'];
+const BASE_ORDER: readonly (BaseColour | Unknown)[] = [...BASE_COLOURS, 'unknown'];
+const PATTERN_ORDER: readonly (Pattern | Unknown)[] = [...PATTERNS, 'unknown'];
+const WHITE_ORDER: readonly (WhiteSpotting | Unknown)[] = [...[...WHITE_SPOTTING].reverse(), 'unknown'];
 
-  const baseRows = tableRows(base, baseOrder, (value) => ({ copies: null, flags: inFlagOrder(baseFlags.get(value)) }), (l, r) =>
-    upperThenLower(l.chance, r.chance),
-  );
-  const patternRows = tableRows(
-    pattern,
-    patternOrder,
-    (value) => ({ copies: null, flags: inFlagOrder(patternFlags.get(value)) }),
-    (l, r) => upperThenLower(l.chance, r.chance),
-  );
-  const whiteTableRows = tableRows(whiteRows, whiteOrder, (value) => ({ copies: WHITE_COPIES[value], flags: [] }), () => 0);
+interface TableRows {
+  readonly base: readonly Row<BaseColour | Unknown>[];
+  readonly pattern: readonly Row<Pattern | Unknown>[];
+  readonly white: readonly Row<WhiteSpotting | Unknown>[];
+}
 
-  const traitRow = (trait: Trait): TraitRow => ({
-    value: trait,
-    chance: traits.range(trait),
-    copies: TRAIT_COPIES[trait] ?? null,
-    flags: inFlagOrder(traitFlags.get(trait)),
-    caveats: TRAIT_CAVEATS[trait] ?? [],
-  });
-  const cannotPredict = TRAITS.filter((trait) => unknownTraits.has(trait)).map((trait) => ({
-    trait,
-    unknown: unknownIn(trait === 'roan' ? WHITE_GENES : PIGMENT_GENES),
-  }));
+function buildRows(gathered: Gathered, flags: RowFlags): TableRows {
+  return {
+    base: tableRows(gathered.base, BASE_ORDER, (value) => ({ copies: null, flags: inFlagOrder(flags.base.get(value)) }), true),
+    pattern: tableRows(gathered.pattern, PATTERN_ORDER, (value) => ({ copies: null, flags: inFlagOrder(flags.pattern.get(value)) }), true),
+    white: tableRows(gathered.white, WHITE_ORDER, (value) => ({ copies: WHITE_COPIES[value], flags: [] }), false),
+  };
+}
+
+function buildTraits(
+  gathered: Gathered,
+  flags: RowFlags,
+  unknownIn: (genes: readonly ColourGene[]) => UnknownLocus[],
+): PuppyPrediction['traits'] {
+  const { traits, unknownTraits } = gathered;
   const predictable = TRAITS.filter((trait) => !unknownTraits.has(trait));
-  const possible = predictable.filter((trait) => positive(traits.range(trait))).map(traitRow);
-  const notPossible = predictable.filter((trait) => !positive(traits.range(trait)));
+  return {
+    possible: predictable
+      .filter((trait) => positive(traits.range(trait)))
+      .map((trait) => ({
+        value: trait,
+        chance: traits.range(trait),
+        copies: TRAIT_COPIES[trait] ?? null,
+        flags: inFlagOrder(flags.traits.get(trait)),
+        caveats: TRAIT_CAVEATS[trait] ?? [],
+      })),
+    notPossible: predictable.filter((trait) => !positive(traits.range(trait))),
+    cannotPredict: TRAITS.filter((trait) => unknownTraits.has(trait)).map((trait) => ({
+      trait,
+      unknown: unknownIn(trait === 'roan' ? WHITE_GENES : PIGMENT_GENES),
+    })),
+  };
+}
 
-  const doubleMerle = possible.find((row) => row.value === 'doubleMerle');
+function buildWarnings(traits: PuppyPrediction['traits'], lethal: Range): ColourWarning[] {
   const warnings: ColourWarning[] = [];
+  const doubleMerle = traits.possible.find((row) => row.value === 'doubleMerle');
   if (doubleMerle !== undefined) {
     warnings.push({ kind: 'double-merle', chance: doubleMerle.chance });
   }
-  if (positive(lethal.range('lethal'))) {
-    warnings.push({ kind: 'harlequin-lethal', chance: lethal.range('lethal') });
+  if (positive(lethal)) {
+    warnings.push({ kind: 'harlequin-lethal', chance: lethal });
   }
+  return warnings;
+}
 
-  const ranked = combinedRanges
+function buildCombined(gathered: Gathered, combiner: Combiner): PuppyPrediction['combined'] {
+  const ranked = gathered.combined
     .keys()
-    .map((key) => ({ key, chance: combinedRanges.range(key) }))
+    .map((id) => ({ id, chance: gathered.combined.range(id) }))
     .sort((left, right) => upperThenLower(left.chance, right.chance));
   const shown = ranked.slice(0, COMBINED_SHOWN);
-  let other: Range | null = null;
-  if (ranked.length > COMBINED_SHOWN) {
-    const shownIds = new Set(shown.map(({ key }) => key));
-    const rest = new Ranges<'other'>();
-    for (const scenario of counted.filter(({ pigment }) => pigment.total > 0)) {
-      rest.nextScenario();
-      const total = scenario.pigment.total * scenario.white.total;
-      const listed = sum(scenario.combined.ids.map((id, index) => (shownIds.has(id) ? (scenario.combined.counts[index] ?? 0) : 0)));
-      if (listed < total) {
-        rest.add('other', total - listed, total);
-      }
-    }
-    other = rest.range('other');
+  const outcomes = shown.map(({ id, chance }): CombinedOutcome => ({ phenotype: combiner.phenotype(id), chance }));
+  if (ranked.length <= COMBINED_SHOWN) {
+    return { outcomes, other: null };
   }
-  const outcomes = shown.map(({ key, chance }): CombinedOutcome => ({ phenotype: combiner.phenotype(key), chance }));
+  const shownIds = new Set(shown.map(({ id }) => id));
+  const rest = new Ranges<'other'>();
+  for (const { pigment, white, combined } of gathered.live) {
+    rest.nextScenario();
+    const total = pigment.total * white.total;
+    const listed = sum(combined.ids.map((id, index) => (shownIds.has(id) ? (combined.counts[index] ?? 0) : 0)));
+    if (listed < total) {
+      rest.add('other', total - listed, total);
+    }
+  }
+  return { outcomes, other: rest.range('other') };
+}
 
-  const hidden = [...PIGMENT_HIDDEN, ...WHITE_HIDDEN].flatMap((item): HiddenRow[] => {
-    const key = `${item.id}|${item.hider ?? ''}`;
-    const chance = hiddenRanges.range(key);
+function buildHidden(gathered: Gathered): HiddenRow[] {
+  const allBases = new Set([...gathered.pigmentCoats].map((coat) => coat.base));
+  return [...PIGMENT_HIDDEN, ...WHITE_HIDDEN].flatMap((item): HiddenRow[] => {
+    const key = hiddenKey(item);
+    const chance = gathered.hidden.range(key);
     if (!positive(chance)) {
       return [];
     }
-    const bases = [...(hiddenBases.get(key) ?? [])];
+    const bases = [...(gathered.hiddenBases.get(key) ?? [])];
     const [only] = bases;
     const onlyIn = bases.length === 1 && only !== undefined && only !== 'unknown' && allBases.size > 1 ? only : null;
-    const genotypes = [...(hiddenPairs.get(key) ?? [])].sort((l, r) => pairOrder(item.gene, l) - pairOrder(item.gene, r));
+    const genotypes = [...(gathered.hiddenPairs.get(key) ?? [])].sort((l, r) => pairOrder(item.gene, l) - pairOrder(item.gene, r));
     return [{ id: item.id, hider: item.hider, genotypes, chance, onlyIn }];
   });
+}
 
-  const patternCaveats: CaveatId[] = brindle ? ['brindle-possible'] : [];
-  const whiteCaveats: CaveatId[] = [
-    ...(whiteTableRows.some((row) => row.value === 'extensive') ? (['deafness'] as const) : []),
-    ...(doubleMerle !== undefined ? (['white-piebald-only'] as const) : []),
-  ];
-  const table = <V>(rows: readonly Row<V>[], caveats: readonly CaveatId[], genes: readonly ColourGene[]): Table<V> => ({
-    rows,
-    caveats,
-    unknown: rows.some((row) => row.value === 'unknown') ? unknownIn(genes) : [],
-  });
-
+/** Every caveat shown anywhere, in a stable order, plus those that always apply. */
+function collectCaveats(rows: TableRows, tableCaveats: readonly CaveatId[], traits: PuppyPrediction['traits'], combined: PuppyPrediction['combined']): CaveatId[] {
   const shownFlags = new Set<Flag>([
-    ...[...baseRows, ...patternRows, ...possible].flatMap((row) => row.flags),
-    ...outcomes.flatMap((outcome) => outcome.phenotype.flags),
+    ...[...rows.base, ...rows.pattern, ...traits.possible].flatMap((row) => row.flags),
+    ...combined.outcomes.flatMap((outcome) => outcome.phenotype.flags),
   ]);
-  const caveats = [
+  return [
     ...new Set<CaveatId>([
-      ...patternCaveats,
-      ...whiteCaveats,
-      ...possible.flatMap((row) => row.caveats),
+      ...tableCaveats,
+      ...traits.possible.flatMap((row) => row.caveats),
       ...FLAGS.filter((flag) => shownFlags.has(flag)),
       ...ALWAYS,
     ]),
   ];
+}
+
+export function predictPuppies(first: CrossParent, second: CrossParent): PuppyPrediction {
+  const scenarios = crossScenarios(first, second);
+  const unknownLoci = unknownLociOf(first, second);
+  const unknownIn = (genes: readonly ColourGene[]): UnknownLocus[] => unknownLoci.filter((locus) => genes.includes(locus.gene));
+
+  const combiner = new Combiner();
+  const gathered = gather(countDistinct(scenarios, combiner));
+  const flags = rowFlags(gathered);
+  const rows = buildRows(gathered, flags);
+  const traits = buildTraits(gathered, flags, unknownIn);
+  const warnings = buildWarnings(traits, gathered.lethal);
+  const combined = buildCombined(gathered, combiner);
+  const hidden = buildHidden(gathered);
+
+  const brindle = [...gathered.pigmentCoats].some((coat) => coat.flags.includes('brindle-possible'));
+  const patternCaveats: CaveatId[] = brindle ? ['brindle-possible'] : [];
+  const whiteCaveats: CaveatId[] = [
+    ...(rows.white.some((row) => row.value === 'extensive') ? (['deafness'] as const) : []),
+    ...(traits.possible.some((row) => row.value === 'doubleMerle') ? (['white-piebald-only'] as const) : []),
+  ];
+  const table = <V>(tableRows: readonly Row<V>[], caveats: readonly CaveatId[], genes: readonly ColourGene[]): Table<V> => ({
+    rows: tableRows,
+    caveats,
+    unknown: tableRows.some((row) => row.value === 'unknown') ? unknownIn(genes) : [],
+  });
 
   const ranges = [
-    ...[...baseRows, ...patternRows, ...whiteTableRows, ...possible].map((row) => row.chance),
-    ...outcomes.map((outcome) => outcome.chance),
-    ...(other === null ? [] : [other]),
+    ...[...rows.base, ...rows.pattern, ...rows.white, ...traits.possible].map((row) => row.chance),
+    ...combined.outcomes.map((outcome) => outcome.chance),
+    ...(combined.other === null ? [] : [combined.other]),
     ...hidden.map((row) => row.chance),
     ...warnings.map((warning) => warning.chance),
   ];
@@ -550,13 +630,13 @@ export function predictPuppies(first: CrossParent, second: CrossParent): PuppyPr
     scenarios: scenarios.length,
     hasRanges: ranges.some((range) => !isSingle(range)),
     warnings,
-    combined: { outcomes, other },
-    base: table(baseRows, [], PIGMENT_GENES),
-    pattern: table(patternRows, patternCaveats, PIGMENT_GENES),
-    white: table(whiteTableRows, whiteCaveats, WHITE_GENES),
-    traits: { possible, notPossible, cannotPredict },
+    combined,
+    base: table(rows.base, [], PIGMENT_GENES),
+    pattern: table(rows.pattern, patternCaveats, PIGMENT_GENES),
+    white: table(rows.white, whiteCaveats, WHITE_GENES),
+    traits,
     hidden,
     unknownLoci,
-    caveats,
+    caveats: collectCaveats(rows, [...patternCaveats, ...whiteCaveats], traits, combined),
   };
 }

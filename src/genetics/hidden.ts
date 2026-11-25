@@ -5,7 +5,7 @@
 // count it alongside the coat outcomes.
 
 import { COLOUR_GENES, type ColourGene } from '../report/loci.ts';
-import { ALLELES, GENE_RULES, withLocus, type Allele, type Genotype } from './alleles.ts';
+import { ALLELES, copies, GENE_RULES, withLocus, type Allele, type Genotype } from './alleles.ts';
 import { pigmentPhenotype, type Pattern, type PigmentPhenotype, type Unknown, type WhitePhenotype } from './phenotype.ts';
 
 /** What hides an effect that the puppy's genotype would otherwise show. */
@@ -67,8 +67,6 @@ export const HIDER_LABELS: Readonly<Record<Hider, string>> = {
   beige: 'hidden by beige',
   albino: 'hidden by albino',
 };
-
-const copies = (pair: readonly string[], allele: string): number => pair.filter((item) => item === allele).length;
 
 export function hiderOf(coat: PigmentPhenotype): Hider | null {
   if (coat.base === 'albino') {

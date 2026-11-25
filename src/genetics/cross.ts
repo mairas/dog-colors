@@ -13,7 +13,7 @@
 
 import { fraction, type Fraction } from '../health/fraction.ts';
 import type { ColourGene } from '../report/loci.ts';
-import { comparePairs, formatPair, orderedPair, type AllelePair, type Genotype } from './alleles.ts';
+import { comparePairs, copies, formatPair, orderedPair, type AllelePair, type Genotype } from './alleles.ts';
 import { candidateGenotypes, type GenotypeResolution } from './haplotypes.ts';
 import { PIGMENT_HIDDEN, WHITE_HIDDEN, type HiddenItem } from './hidden.ts';
 import { pigmentPhenotype, whitePhenotype, type PigmentPhenotype, type WhitePhenotype } from './phenotype.ts';
@@ -60,7 +60,6 @@ export function offspringPairs<G extends ColourGene>(gene: G, first: AllelePair<
   return [...found.values()].sort((left, right) => comparePairs(gene, left.pair, right.pair));
 }
 
-const copies = (pair: readonly string[], allele: string): number => pair.filter((item) => item === allele).length;
 const has = (pair: readonly string[], allele: string): boolean => pair.includes(allele);
 const flags = (...values: boolean[]): string => values.map((value) => (value ? 1 : 0)).join('');
 
@@ -128,7 +127,6 @@ export interface Scenario {
   readonly parents: readonly [Genotype, Genotype];
   readonly pigment: GroupResult<PigmentPhenotype>;
   readonly white: GroupResult<WhitePhenotype>;
-  readonly lethal: Fraction;
 }
 
 interface Group<P> {
@@ -382,7 +380,7 @@ class GroupCross<P> {
   }
 }
 
-function sum(values: readonly number[]): number {
+export function sum(values: readonly number[]): number {
   return values.reduce((total, value) => total + value, 0);
 }
 
@@ -444,14 +442,10 @@ export function crossScenarios(first: CrossParent, second: CrossParent): Scenari
   const pigment = groupCross(PIGMENT, firsts, seconds, known);
   const white = groupCross(WHITE, firsts, seconds, known);
   return firsts.flatMap((left) =>
-    seconds.map((right): Scenario => {
-      const pigmentResult = pigment.evaluate(left, right);
-      return {
-        parents: [left, right],
-        pigment: pigmentResult,
-        white: white.evaluate(left, right),
-        lethal: pigmentResult.lethal,
-      };
-    }),
+    seconds.map((right): Scenario => ({
+      parents: [left, right],
+      pigment: pigment.evaluate(left, right),
+      white: white.evaluate(left, right),
+    })),
   );
 }

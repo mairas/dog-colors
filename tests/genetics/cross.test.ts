@@ -175,7 +175,7 @@ describe('crossScenarios', () => {
 
   it('removes H/H puppies and renormalises the rest', () => {
     const [scenario] = crossScenarios({ loci: parentLoci({ PSMB7: 'H/h', PMEL: 'M/m' }) }, { loci: parentLoci({ PSMB7: 'H/h' }) });
-    expect(scenario?.lethal).toEqual({ numerator: 1, denominator: 4 });
+    expect(scenario?.pigment.lethal).toEqual({ numerator: 1, denominator: 4 });
     expect(scenario?.pigment.outcomes.every(({ phenotype: value }) => value.lethal !== 'yes')).toBe(true);
     const harlequin = scenario?.pigment.outcomes
       .filter(({ phenotype: value }) => value.harlequin === 'yes')
@@ -198,7 +198,7 @@ describe('literature oracle: H/H never survives a cross', () => {
     const scenarios = crossScenarios({ loci: parentLoci(first) }, { loci: parentLoci({ PSMB7: 'H/h', PMEL: 'M/m' }) });
     for (const scenario of scenarios) {
       expect(scenario.pigment.outcomes.some(({ phenotype: value }) => value.lethal === 'yes')).toBe(false);
-      expect(scenario.lethal.numerator).toBeGreaterThan(0);
+      expect(scenario.pigment.lethal.numerator).toBeGreaterThan(0);
     }
   });
 });
