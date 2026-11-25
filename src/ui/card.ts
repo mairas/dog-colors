@@ -12,7 +12,7 @@ import type { Report } from '../report/types.ts';
 import { h } from './dom.ts';
 import { flagTags } from './results.ts';
 import type { Message } from './messages.ts';
-import { alertBox } from './slots.ts';
+import { alertBox, slotHeading, slotHeadingId } from './slots.ts';
 import { formatPairs, geneName, GENE_LABELS, lowerFirst, parentLabel } from './names.ts';
 
 export interface CardInput {
@@ -224,7 +224,7 @@ function missingNote(dog: ResolvedDog): HTMLElement | null {
 
 export function renderCard(input: CardInput, actions: CardActions): HTMLElement {
   const { report, dog, slot } = input;
-  const nameId = `parent-${slot}-name`;
+  const nameId = slotHeadingId(slot);
   const details = [report.sex === null ? null : SEX_NAMES[report.sex], report.breed].filter((part) => part !== null);
   const flags = dog.ownColours.flatMap((colour) => colour.phenotype.flags);
 
@@ -239,7 +239,7 @@ export function renderCard(input: CardInput, actions: CardActions): HTMLElement 
     'section',
     { class: 'slot card', 'aria-labelledby': nameId, 'data-slot': String(slot) },
     input.alert === null ? null : alertBox(input.alert, 'card-alert'),
-    h('h3', { id: nameId, tabindex: '-1', 'data-key': `name-${slot}` }, h('small', {}, parentLabel(slot)), dogName(report, slot)),
+    slotHeading(slot, dogName(report, slot)),
     details.length > 0 ? h('p', { class: 'sec meta' }, details.join(' · ')) : null,
     h(
       'div',

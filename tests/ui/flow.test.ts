@@ -73,6 +73,12 @@ describe('the colour page', () => {
     expect(document.activeElement?.getAttribute('data-key')).toBe('nose-0-brown');
   });
 
+  it('heads each slot and card at the level below the page title', async () => {
+    const { root } = await pair('a.pdf', 'b.pdf');
+    expect([...root.querySelectorAll('[data-slot] > h2')].map((heading) => heading.id)).toEqual(['parent-0-name', 'parent-1-name']);
+    expect(root.querySelector('[data-slot] h3')).toBeNull();
+  });
+
   it('lists both candidate colours above the question', async () => {
     const { root } = await pair('nose.pdf', 'b.pdf');
     expect(root.querySelector('.own-name')?.textContent).toBe('Black, mostly white (B/b) or brown, mostly white (b/b)');
@@ -125,7 +131,7 @@ describe('the colour page', () => {
     const { app, root } = await pair('a.pdf', 'b.pdf');
     await app.load(0, pdf('other.pdf'));
     const card = root.querySelector('[data-slot="0"]');
-    expect(card?.querySelector('h3')?.textContent).toContain('Sample A');
+    expect(card?.querySelector('h2')?.textContent).toContain('Sample A');
     expect(card?.firstElementChild?.textContent).toContain(
       "Replacement not loaded: this PDF isn't a Wisdom Panel dog report. Choose the genetics report you got from Wisdom Panel or MyDogDNA.",
     );
@@ -143,7 +149,7 @@ describe('the colour page', () => {
     expect(button(root, 'replace-1').textContent).toBe('Reading…');
     expect(text()).toContain('Sample B');
     await loading;
-    expect(root.querySelector('[data-slot="1"] h3')?.textContent).toContain('Sample C');
+    expect(root.querySelector('[data-slot="1"] h2')?.textContent).toContain('Sample C');
   });
 
   it('clears a replaced dog’s answers', async () => {
@@ -159,7 +165,7 @@ describe('the colour page', () => {
     expect(text()).toContain(ADOBE);
     expect(button(root, 'pick-1').textContent).toBe('Choose another PDF');
     expect(document.activeElement?.getAttribute('data-key')).toBe('pick-1');
-    expect(root.querySelector('[data-slot="0"] h3')?.textContent).toContain('No report yet');
+    expect(root.querySelector('[data-slot="0"] h2')?.textContent).toContain('No report yet');
   });
 
   it('shows the Adobe PDF printer message for Sample F’s unreadable text', async () => {
@@ -252,7 +258,7 @@ describe('the drop rules', () => {
       await page.app.load(slot === 0 ? 0 : 1, pdf(name));
     }
     await page.app.drop(files.map(pdf), target);
-    const names = [0, 1].map((slot) => page.root.querySelector(`[data-slot="${slot}"] h3`)?.textContent ?? '');
+    const names = [0, 1].map((slot) => page.root.querySelector(`[data-slot="${slot}"] h2`)?.textContent ?? '');
     const alert = page.root.querySelector('.drop-alert')?.textContent ?? '';
     return { names, alert };
   };

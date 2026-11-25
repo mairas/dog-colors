@@ -26,6 +26,13 @@ export function alertBox(message: Message, className = ''): HTMLElement {
   );
 }
 
+export const slotHeadingId = (slot: ParentIndex): string => `parent-${slot}-name`;
+
+/** A slot's heading, the same element whatever the slot holds, so focus can return to it. */
+export function slotHeading(slot: ParentIndex, text: string): HTMLElement {
+  return h('h2', { id: slotHeadingId(slot), tabindex: '-1', 'data-key': `name-${slot}` }, h('small', {}, parentLabel(slot)), text);
+}
+
 function fileIcon(): SVGSVGElement {
   return svg(
     'svg',
@@ -36,9 +43,8 @@ function fileIcon(): SVGSVGElement {
 }
 
 export function renderOpenSlot(slot: ParentIndex, state: OpenSlot, pick: (slot: ParentIndex) => void): HTMLElement {
-  const headingId = `parent-${slot}-name`;
-  const heading = (text: string): HTMLElement =>
-    h('h3', { id: headingId, tabindex: '-1', 'data-key': `name-${slot}` }, h('small', {}, parentLabel(slot)), text);
+  const headingId = slotHeadingId(slot);
+  const heading = (text: string): HTMLElement => slotHeading(slot, text);
 
   if (state.kind === 'reading') {
     return h(

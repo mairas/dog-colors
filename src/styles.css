@@ -184,16 +184,19 @@ a {
 .slot.enter {
   animation: rise 0.35s ease-out;
 }
-.slot h3 small {
+.slot h2 {
+  font-size: 18px;
+}
+.slot h2 small {
   display: block;
   font: 600 13px 'Source Sans 3', sans-serif;
   color: var(--mute);
   margin-bottom: 4px;
 }
-.slot h3:focus {
+.slot h2:focus {
   outline: none;
 }
-.slot h3:focus-visible {
+.slot h2:focus-visible {
   outline: 3px solid var(--acc);
   outline-offset: 2px;
 }
