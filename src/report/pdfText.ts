@@ -201,12 +201,15 @@ export type PdfTextResult =
 // that is not one, and is refused before pdf.js spends time on it.
 export const MAX_BYTES = 40 * 1024 * 1024;
 export const MAX_PAGES = 40;
-// A backstop: the superscript pass compares each item with those in its rise
-// band, which is still quadratic on a page that packs its items into one band.
-// The sample reports have at most about 300 items on a page, and the
-// Adobe-printer output among them, which must still reach its own rejection,
-// about 3,800.
+// Backstops for the superscript pass, which compares each item with those
+// in its rise band: a page that packs its items into one band is still
+// quadratic, about a quarter of a second for a full page on a desktop, so the
+// document limit holds the worst case to about two seconds. The sample reports
+// have at most about 300 items on a page and 5,700 in all; the Adobe-printer
+// output among them, which must still reach its own rejection, about 3,800 on
+// a page and 40,000 in all.
 export const MAX_TEXT_ITEMS_PER_PAGE = 10_000;
+export const MAX_TEXT_ITEMS_PER_DOCUMENT = 80_000;
 
 const PDF_SIGNATURE = '%PDF-';
 // Readers accept the signature anywhere in the first kilobyte.
@@ -278,12 +281,14 @@ export async function extractPdfText(data: Uint8Array): Promise<PdfTextResult> {
       return { ok: false, kind: 'too-large' };
     }
     const pages: TextItem[][] = [];
+    let itemCount = 0;
     let info: unknown;
     try {
       for (let number = 1; number <= document.numPages; number++) {
         const page = await document.getPage(number);
         const content = await page.getTextContent();
-        if (content.items.length > MAX_TEXT_ITEMS_PER_PAGE) {
+        itemCount += content.items.length;
+        if (content.items.length > MAX_TEXT_ITEMS_PER_PAGE || itemCount > MAX_TEXT_ITEMS_PER_DOCUMENT) {
           return { ok: false, kind: 'too-large' };
         }
         pages.push(content.items.map(toTextItem).filter((item) => item !== null));
