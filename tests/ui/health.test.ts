@@ -1,9 +1,15 @@
 // @vitest-environment happy-dom
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { analyseHealth } from '../../src/health/health.ts';
 import type { HealthRow, Inheritance, Report, Sex } from '../../src/report/types.ts';
 import { healthRow } from '../health/rows.ts';
-import { ok, openPage, pdf, sampleReport } from './app.ts';
+import { ok, openPage, pdf, sampleReport, variant } from './app.ts';
+
+// The real analysis, counted, so a test can tell when the page redoes it.
+vi.mock('../../src/health/health.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/health/health.ts')>();
+  return { ...actual, analyseHealth: vi.fn(actual.analyseHealth) };
+});
 
 let a: Report;
 let b: Report;
@@ -213,5 +219,33 @@ describe('the health section', () => {
     expect(root.querySelector('img')).toBeNull();
     expect(root.querySelector('.health')?.textContent).toContain(hostile);
     expect(root.querySelector('.warnings')?.textContent).toContain(hostile);
+  });
+});
+
+describe('the health analysis behind the page', () => {
+  const NO_TYRP1 = { basd: 0, bc: 0, bd: 0, be: 0, bh: 0, bs: 0 };
+
+  it('is redone when a report is replaced', async () => {
+    const first = withHealth(a, 'Sample A', [XR(1)], { sex: 'female' });
+    const second = withHealth(b, 'Sample B', [XR(0)], { sex: 'male' });
+    const replacement = withHealth(b, 'Sample C', [], { sex: 'male' });
+    const page = openPage({ '1.pdf': ok(first), '2.pdf': ok(second), '3.pdf': ok(replacement) });
+    await page.app.load(0, pdf('1.pdf'));
+    await page.app.load(1, pdf('2.pdf'));
+    expect(healthRows(page.root)).toHaveLength(3);
+    await page.app.load(1, pdf('3.pdf'));
+    expect(healthRows(page.root)).toEqual([]);
+    expect(page.root.querySelector('.health .one-parent')?.textContent).toContain('Hemophilia A: tested in Parent 1 only: Carrier');
+  });
+
+  it('is kept when a nose question is answered, which changes no health result', async () => {
+    const nose = await variant('a', 'Sample Q', { TYRP1: { ...NO_TYRP1, bc: 1, bd: 1 } });
+    const { root } = await pairOf(nose, b);
+    const calls = vi.mocked(analyseHealth).mock.calls.length;
+    const before = root.querySelector('.health')?.textContent;
+    root.querySelector<HTMLInputElement>('[data-key="nose-0-brown"]')?.click();
+    expect(root.querySelector<HTMLInputElement>('[data-key="nose-0-brown"]')?.checked).toBe(true);
+    expect(vi.mocked(analyseHealth).mock.calls.length).toBe(calls);
+    expect(root.querySelector('.health')?.textContent).toBe(before);
   });
 });
