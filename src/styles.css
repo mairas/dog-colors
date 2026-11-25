@@ -617,6 +617,14 @@ footer {
   .print-only {
     display: block;
   }
+  .screen-only {
+    display: none;
+  }
+  /* Browsers drop backgrounds in print by default; the swatch is the colour. */
+  .chip {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
   .band {
     background: none;
     color: #000;

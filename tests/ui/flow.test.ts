@@ -79,6 +79,15 @@ describe('the colour page', () => {
     expect(root.querySelector('[data-slot] h3')).toBeNull();
   });
 
+  it('gives print a ranges note that doesn’t ask for answers it hides', async () => {
+    const { root } = await pair('nose.pdf', 'b.pdf');
+    const notes = [...root.querySelectorAll('#results .note')];
+    expect(notes.find((note) => note.textContent === ANSWER_NOTE)?.classList.contains('screen-only')).toBe(true);
+    expect(notes.find((note) => note.classList.contains('print-only'))?.textContent).toBe(
+      "Some figures are ranges because a parent's genotype is uncertain and a question on the cards is unanswered.",
+    );
+  });
+
   it('lists both candidate colours above the question', async () => {
     const { root } = await pair('nose.pdf', 'b.pdf');
     expect(root.querySelector('.own-name')?.textContent).toBe('Black, mostly white (B/b) or brown, mostly white (b/b)');

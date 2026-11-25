@@ -254,16 +254,14 @@ function caveatList(prediction: PuppyPrediction): HTMLElement {
 function notes(input: ResultsInput): Child[] {
   const { prediction } = input;
   const result: Child[] = [];
-  if (prediction.hasRanges) {
+  if (prediction.hasRanges && input.openQuestion) {
+    // Print hides the questions, so the printed note doesn't ask for answers.
     result.push(
-      h(
-        'p',
-        { class: 'note' },
-        input.openQuestion
-          ? "Some figures are ranges because a parent's genotype is uncertain. Answer the questions on the cards to narrow them."
-          : "Some figures are ranges because the report can't settle a parent's genotype.",
-      ),
+      h('p', { class: 'note screen-only' }, "Some figures are ranges because a parent's genotype is uncertain. Answer the questions on the cards to narrow them."),
+      h('p', { class: 'note print-only' }, "Some figures are ranges because a parent's genotype is uncertain and a question on the cards is unanswered."),
     );
+  } else if (prediction.hasRanges) {
+    result.push(h('p', { class: 'note' }, "Some figures are ranges because the report can't settle a parent's genotype."));
   }
   if (prediction.unknownLoci.length > 0) {
     result.push(
