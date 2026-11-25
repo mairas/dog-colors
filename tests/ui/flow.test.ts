@@ -13,18 +13,22 @@ const ADOBE =
 let a: Report;
 let b: Report;
 let c: Report;
+let d: Report;
 let nose: Report;
 let asip: Report;
 let library: Library;
 
 beforeAll(async () => {
-  [a, b, c] = await Promise.all([sampleReport('a'), sampleReport('b'), sampleReport('c')]);
+  [a, b, c, d] = await Promise.all([sampleReport('a'), sampleReport('b'), sampleReport('c'), sampleReport('d')]);
   nose = await variant('a', 'Sample Q', { TYRP1: { basd: 0, bc: 1, bd: 1, be: 0, bh: 0, bs: 0 } });
   asip = await variant('b', 'Sample X', { ASIP: { ay: 1, a: 0, at: 1 } });
   library = {
     'a.pdf': ok(a),
     'b.pdf': ok(b),
     'c.pdf': ok(c),
+    'd.pdf': ok(d),
+    'a-unread.pdf': ok({ ...a, kitIdHash: null, sex: null }),
+    'c-unread.pdf': ok({ ...c, kitIdHash: null, sex: null }),
     'nose.pdf': ok(nose),
     'asip.pdf': ok(asip),
     'other.pdf': { ok: false, kind: 'not-wisdom-dog' },
@@ -41,6 +45,28 @@ async function pair(first: string, second: string) {
 const results = (root: HTMLElement) => root.querySelector<HTMLElement>('#results');
 
 describe('the colour page', () => {
+  it('flags two male parents above the results and still shows them', async () => {
+    const { root } = await pair('a.pdf', 'c.pdf');
+    const card = results(root)?.querySelector('.same-sex');
+    expect(card?.textContent).toBe('Both parents are male. Successful breeding of two male dogs may be difficult. The results are shown anyway.');
+    expect(results(root)?.querySelector('.chips')).not.toBeNull();
+  });
+
+  it('flags two female parents in their own words', async () => {
+    const { root } = await pair('b.pdf', 'd.pdf');
+    expect(results(root)?.querySelector('.same-sex')?.textContent).toContain('Successful breeding of two female dogs may be difficult.');
+  });
+
+  it.each([
+    ['a male × female pairing', 'a.pdf', 'b.pdf'],
+    ['one sex unread', 'a-unread.pdf', 'c.pdf'],
+    ['both sexes unread', 'a-unread.pdf', 'c-unread.pdf'],
+  ])('shows no same-sex card for %s', async (_name, first, second) => {
+    const { root } = await pair(first, second);
+    expect(results(root)?.querySelector('#results-h')).not.toBeNull();
+    expect(results(root)?.querySelector('.same-sex')).toBeNull();
+  });
+
   it('shows 100% brown and a 50/50 white split for A × B, with no ranges', async () => {
     const { root, text } = await pair('a.pdf', 'b.pdf');
     expect(results(root)?.hidden).toBe(false);
@@ -212,6 +238,16 @@ describe('the colour page', () => {
     expect(live[0]?.textContent).toBe('Parent 1: Sample A loaded.');
     await app.load(1, pdf('b.pdf'));
     expect(live[0]?.textContent).toBe('Parent 2: Sample B loaded. Results updated.');
+  });
+
+  it.each([
+    ['b.pdf', 'd.pdf', 'Sample D', 'female'],
+    ['a.pdf', 'c.pdf', 'Sample C', 'male'],
+  ])('announces a same-sex pair (%s, %s) with the results, since focus stays on the card', async (first, second, name, sex) => {
+    const { app, root } = openPage(library);
+    await app.load(0, pdf(first));
+    await app.load(1, pdf(second));
+    expect(root.querySelector('[aria-live]')?.textContent).toBe(`Parent 2: ${name} loaded. Results updated. Both parents are ${sex}.`);
   });
 
   it('opens the file picker from the picker button', () => {

@@ -6,6 +6,7 @@ import { HIDDEN_EFFECTS, HIDER_LABELS } from '../genetics/hidden.ts';
 import { FLAG_INFO, FLAGS, type BaseColour, type Flag, type Phenotype, type Unknown } from '../genetics/phenotype.ts';
 import type { PuppyPrediction, Row, Table, TraitRow, UndocumentedLocus } from '../genetics/results.ts';
 import { caveatText, COLOUR_WARNING_TEXT, type CaveatId, type ColourWarning } from '../genetics/warnings.ts';
+import type { Sex } from '../report/types.ts';
 import { h, present, svg, type Child } from './dom.ts';
 import { chance, chanceParts, showsRange } from './format.ts';
 import { alertBox } from './slots.ts';
@@ -32,6 +33,8 @@ export interface ResultsInput {
   readonly prediction: PuppyPrediction;
   /** Whether a parent card still has an unanswered question. */
   readonly openQuestion: boolean;
+  /** The parents' shared sex, when both reports give the same one. */
+  readonly sameSex?: Sex | undefined;
   /** Extra panel warnings, from the health section. */
   readonly healthWarnings?: readonly PanelItem[];
   /** Sections inserted before the caveats, such as health. */
@@ -284,11 +287,31 @@ function traitLines(prediction: PuppyPrediction): Child[] {
   ];
 }
 
+const SAME_SEX_ID = 'same-sex';
+
+/** The same-sex card's first sentence; the load announcement repeats it. */
+export const sameSexLead = (sex: Sex): string => `Both parents are ${sex}.`;
+
+/** Two reports of the same sex: the results stay, under a card that says so. */
+function sameSexCard(sex: Sex): HTMLElement {
+  return h(
+    'p',
+    { class: 'note same-sex', id: SAME_SEX_ID },
+    h('b', {}, sameSexLead(sex)),
+    ` Successful breeding of two ${sex} dogs may be difficult. The results are shown anyway.`,
+  );
+}
+
 /** The results section's content. */
 export function renderResults(input: ResultsInput): (Node | string)[] {
-  const { prediction, names } = input;
+  const { prediction, names, sameSex } = input;
   return present([
-    h('h2', { id: 'results-h', tabindex: '-1' }, `Puppy colours: ${names[0]} × ${names[1]}`),
+    sameSex === undefined ? null : sameSexCard(sameSex),
+    h(
+      'h2',
+      { id: 'results-h', tabindex: '-1', ...(sameSex === undefined ? {} : { 'aria-describedby': SAME_SEX_ID }) },
+      `Puppy colours: ${names[0]} × ${names[1]}`,
+    ),
     h('p', { class: 'sec' }, 'Odds for each puppy, not the make-up of a litter.'),
     warningPanel([...prediction.warnings.map(colourWarning), ...(input.healthWarnings ?? [])]),
     ...notes(input),

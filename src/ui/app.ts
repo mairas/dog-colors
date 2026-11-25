@@ -7,7 +7,7 @@ import { resolveDog, type ResolvedDog } from '../genetics/dog.ts';
 import type { NoseAnswer } from '../genetics/questions.ts';
 import { predictPuppies, type PuppyPrediction } from '../genetics/results.ts';
 import type { ParentIndex } from '../health/health.ts';
-import type { ReadResult, Report } from '../report/types.ts';
+import type { ReadResult, Report, Sex } from '../report/types.ts';
 import { createAnnouncer } from './announce.ts';
 import { dogName, renderCard } from './card.ts';
 import { h, svg } from './dom.ts';
@@ -22,7 +22,7 @@ import {
   type Message,
 } from './messages.ts';
 import { parentLabel } from './names.ts';
-import { renderResults } from './results.ts';
+import { renderResults, sameSexLead } from './results.ts';
 import { alertBox, renderOpenSlot, type OpenSlot } from './slots.ts';
 
 /** Reads a chosen file; throws only when the reader itself fails. */
@@ -70,6 +70,9 @@ const EMPTY: OpenSlot = { kind: 'empty', error: null };
 const SLOTS = [0, 1] as const;
 /** The stylesheet's narrow layout. */
 const NARROW_QUERY = '(max-width: 700px)';
+
+/** The parents' sex when both reports give the same one; an unread sex settles nothing. */
+const sameSex = (first: Sex | null, second: Sex | null): Sex | undefined => (first !== null && first === second ? first : undefined);
 
 const sameReport = (first: Report, second: Report): boolean =>
   first.kitIdHash !== null && first.kitIdHash === second.kitIdHash;
@@ -262,6 +265,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
           names: [dogName(pair[0].report, 0), dogName(pair[1].report, 1)],
           prediction,
           openQuestion: pair.some((slot) => slot.nose === undefined && resolve(slot).questions.length > 0),
+          sameSex: sameSex(pair[0].report.sex, pair[1].report.sex),
         }),
       );
     } else {
@@ -278,7 +282,13 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     if (duplicate()) {
       return ' Both slots hold the same report.';
     }
-    return resultsShown ? ' Results updated.' : '';
+    if (!resultsShown) {
+      return '';
+    }
+    // Focus stays on the loaded card, so the same-sex card is announced here.
+    const pair = loaded();
+    const shared = pair === null ? undefined : sameSex(pair[0].report.sex, pair[1].report.sex);
+    return ` Results updated.${shared === undefined ? '' : ` ${sameSexLead(shared)}`}`;
   };
 
   async function startLoad(slot: ParentIndex, file: File): Promise<void> {

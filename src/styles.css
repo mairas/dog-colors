@@ -637,6 +637,10 @@ footer {
   .screen-only {
     display: none;
   }
+  /* Without its background the same-sex card needs a border to stand out. */
+  .same-sex {
+    border: 1px solid currentColor;
+  }
   /* Browsers drop backgrounds in print by default; the swatch is the colour. */
   .chip {
     print-color-adjust: exact;
