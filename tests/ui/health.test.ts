@@ -103,6 +103,33 @@ describe('the health section', () => {
     expect(healthRows(root)).toEqual([[`Some Condition${mode}${reason}`, 'unknown', '']]);
   });
 
+  it.each<{ mode: Inheritance; text: string }>([
+    { mode: 'AR', text: 'Recessive: two copies needed' },
+    { mode: 'AD', text: 'Dominant: one copy raises the risk' },
+    { mode: 'XR', text: 'X-linked recessive: sons need one copy, daughters two' },
+    { mode: 'XD', text: 'X-linked dominant: one copy raises the risk' },
+    { mode: 'MT', text: 'Mitochondrial: passed on by the dam only' },
+  ])('says how $mode is inherited, in plain words', async ({ mode, text }) => {
+    const dam = withHealth(b, 'Sample F', [condition(mode)(1)], { sex: 'female' });
+    const sire = withHealth(a, 'Sample M', [condition(mode)(0)], { sex: 'male' });
+    const { root } = await pairOf(dam, sire);
+    expect(healthRows(root)[0]?.[0]).toBe(`Some Condition${text}`);
+  });
+
+  it('marks a condition known in the breed', async () => {
+    const known = (copies: number) => healthRow('Some Condition', copies, 'AR', { knownInBreed: copies > 0 });
+    const { root } = await pairOf(withHealth(a, 'Sample A', [known(1)]), withHealth(b, 'Sample B', [known(0)]));
+    expect(root.querySelector('.health tbody th .pill')?.textContent).toBe('known in the breed');
+  });
+
+  it('notes the assumed pairing when one report’s sex is unreadable', async () => {
+    const first = withHealth(b, 'Sample F', [XR(1)], { sex: 'female' });
+    const second = withHealth(a, 'Sample N', [XR(0)], { sex: null });
+    const { root } = await pairOf(first, second);
+    expect(healthRows(root)[0]?.[0]).toContain('Assuming a female × male pairing.');
+    expect(healthRows(root)[1]).toEqual(['Sons', '50% (1 in 2)', '–']);
+  });
+
   it('lists a condition tested in one parent only, with that parent’s result', async () => {
     const first = withHealth(a, 'Sample A', [healthRow('Sensory Ataxic Neuropathy', 0, 'MT')], { sex: 'male' });
     const second = withHealth(b, 'Sample B', [], { sex: 'female' });
