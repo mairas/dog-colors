@@ -5,7 +5,7 @@ import type { Range } from '../../src/genetics/range.ts';
 import { predictPuppies, scenarioTables, type PuppyPrediction } from '../../src/genetics/results.ts';
 import { CAVEAT_TEXT, COLOUR_WARNING_TEXT } from '../../src/genetics/warnings.ts';
 import { add, fraction, ZERO, type Fraction } from '../../src/health/fraction.ts';
-import { COLOUR_GENES } from '../../src/report/loci.ts';
+import { COLOUR_GENES, type ColourGene } from '../../src/report/loci.ts';
 import { parentLoci } from './genotypes.ts';
 import { sampleReport, syntheticReport } from './reports.ts';
 
@@ -446,6 +446,41 @@ describe('predictPuppies: missing and inconsistent loci', () => {
     expect(prediction.warnings).toEqual([
       { kind: 'harlequin-lethal-unknown', unknown: [{ gene: 'PSMB7', parent: 1, reason: 'missing' }] },
     ]);
+  });
+
+  it("warns that double merle can't be ruled out when neither parent's PMEL is known", () => {
+    const inconsistent = { ...parentLoci({}), PMEL: { status: 'inconsistent', reason: 'invalid-count' } } as const;
+    const prediction = predictPuppies({ loci: parentLoci({}, ['PMEL']) }, { loci: inconsistent });
+    expect(prediction.warnings).toEqual([
+      {
+        kind: 'double-merle-unknown',
+        unknown: [
+          { gene: 'PMEL', parent: 0, reason: 'missing' },
+          { gene: 'PMEL', parent: 1, reason: 'inconsistent' },
+        ],
+      },
+    ]);
+  });
+
+  it.each<[string, Parameters<typeof parentLoci>[0], Parameters<typeof parentLoci>[0], readonly ColourGene[]]>([
+    ['one parent carries merle', { PMEL: 'M/m' }, {}, ['PSMB7']],
+    ["one parent's PMEL is unknown too", {}, {}, ['PSMB7', 'PMEL']],
+  ])("warns that H/H can't be ruled out when neither parent's PSMB7 is known and %s", (_name, first, second, firstMissing) => {
+    const prediction = predictPuppies({ loci: parentLoci(first, firstMissing) }, { loci: parentLoci(second, ['PSMB7']) });
+    expect(prediction.warnings).toEqual([
+      {
+        kind: 'harlequin-lethal-unknown',
+        unknown: [
+          { gene: 'PSMB7', parent: 0, reason: 'missing' },
+          { gene: 'PSMB7', parent: 1, reason: 'missing' },
+        ],
+      },
+    ]);
+  });
+
+  it("gives no H/H warning when neither parent's PSMB7 is known but neither can carry merle", () => {
+    const prediction = predictPuppies({ loci: parentLoci({}, ['PSMB7']) }, { loci: parentLoci({}, ['PSMB7']) });
+    expect(prediction.warnings).toEqual([]);
   });
 
   it('gives no such warning when the parent whose locus is known does not carry the allele', () => {

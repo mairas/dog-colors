@@ -562,10 +562,11 @@ function buildTraits(
   };
 }
 
-function canCarry(parent: CrossParent, gene: ColourGene, allele: string): boolean {
+/** Whether the parent may pass the allele on: its locus is unknown, or some candidate has it. */
+function mayCarry(parent: CrossParent, gene: ColourGene, allele: string): boolean {
   const locus = parent.loci[gene];
   const candidates: readonly (readonly string[])[] = locus.status === 'resolved' ? locus.candidates : [];
-  return candidates.some((pair) => copies(pair, allele) > 0);
+  return locus.status !== 'resolved' || candidates.some((pair) => copies(pair, allele) > 0);
 }
 
 function buildWarnings(
@@ -574,9 +575,9 @@ function buildWarnings(
   parents: readonly [CrossParent, CrossParent],
   unknownLoci: readonly UnknownLocus[],
 ): ColourWarning[] {
-  // A parent's unknown locus can't rule out two copies when the other parent can carry the allele.
+  // An unknown locus can't rule out two copies unless the other parent is known to lack the allele.
   const unruledOut = (gene: ColourGene, allele: string): UnknownLocus[] =>
-    unknownLoci.filter((locus) => locus.gene === gene && canCarry(parents[locus.parent === 0 ? 1 : 0], gene, allele));
+    parents.every((parent) => mayCarry(parent, gene, allele)) ? unknownLoci.filter((locus) => locus.gene === gene) : [];
   const warnings: ColourWarning[] = [];
   const doubleMerle = traits.possible.find((row) => row.value === 'doubleMerle');
   const merleUnknown = unruledOut('PMEL', 'M');
@@ -586,9 +587,12 @@ function buildWarnings(
     warnings.push({ kind: 'double-merle-unknown', unknown: merleUnknown });
   }
   const harlequinUnknown = unruledOut('PSMB7', 'H');
+  // With neither PSMB7 known, no known H carrier points to H; harlequin is bred only in merle lines, so merle must be possible.
+  const noPsmb7 = parents.every((parent) => parent.loci.PSMB7.status !== 'resolved');
+  const harlequinSuspected = !noPsmb7 || parents.some((parent) => mayCarry(parent, 'PMEL', 'M'));
   if (positive(lethal)) {
     warnings.push({ kind: 'harlequin-lethal', chance: lethal });
-  } else if (harlequinUnknown.length > 0) {
+  } else if (harlequinUnknown.length > 0 && harlequinSuspected) {
     warnings.push({ kind: 'harlequin-lethal-unknown', unknown: harlequinUnknown });
   }
   return warnings;

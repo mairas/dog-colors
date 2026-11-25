@@ -27,3 +27,14 @@ describe('double merle wording', () => {
     }
   });
 });
+
+describe('unknown-locus warnings', () => {
+  it.each(['double-merle-unknown', 'harlequin-lethal-unknown'] as const)(
+    '%s reads true when neither parent has a known result',
+    (kind) => {
+      const { text } = COLOUR_WARNING_TEXT[kind];
+      expect(text).not.toMatch(/one parent carries/i);
+      expect(text).toMatch(/neither parent is known to be free of/);
+    },
+  );
+});
