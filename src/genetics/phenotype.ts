@@ -411,7 +411,9 @@ export function ownColourName(value: Phenotype): string {
   const { harlequin, merle, doubleMerle } = value.traits;
   const marking =
     harlequin === 'yes'
-      ? 'harlequin'
+      ? doubleMerle === 'yes'
+        ? 'harlequin double merle'
+        : 'harlequin'
       : merle === 'yes'
         ? 'merle'
         : doubleMerle === 'yes'

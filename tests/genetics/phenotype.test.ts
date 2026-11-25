@@ -356,6 +356,7 @@ describe('ownColourName', () => {
     [{ CBD103: 'KB/ky', MLPH: 'd/d' }, 'Blue, solid'],
     [{ MC1R: 'e/e', MFSD12: 'i/i', MITF: 'sp/+' }, 'Beige, light cream likely, with limited white'],
     [{ SLC45A2: 'cal/cal', MITF: 'sp/sp' }, 'White or cream, pink nose'],
+    [{ CBD103: 'KB/ky', PMEL: 'M/M', PSMB7: 'H/h' }, 'Black harlequin double merle, mostly white'],
   ])('%j → %s', (spec, name) => expect(ownColourName(of(spec))).toBe(name));
 
   it.each<[Spec, readonly ColourGene[], string]>([
