@@ -353,6 +353,29 @@ export function phenotype(genotype: Genotype): Phenotype {
   return combine(pigmentPhenotype(genotype), whitePhenotype(genotype));
 }
 
+const same = <T extends string>(left: T, right: T): T | Unknown => (left === right ? left : 'unknown');
+
+/** Two phenotypes given one name: a field they disagree on is unknown, and the flags are those of either. */
+export function mergePhenotypes(left: Phenotype, right: Phenotype): Phenotype {
+  const trait = (name: Trait) => same(left.traits[name], right.traits[name]);
+  return {
+    base: same(left.base, right.base),
+    pattern: same(left.pattern, right.pattern),
+    nose: same(left.nose, right.nose),
+    white: same(left.white, right.white),
+    traits: {
+      merle: trait('merle'),
+      doubleMerle: trait('doubleMerle'),
+      dilute: trait('dilute'),
+      beige: trait('beige'),
+      harlequin: trait('harlequin'),
+      roan: trait('roan'),
+    },
+    lethal: same(left.lethal, right.lethal),
+    flags: FLAGS.filter((flag) => left.flags.includes(flag) || right.flags.includes(flag)),
+  };
+}
+
 /** A stable string that is equal exactly when two phenotypes are. */
 export function phenotypeKey(value: Phenotype): string {
   return JSON.stringify([

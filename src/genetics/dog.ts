@@ -6,7 +6,7 @@ import { COLOUR_GENES, type ColourGene } from '../report/loci.ts';
 import type { Report } from '../report/types.ts';
 import type { Genotype } from './alleles.ts';
 import { candidateGenotypes, resolveReport, type GenotypeResolution, type Inconsistency } from './haplotypes.ts';
-import { FLAGS, ownColourName, phenotype, type Phenotype } from './phenotype.ts';
+import { FLAGS, mergePhenotypes, ownColourName, phenotype, type Phenotype } from './phenotype.ts';
 import { applyAnswers, questionsFor, type Answers, type Question } from './questions.ts';
 
 export interface OwnColour {
@@ -43,28 +43,6 @@ export interface ResolvedDog {
   readonly ownColours: readonly OwnColour[];
 }
 
-const same = <T extends string>(left: T, right: T): T | 'unknown' => (left === right ? left : 'unknown');
-
-function merge(left: Phenotype, right: Phenotype): Phenotype {
-  const trait = (name: keyof Phenotype['traits']) => same(left.traits[name], right.traits[name]);
-  return {
-    base: same(left.base, right.base),
-    pattern: same(left.pattern, right.pattern),
-    nose: same(left.nose, right.nose),
-    white: same(left.white, right.white),
-    traits: {
-      merle: trait('merle'),
-      doubleMerle: trait('doubleMerle'),
-      dilute: trait('dilute'),
-      beige: trait('beige'),
-      harlequin: trait('harlequin'),
-      roan: trait('roan'),
-    },
-    lethal: same(left.lethal, right.lethal),
-    flags: FLAGS.filter((flag) => left.flags.includes(flag) || right.flags.includes(flag)),
-  };
-}
-
 export function resolveDog(report: Pick<Report, 'colour' | 'missingLoci'>, answers: Answers = {}): ResolvedDog {
   const reported = resolveReport(report);
   const questions = questionsFor(reported);
@@ -97,7 +75,7 @@ export function resolveDog(report: Pick<Report, 'colour' | 'missingLoci'>, answe
     if (entry === undefined) {
       ownColours.set(name, { name, phenotype: predicted, genotypes: [genotype] });
     } else {
-      entry.phenotype = merge(entry.phenotype, predicted);
+      entry.phenotype = mergePhenotypes(entry.phenotype, predicted);
       entry.genotypes.push(genotype);
     }
   }
