@@ -281,8 +281,10 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       const active = document.activeElement;
       const focusLost = active === null || active === document.body || !root.contains(active);
       const inSlot = slotsEl.querySelector(`[data-slot="${slot}"]`)?.contains(active) ?? false;
+      // The duplicate message and its Replace button go once the new report loads.
+      const inPair = pairEl.contains(active);
       setSlot(slot, { kind: 'loaded', report: result.report, nose: undefined, replacing: false, alert: null });
-      if (focusLost || inSlot) {
+      if (focusLost || inSlot || inPair) {
         focusKey = `name-${slot}`;
       }
       render();

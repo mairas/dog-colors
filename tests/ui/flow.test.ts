@@ -381,6 +381,17 @@ describe('states between actions', () => {
     expect(document.getElementById(badge.getAttribute('aria-controls') ?? '')?.hidden).toBe(false);
   });
 
+  it('moves focus to the new card after Replace from the duplicate message', async () => {
+    const { app, root } = await pair('a.pdf', 'a.pdf');
+    const input = root.querySelector<HTMLInputElement>('[data-testid="file-1"]');
+    vi.spyOn(input ?? new HTMLInputElement(), 'click').mockImplementation(() => undefined);
+    const replace = button(root, 'duplicate-replace');
+    replace.focus();
+    replace.click();
+    await app.load(1, pdf('c.pdf'));
+    expect(document.activeElement?.getAttribute('data-key')).toBe('name-1');
+  });
+
   it('scrolls a page-level drop message into view', async () => {
     const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
     const { app, root } = openPage(library);
