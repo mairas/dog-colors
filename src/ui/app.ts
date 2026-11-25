@@ -91,7 +91,7 @@ function privacyNote(): HTMLElement {
     h(
       'span',
       {},
-      'Reports are read in your browser and never uploaded. Nothing is saved: reloading the page clears it. Download the PDF from your dog’s results on Wisdom Panel, or print the web report from Chrome, Edge or Safari with “Save as PDF”.',
+      'Reports are read in your browser and never uploaded. Download the PDF from your dog’s results on Wisdom Panel, or print the web report from Chrome, Edge or Safari with “Save as PDF”.',
     ),
   );
 }
