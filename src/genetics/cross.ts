@@ -13,7 +13,7 @@
 
 import { fraction, type Fraction } from '../health/fraction.ts';
 import type { ColourGene } from '../report/loci.ts';
-import { comparePairs, formatPair, orderedPair, withLocus, type AllelePair, type Genotype } from './alleles.ts';
+import { comparePairs, formatPair, orderedPair, type AllelePair, type Genotype } from './alleles.ts';
 import { candidateGenotypes, type GenotypeResolution } from './haplotypes.ts';
 import { PIGMENT_HIDDEN, WHITE_HIDDEN, type HiddenItem } from './hidden.ts';
 import { pigmentPhenotype, whitePhenotype, type PigmentPhenotype, type WhitePhenotype } from './phenotype.ts';
@@ -68,7 +68,12 @@ const flags = (...values: boolean[]): string => values.map((value) => (value ? 1
 // the same coat in every genotype; tests/genetics/cross.test.ts checks this
 // against the phenotype functions, so a rule change that splits a class fails there.
 const CLASSES: Readonly<Record<ColourGene, (pair: readonly string[]) => string>> = {
-  ASIP: (pair) => flags(has(pair, 'ayt'), has(pair, 'ay') || has(pair, 'ayt'), has(pair, 'aw'), has(pair, 'at')),
+  ASIP: (pair) => {
+    if (has(pair, 'ay') || has(pair, 'ayt')) {
+      return `sable${flags(has(pair, 'ayt'))}`;
+    }
+    return has(pair, 'aw') ? 'wolf' : has(pair, 'at') ? 'tan' : 'recessive';
+  },
   CBD103: (pair) => flags(has(pair, 'KB')),
   MC1R: (pair) =>
     flags(
@@ -103,7 +108,7 @@ export interface HiddenCount<P> {
   readonly item: HiddenItem<P>;
   /** Out of the group's total. */
   readonly count: number;
-  /** The pairs at the item's locus of the puppies counted, formatted, in display order. */
+  /** The pairs at the item's locus of the puppies counted, formatted. */
   readonly pairs: readonly string[];
   /** The coats of the puppies counted. */
   readonly coats: readonly P[];
@@ -144,6 +149,13 @@ const WHITE: Group<WhitePhenotype> = { genes: WHITE_GENES, coat: whitePhenotype,
 
 type AnyPair = AllelePair<ColourGene>;
 
+type MutableGenotype = { -readonly [G in ColourGene]?: AllelePair<G> };
+
+function setLocus<G extends ColourGene>(genotype: MutableGenotype, gene: G, pair: AllelePair<G>): void {
+  const locus: { -readonly [K in G]?: AllelePair<K> } = genotype;
+  locus[gene] = pair;
+}
+
 interface PairClass {
   readonly representative: AnyPair;
   /** Formatted pairs, in display order. */
@@ -173,6 +185,8 @@ class GroupCross<P> {
   private readonly nodeIds = new Map<TreeNode, number>();
   private readonly hiddenFor: number[][] = [];
   private readonly itemLocus: readonly number[];
+  /** Per item, per class of its locus, the pairs that carry it. */
+  private readonly carriers: readonly (readonly (readonly string[])[])[];
   private readonly root: TreeNode;
   private readonly results = new Map<string, GroupResult<P>>();
   private readonly group: Group<P>;
@@ -182,25 +196,23 @@ class GroupCross<P> {
     this.group = group;
     this.loci = loci;
     this.itemLocus = group.items.map((item) => loci.findIndex((locus) => locus.gene === item.gene));
-    this.root = this.build(0, []);
+    this.carriers = group.items.map((item, index) =>
+      (loci[this.itemLocus[index] ?? -1]?.classes ?? []).map((pairClass) =>
+        pairClass.pairs.filter((pair) => item.carries(pair.split('/'))),
+      ),
+    );
+    this.root = this.build(0, {});
   }
 
-  private build(index: number, chosen: number[]): TreeNode {
+  private build(index: number, genotype: MutableGenotype): TreeNode {
     const locus = this.loci[index];
     if (locus === undefined) {
-      let genotype: Genotype = {};
-      this.loci.forEach((known, at) => {
-        const representative = known.classes[chosen[at] ?? 0]?.representative;
-        if (representative !== undefined) {
-          genotype = withLocus(genotype, known.gene, representative);
-        }
-      });
-      return this.leaf(this.group.coat(genotype));
+      return this.leaf(this.group.coat({ ...genotype }));
     }
     const branches: { classes: number[]; node: TreeNode }[] = [];
-    locus.classes.forEach((_, at) => {
-      chosen[index] = at;
-      const node = this.build(index + 1, chosen);
+    locus.classes.forEach((pairClass, at) => {
+      setLocus(genotype, locus.gene, pairClass.representative);
+      const node = this.build(index + 1, genotype);
       const same = branches.find((branch) => branch.node === node);
       if (same === undefined) {
         branches.push({ classes: [at], node });
@@ -264,52 +276,68 @@ class GroupCross<P> {
   }
 
   private walk(offspring: readonly ReadonlyMap<string, number>[]): GroupResult<P> {
-    const { loci, group, itemLocus } = this;
-    const weights = loci.map((locus, at) =>
-      locus.classes.map((pairClass) => sum(pairClass.pairs.map((pair) => offspring[at]?.get(pair) ?? 0))),
-    );
-    const carried = group.items.map((item, at) =>
-      (loci[itemLocus[at] ?? -1]?.classes ?? []).map((pairClass) =>
-        sum(pairClass.pairs.map((pair) => (item.carries(pair.split('/')) ? (offspring[itemLocus[at] ?? -1]?.get(pair) ?? 0) : 0))),
-      ),
+    const { loci, group, itemLocus, hiddenFor, carriers } = this;
+    const weightOf = (at: number, pair: string): number => offspring[at]?.get(pair) ?? 0;
+    const weights = loci.map((locus, at) => locus.classes.map((pairClass) => sum(pairClass.pairs.map((pair) => weightOf(at, pair)))));
+    const carried = carriers.map((byClass, index) =>
+      byClass.map((pairs) => sum(pairs.map((pair) => weightOf(itemLocus[index] ?? -1, pair)))),
     );
     const carriedTotal = carried.map(sum);
 
-    const counts = new Map<number, number>();
-    const hiddenCounts = group.items.map(() => 0);
-    const hiddenCoats = group.items.map(() => new Set<number>());
-    const hiddenClasses = group.items.map(() => new Set<number>());
+    const counts = new Float64Array(this.outcomes.length);
+    const hiddenCounts = new Float64Array(group.items.length);
+    const coatSeen = group.items.map(() => new Uint8Array(this.outcomes.length));
+    const hiddenCoats: number[][] = group.items.map(() => []);
+    const hiddenClasses = group.items.map((_, index) => new Uint8Array(loci[itemLocus[index] ?? -1]?.classes.length ?? 0));
     const path: (Branch | undefined)[] = loci.map(() => undefined);
-    const branchWeight = (at: number, branch: Branch, byClass: readonly number[] | undefined): number =>
-      sum(branch.classes.map((pairClass) => byClass?.[pairClass] ?? weights[at]?.[pairClass] ?? 0));
+    const pathWeight = loci.map(() => 0);
 
     const visit = (node: TreeNode, factor: number): void => {
       if ('outcome' in node) {
-        counts.set(node.outcome, (counts.get(node.outcome) ?? 0) + factor);
-        for (const item of this.hiddenFor[node.outcome] ?? []) {
+        const outcome = node.outcome;
+        counts[outcome] = (counts[outcome] ?? 0) + factor;
+        for (const item of hiddenFor[outcome] ?? []) {
           const at = itemLocus[item] ?? -1;
           const branch = path[at];
-          const share =
-            branch === undefined
-              ? (factor / LOCUS_WEIGHT) * (carriedTotal[item] ?? 0)
-              : (factor / branchWeight(at, branch, undefined)) * branchWeight(at, branch, carried[item]);
+          const byClass = carried[item] ?? [];
+          const marks = hiddenClasses[item] ?? new Uint8Array(0);
+          let share = 0;
+          if (branch === undefined) {
+            share = (factor / LOCUS_WEIGHT) * (carriedTotal[item] ?? 0);
+            if (share > 0) {
+              marks.fill(1);
+            }
+          } else {
+            let restricted = 0;
+            for (const pairClass of branch.classes) {
+              const weight = byClass[pairClass] ?? 0;
+              if (weight > 0) {
+                restricted += weight;
+                marks[pairClass] = 1;
+              }
+            }
+            share = (factor / (pathWeight[at] ?? 1)) * restricted;
+          }
           if (share > 0) {
             hiddenCounts[item] = (hiddenCounts[item] ?? 0) + share;
-            hiddenCoats[item]?.add(node.outcome);
-            const classes = branch?.classes ?? loci[at]?.classes.map((_, index) => index) ?? [];
-            for (const pairClass of classes) {
-              if ((carried[item]?.[pairClass] ?? 0) > 0) {
-                hiddenClasses[item]?.add(pairClass);
-              }
+            const seen = coatSeen[item];
+            if (seen !== undefined && seen[outcome] === 0) {
+              seen[outcome] = 1;
+              hiddenCoats[item]?.push(outcome);
             }
           }
         }
         return;
       }
+      const classWeights = weights[node.locus] ?? [];
       for (const branch of node.branches) {
-        const weight = branchWeight(node.locus, branch, undefined);
+        let weight = 0;
+        for (const pairClass of branch.classes) {
+          weight += classWeights[pairClass] ?? 0;
+        }
         if (weight > 0) {
           path[node.locus] = branch;
+          pathWeight[node.locus] = weight;
           visit(branch.node, (factor / LOCUS_WEIGHT) * weight);
           path[node.locus] = undefined;
         }
@@ -318,21 +346,25 @@ class GroupCross<P> {
     const conceptions = LOCUS_WEIGHT ** loci.length;
     visit(this.root, conceptions);
 
-    const lethal = sum([...counts].map(([outcome, count]) => (group.lethal(this.coat(outcome)) ? count : 0)));
+    const present = [...counts.keys()].filter((outcome) => (counts[outcome] ?? 0) > 0);
+    const lethal = sum(present.map((outcome) => (group.lethal(this.coat(outcome)) ? (counts[outcome] ?? 0) : 0)));
     const removeLethal = lethal < conceptions;
-    const outcomes = [...counts]
-      .filter(([outcome]) => !removeLethal || !group.lethal(this.coat(outcome)))
-      .map(([outcome, count]) => ({ phenotype: this.coat(outcome), count }));
-    const hidden = group.items.flatMap((item, at): HiddenCount<P>[] => {
-      const count = hiddenCounts[at] ?? 0;
+    const outcomes = present
+      .filter((outcome) => !removeLethal || !group.lethal(this.coat(outcome)))
+      .map((outcome) => ({ phenotype: this.coat(outcome), count: counts[outcome] ?? 0 }));
+    const hidden = group.items.flatMap((item, index): HiddenCount<P>[] => {
+      const count = hiddenCounts[index] ?? 0;
       if (count === 0) {
         return [];
       }
-      const locus = loci[itemLocus[at] ?? -1];
-      const pairs = [...(hiddenClasses[at] ?? [])]
-        .flatMap((pairClass) => locus?.classes[pairClass]?.pairs ?? [])
-        .filter((pair) => item.carries(pair.split('/')) && (offspring[itemLocus[at] ?? -1]?.get(pair) ?? 0) > 0);
-      return [{ item, count, pairs: inDisplayOrder(locus, pairs), coats: [...(hiddenCoats[at] ?? [])].map((outcome) => this.coat(outcome)) }];
+      const at = itemLocus[index] ?? -1;
+      const marks = hiddenClasses[index] ?? new Uint8Array(0);
+      const pairs = (carriers[index] ?? [])
+        .filter((_, pairClass) => marks[pairClass] === 1)
+        .flat()
+        .filter((pair) => weightOf(at, pair) > 0);
+      const coats = (hiddenCoats[index] ?? []).map((outcome) => this.coat(outcome));
+      return [{ item, count, pairs, coats }];
     });
     return {
       total: removeLethal ? conceptions - lethal : conceptions,
@@ -353,12 +385,6 @@ class GroupCross<P> {
 
 function sum(values: readonly number[]): number {
   return values.reduce((total, value) => total + value, 0);
-}
-
-function inDisplayOrder(locus: Locus | undefined, pairs: readonly string[]): string[] {
-  const order = locus?.classes.flatMap((pairClass) => pairClass.pairs) ?? [];
-  const position = (pair: string): number => order.indexOf(pair);
-  return [...new Set(pairs)].sort((left, right) => position(left) - position(right));
 }
 
 function offspringOf<G extends ColourGene>(gene: G, first: Genotype, second: Genotype): Map<string, number> {
