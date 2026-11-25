@@ -68,6 +68,16 @@ describe('phenotype: albino', () => {
   it('cal/+ has no effect', () => {
     check({ SLC45A2: 'cal/+', CBD103: 'KB/ky' }, { base: 'black' });
   });
+
+  it.each<[string, Spec, Expected]>([
+    [
+      'cal/cal on E/E hides merle and harlequin',
+      { SLC45A2: 'cal/cal', PMEL: 'M/m', PSMB7: 'H/h' },
+      { traits: { merle: 'no', harlequin: 'no' }, flags: ['merle-hidden', 'harlequin-hidden'] },
+    ],
+    ['cal/cal + eA/eA + KB → no eA flag', { SLC45A2: 'cal/cal', MC1R: 'eA/eA', CBD103: 'KB/ky' }, { pattern: 'not-visible', flags: [] }],
+    ['cal/cal + E/eH → no eH flag', { SLC45A2: 'cal/cal', MC1R: 'E/eH' }, { pattern: 'not-visible', flags: [] }],
+  ])('%s', (_name, spec, expected) => check(spec, expected));
 });
 
 describe('phenotype: MC1R', () => {
@@ -164,6 +174,7 @@ describe('phenotype: merle and harlequin', () => {
     ['M/m on black → merle', { CBD103: 'KB/ky', PMEL: 'M/m' }, { traits: { merle: 'yes', doubleMerle: 'no' }, flags: ['brindle-possible'] }],
     ['M/m on e/e → merle hidden', { MC1R: 'e/e', PMEL: 'M/m' }, { traits: { merle: 'no' }, flags: ['merle-hidden'] }],
     ['M/m on sable → merle, hard to see', { ASIP: 'ay/ay', PMEL: 'M/m' }, { traits: { merle: 'yes' }, flags: ['merle-hard-to-see'] }],
+    ['M/M on sable → hard to see', { ASIP: 'ay/ay', PMEL: 'M/M' }, { traits: { doubleMerle: 'yes' }, flags: ['mostly-white', 'merle-hard-to-see'] }],
     [
       'M/M → double merle, mostly white',
       { CBD103: 'KB/ky', PMEL: 'M/M' },
@@ -194,6 +205,7 @@ describe('phenotype: white spotting and roan', () => {
     ['roan within piebald white', { MITF: 'sp/sp', USH2A: 'R/R' }, { traits: { roan: 'yes' }, flags: [] }],
     ['one roan copy → roan, flagged uncertain', { MITF: 'sp/+', USH2A: 'R/+' }, { traits: { roan: 'yes' }, flags: ['roan-single-copy'] }],
     ['roan without white → not visible', { MITF: '+/+', USH2A: 'R/R' }, { traits: { roan: 'no' }, flags: [] }],
+    ['one roan copy without white → not visible, unflagged', { MITF: '+/+', USH2A: 'R/+' }, { traits: { roan: 'no' }, flags: [] }],
   ])('%s', (_name, spec, expected) => check(spec, expected));
 });
 
