@@ -80,9 +80,11 @@ Every state of the page can be rendered without real reports through a dev-only 
 | Same-sex pair (two males) | `?fixtures=a,c` |
 | Health odds unknown: same-sex parents, unknown inheritance | `?state=results-health-unknown` |
 
-`?fixtures=<first>,<second>` loads any two reports, unanswered: the samples `a` to `e`, or the synthetic `q` (nose question), `x` (ASIP ambiguity), `m` (TYRP1 missing), `w` and `v` (merle and dilute carriers with a bobtail, both carrying a recessive condition, with an X-linked condition and one tested in Parent 1 only), `h` and `k` (two females carrying X-linked, mitochondrial and unknown-inheritance conditions), and `u` and `n` (the same health as `h` and `k`, with the sex unread). Their names are placeholders such as "Sample Q". Two health pairings have no state of their own:
+`?fixtures=<first>,<second>` loads any two reports, unanswered: the samples `a` to `e`, or the synthetic `q` (nose question), `x` (ASIP ambiguity), `m` (TYRP1 missing), `w` and `v` (merle and dilute carriers with a bobtail, both carrying a recessive condition, with an X-linked condition and one tested in Parent 1 only), `h` and `k` (two females sharing an X-linked, a mitochondrial and an unknown-inheritance condition; `k` is clear of the mitochondrial one), and `u` and `n` (the same health as `h` and `k`, with the sex unread). Their names are placeholders such as "Sample Q". These health pairings have no state of their own:
 
 | Health state | URL |
 |---|---|
 | One sex unread: the pairing assumed female × male | `?fixtures=h,n` |
 | Neither sex read: unknown X-linked odds, the daughters warning as a range | `?fixtures=u,n` |
+| Neither sex read, equal copies: the daughters warning as one figure | `?fixtures=u,u` |
+| Mitochondrial row kept at 0%: dam clear, sire at risk | `?fixtures=k,u` |
