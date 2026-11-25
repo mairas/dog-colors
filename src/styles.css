@@ -81,6 +81,8 @@
   --warn: light-dark(#8a3b00, #ffb37a);
   --warn-bg: light-dark(#fff3e6, #33220f);
   --panel: light-dark(#faf7f2, #1e1915);
+  /* The band colour has no contrast on the dark page, so the rule turns tan there. */
+  --rule: light-dark(#3b2418, #d2ad84);
   --target: 44px;
   --radius: 6px;
   --gap: 20px;
@@ -150,6 +152,24 @@ a {
   max-width: 62ch;
   margin: 10px 0 0;
   color: var(--band-mute);
+}
+
+.ethics {
+  margin: 28px 0 8px;
+  padding: 20px 22px;
+  border-left: 6px solid var(--rule);
+  border-radius: 0 8px 8px 0;
+  background: var(--beige);
+}
+.ethics h2 {
+  font-size: clamp(20px, 2.6vw, 26px);
+}
+.ethics p {
+  margin: 12px 0 0;
+  max-width: 70ch;
+}
+.ethics .lead {
+  font-size: 17px;
 }
 
 .privacy {

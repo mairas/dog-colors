@@ -96,6 +96,31 @@ function privacyNote(): HTMLElement {
   );
 }
 
+function breedingNote(): HTMLElement {
+  return h(
+    'section',
+    { class: 'ethics', id: 'ethics', 'aria-labelledby': 'ethics-h' },
+    h('h2', { id: 'ethics-h' }, 'Colour is never a reason to choose a pairing'),
+    h(
+      'p',
+      { class: 'lead' },
+      'Choose a pairing for the dogs’ health, temperament and fitness for the work they are bred for, and for the litter’s genetic diversity. This page shows which colours a litter might have, so you know what to expect, not so you can select for them.',
+    ),
+    h(
+      'p',
+      {},
+      h('b', {}, 'A clear DNA result is not a health check.'),
+      ' The health section covers only the variants on the Wisdom Panel report. It says nothing about hips, elbows, eyes or the many conditions no DNA test detects. Those need clinical screening, and the health of the dogs’ relatives matters too.',
+    ),
+    h(
+      'p',
+      {},
+      h('b', {}, 'This page cannot tell how closely related the two dogs are.'),
+      ' The reports give each dog’s own heterozygosity, not how related two dogs are, and siblings can pass every check here. Work out the planned litter’s coefficient of inbreeding from the pedigrees, through your kennel club or a pedigree database.',
+    ),
+  );
+}
+
 export function startApp(root: HTMLElement, options: AppOptions): App {
   const narrow = options.narrow ?? (() => window.matchMedia(NARROW_QUERY).matches);
   let state: AppState = options.initial ?? { slots: [EMPTY, EMPTY], pageAlert: null };
@@ -129,6 +154,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   };
   const inputs = [fileInput(0), fileInput(1)] as const;
   root.replaceChildren(
+    breedingNote(),
     privacyNote(),
     h('a', { class: 'ready btn', href: '#results' }, 'Results ready', h('span', { 'aria-hidden': 'true' }, '↓')),
     dropAlert,
