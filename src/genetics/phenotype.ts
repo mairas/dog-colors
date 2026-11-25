@@ -389,6 +389,9 @@ export function phenotypeKey(value: Phenotype): string {
   ]);
 }
 
+/** How white double merle dogs are, in the words every text that mentions it uses. */
+export const DOUBLE_MERLE_WHITE = 'Double merle (M/M) dogs are usually mostly white';
+
 export const FLAG_INFO: Readonly<Record<Flag, { readonly label: string; readonly caveat: string }>> = {
   'undocumented-haplotype': {
     label: 'undocumented combination',
@@ -438,7 +441,7 @@ export const FLAG_INFO: Readonly<Record<Flag, { readonly label: string; readonly
   },
   'mostly-white': {
     label: 'mostly white',
-    caveat: 'Double merle (M/M) dogs are usually mostly white; two copies of the shorter merle alleles can show little white.',
+    caveat: `${DOUBLE_MERLE_WHITE}; two copies of the shorter merle alleles can show little white.`,
   },
   'roan-single-copy': {
     label: 'roan uncertain',

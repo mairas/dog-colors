@@ -1,0 +1,29 @@
+import { describe, expect, it } from 'vitest';
+import { DOUBLE_MERLE_WHITE, FLAG_INFO, FLAGS } from '../../src/genetics/phenotype.ts';
+import { CAVEAT_TEXT, caveatText, COLOUR_WARNING_TEXT, CROSS_CAVEATS } from '../../src/genetics/warnings.ts';
+
+describe('caveatText', () => {
+  it("gives a cross caveat's own text and a flag's caveat", () => {
+    expect(caveatText('deafness')).toBe(CAVEAT_TEXT.deafness);
+    expect(caveatText('mask')).toBe(FLAG_INFO.mask.caveat);
+  });
+
+  it('has a text for every caveat id', () => {
+    for (const id of [...CROSS_CAVEATS, ...FLAGS]) {
+      expect(caveatText(id), id).not.toBe('');
+    }
+  });
+});
+
+describe('double merle wording', () => {
+  it('describes the whiteness of double merle in the same words everywhere', () => {
+    for (const text of [
+      COLOUR_WARNING_TEXT['double-merle'].text,
+      COLOUR_WARNING_TEXT['double-merle-unknown'].text,
+      caveatText('white-piebald-only'),
+      caveatText('mostly-white'),
+    ]) {
+      expect(text).toContain(DOUBLE_MERLE_WHITE);
+    }
+  });
+});

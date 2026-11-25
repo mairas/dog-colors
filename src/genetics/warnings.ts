@@ -5,7 +5,7 @@
 // phenotype flag uses the flag as its id, and its text is the flag's caveat.
 
 import type { HealthWarning } from '../health/health.ts';
-import type { Flag } from './phenotype.ts';
+import { DOUBLE_MERLE_WHITE, FLAG_INFO, type Flag } from './phenotype.ts';
 import type { Range } from './range.ts';
 import type { UnknownLocus } from './results.ts';
 
@@ -22,14 +22,16 @@ export type ColourWarning =
 /** Everything the warning panel can show; the health section adds its own. */
 export type PanelWarning = ColourWarning | HealthWarning;
 
+const DOUBLE_MERLE_RISK = `${DOUBLE_MERLE_WHITE} and have a high risk of deafness and eye defects.`;
+
 export const COLOUR_WARNING_TEXT: Readonly<Record<ColourWarning['kind'], { readonly title: string; readonly text: string }>> = {
   'double-merle': {
     title: 'Double merle',
-    text: 'Both parents carry merle. Double merle puppies (M/M) are usually mostly white and have a high risk of deafness and eye defects.',
+    text: `Both parents carry merle. ${DOUBLE_MERLE_RISK}`,
   },
   'double-merle-unknown': {
     title: 'Double merle possible',
-    text: "One parent carries merle and the other parent's merle result is missing or unreadable, so double merle puppies (M/M) can't be ruled out. They are usually mostly white and have a high risk of deafness and eye defects.",
+    text: `One parent carries merle and the other parent's merle result is missing or unreadable, so double merle puppies can't be ruled out. ${DOUBLE_MERLE_RISK}`,
   },
   'harlequin-lethal': {
     title: 'Harlequin × harlequin',
@@ -61,8 +63,7 @@ export const CAVEAT_TEXT: Readonly<Record<CrossCaveat, string>> = {
   'albino-health':
     'Albino dogs (two copies of SLC45A2 cal) can be sensitive to light, can have vision defects, and have a higher risk of skin tumours with sun exposure (OMIA 001821).',
   deafness: "Very white heads are linked to deafness in many breeds. The report can't predict how white the head will be.",
-  'white-piebald-only':
-    'These rows describe piebald (MITF) white only. Double merle puppies are usually mostly white whatever their row here; see the double merle warning.',
+  'white-piebald-only': `These rows describe piebald (MITF) white only. ${DOUBLE_MERLE_WHITE} whatever their row here; see the double merle warning.`,
   'dilution-alopecia': 'Dilute dogs can develop colour dilution alopecia (hair loss in dilute areas).',
   'linkage-d1': 'Dilution d1 is a linkage test: occasional wrong calls are possible.',
   'merle-allele-length': "The test doesn't tell merle allele lengths apart, so the pattern and its risks may be weaker than shown.",
@@ -71,3 +72,10 @@ export const CAVEAT_TEXT: Readonly<Record<CrossCaveat, string>> = {
     'Each gene is treated as inherited independently. Saddle tan (RALY) sits next to the tan-points gene (ASIP), and red intensity (MFSD12) shares a chromosome with piebald (MITF).',
   'untested-loci': "Greying, ticking and other genes the report doesn't test can change how a puppy looks.",
 };
+
+const isCrossCaveat = (id: CaveatId): id is CrossCaveat => (CROSS_CAVEATS as readonly string[]).includes(id);
+
+/** The text of any caveat badge: a cross caveat's own, or a phenotype flag's caveat. */
+export function caveatText(id: CaveatId): string {
+  return isCrossCaveat(id) ? CAVEAT_TEXT[id] : FLAG_INFO[id].caveat;
+}
