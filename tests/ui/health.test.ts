@@ -1,0 +1,278 @@
+// @vitest-environment happy-dom
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { analyseHealth } from '../../src/health/health.ts';
+import type { HealthRow, Inheritance, Report, Sex } from '../../src/report/types.ts';
+import { healthRow } from '../health/rows.ts';
+import { ok, openPage, pdf, sampleReport, variant } from './app.ts';
+
+// The real analysis, counted, so a test can tell when the page redoes it.
+vi.mock('../../src/health/health.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/health/health.ts')>();
+  return { ...actual, analyseHealth: vi.fn(actual.analyseHealth) };
+});
+
+let a: Report;
+let b: Report;
+
+beforeAll(async () => {
+  [a, b] = await Promise.all([sampleReport('a'), sampleReport('b')]);
+});
+
+/** A copy of a sample with its own health rows, sex and short-tail copies, and no kit ID. */
+function withHealth(base: Report, name: string, health: readonly HealthRow[], changes: Partial<Report> = {}): Report {
+  return { ...base, name, kitIdHash: null, health, ...changes };
+}
+
+async function pairOf(first: Report, second: Report) {
+  const page = openPage({ '1.pdf': ok(first), '2.pdf': ok(second) });
+  await page.app.load(0, pdf('1.pdf'));
+  await page.app.load(1, pdf('2.pdf'));
+  return page;
+}
+
+/** The health table's rows as [condition cell, at risk, carrier] text. */
+function healthRows(root: HTMLElement): string[][] {
+  return [...root.querySelectorAll('.health tbody tr')].map((row) =>
+    [...row.querySelectorAll('th, td')].map((cell) => (cell.textContent ?? '').replace(/\s+/g, ' ').trim()),
+  );
+}
+
+const XR = (copies: number) => healthRow('Hemophilia A', copies, 'XR', { gene: 'F8' });
+
+describe('the health section', () => {
+  it('shows CDDY and DM for Sample A × Sample B, and counts the rest clear in both', async () => {
+    const { root } = await pairOf(a, b);
+    const rows = healthRows(root);
+    const cddy = rows.find(([condition]) => condition?.startsWith('Chondrodystrophy'));
+    const dm = rows.find(([condition]) => condition?.startsWith('Degenerative Myelopathy'));
+    expect(cddy?.slice(1)).toEqual(['100% (all)', '–']);
+    expect(cddy?.[0]).toContain('Dominant: one copy raises the risk');
+    expect(dm?.slice(1)).toEqual(['0%', '50% (1 in 2)']);
+    expect(dm?.[0]).toContain('Recessive: two copies needed');
+    const clear = analyseHealth(a, b).clearInBoth.length;
+    expect(root.querySelector('.health .clear')?.textContent).toBe(`Clear in both parents: ${clear} other conditions.`);
+    expect(root.querySelector('.warnings')).toBeNull();
+  });
+
+  it('gives an X-linked condition Sons and Daughters sub-rows, named for screen readers', async () => {
+    const dam = withHealth(b, 'Sample F', [XR(1)], { sex: 'female' });
+    const sire = withHealth(a, 'Sample M', [XR(0)], { sex: 'male' });
+    const { root } = await pairOf(sire, dam);
+    expect(healthRows(root)).toEqual([
+      ['Hemophilia AX-linked recessive: sons need one copy, daughters two', '', ''],
+      ['Hemophilia A: Sons', '50% (1 in 2)', '–'],
+      ['Hemophilia A: Daughters', '0%', '50% (1 in 2)'],
+    ]);
+    const hidden = [...root.querySelectorAll('.health tr.sub th .vh')].map((span) => span.textContent);
+    expect(hidden).toEqual(['Hemophilia A: ', 'Hemophilia A: ']);
+  });
+
+  const condition = (inheritance: Inheritance | null) => (copies: number) => healthRow('Some Condition', copies, inheritance);
+  it.each<{ case: string; rows: readonly [HealthRow, HealthRow]; sexes: readonly [Sex | null, Sex | null]; mode: string; reason: string }>([
+    {
+      case: 'no inheritance given',
+      rows: [condition(null)(1), condition(null)(0)],
+      sexes: ['female', 'male'],
+      mode: 'Inheritance not known',
+      reason: "This condition's inheritance isn't known, so the odds can't be worked out.",
+    },
+    {
+      case: 'different inheritance',
+      rows: [condition('AR')(1), condition('AD')(0)],
+      sexes: ['female', 'male'],
+      mode: 'Inheritance not known',
+      reason: 'The two reports give different inheritance, so the odds are unknown.',
+    },
+    {
+      case: 'X-linked, same sex',
+      rows: [condition('XR')(1), condition('XR')(0)],
+      sexes: ['female', 'female'],
+      mode: 'X-linked recessive: sons need one copy, daughters two',
+      reason: 'Both reports give the same sex, so the odds are unknown.',
+    },
+    {
+      case: 'mitochondrial, same sex',
+      rows: [condition('MT')(1), condition('MT')(0)],
+      sexes: ['male', 'male'],
+      mode: 'Mitochondrial: passed on by the dam only',
+      reason: 'Both reports give the same sex, so the odds are unknown.',
+    },
+    {
+      case: 'X-linked, neither sex read',
+      rows: [condition('XD')(1), condition('XD')(0)],
+      sexes: [null, null],
+      mode: 'X-linked dominant: one copy raises the risk',
+      reason: "Neither report's sex could be read, so the odds are unknown.",
+    },
+  ])('marks the odds unknown, with the reason, for $case', async ({ rows, sexes, mode, reason }) => {
+    const first = withHealth(a, 'Sample F', [rows[0]], { sex: sexes[0] });
+    const second = withHealth(b, 'Sample G', [rows[1]], { sex: sexes[1] });
+    const { root } = await pairOf(first, second);
+    expect(healthRows(root)).toEqual([[`Some Condition${mode}${reason}`, 'unknown', '']]);
+  });
+
+  it.each<{ mode: Inheritance; text: string }>([
+    { mode: 'AR', text: 'Recessive: two copies needed' },
+    { mode: 'AD', text: 'Dominant: one copy raises the risk' },
+    { mode: 'XR', text: 'X-linked recessive: sons need one copy, daughters two' },
+    { mode: 'XD', text: 'X-linked dominant: one copy raises the risk' },
+    { mode: 'MT', text: 'Mitochondrial: passed on by the dam only' },
+  ])('says how $mode is inherited, in plain words', async ({ mode, text }) => {
+    const dam = withHealth(b, 'Sample F', [condition(mode)(1)], { sex: 'female' });
+    const sire = withHealth(a, 'Sample M', [condition(mode)(0)], { sex: 'male' });
+    const { root } = await pairOf(dam, sire);
+    expect(healthRows(root)[0]?.[0]).toBe(`Some Condition${text}`);
+  });
+
+  it('marks a condition known in the breed', async () => {
+    const known = (copies: number) => healthRow('Some Condition', copies, 'AR', { knownInBreed: copies > 0 });
+    const { root } = await pairOf(withHealth(a, 'Sample A', [known(1)]), withHealth(b, 'Sample B', [known(0)]));
+    expect(root.querySelector('.health tbody th .pill')?.textContent).toBe('known in the breed');
+  });
+
+  it('notes the assumed pairing when one report’s sex is unreadable', async () => {
+    const first = withHealth(b, 'Sample F', [XR(1)], { sex: 'female' });
+    const second = withHealth(a, 'Sample N', [XR(0)], { sex: null });
+    const { root } = await pairOf(first, second);
+    expect(healthRows(root)[0]?.[0]).toContain('Assuming a female × male pairing.');
+    expect(healthRows(root)[1]).toEqual(['Hemophilia A: Sons', '50% (1 in 2)', '–']);
+  });
+
+  it('lists a condition tested in one parent only, with that parent’s result', async () => {
+    const first = withHealth(a, 'Sample A', [healthRow('Sensory Ataxic Neuropathy', 0, 'MT')], { sex: 'male' });
+    const second = withHealth(b, 'Sample B', [], { sex: 'female' });
+    const { root } = await pairOf(first, second);
+    expect(root.querySelector('.health .one-parent')?.textContent).toContain('Sensory Ataxic Neuropathy: tested in Parent 1 only: Clear');
+  });
+
+  it.each([
+    { sire: 'untested', sireHealth: [] },
+    { sire: 'at risk', sireHealth: [healthRow('Mito Disease', 1, 'MT')] },
+  ])('keeps an MT condition clear in the dam as a no-risk row, with the sire $sire', async ({ sireHealth }) => {
+    const dam = withHealth(b, 'Sample F', [healthRow('Mito Disease', 0, 'MT')], { sex: 'female' });
+    const sire = withHealth(a, 'Sample M', sireHealth, { sex: 'male' });
+    const { root } = await pairOf(sire, dam);
+    expect(healthRows(root)).toEqual([['Mito DiseaseMitochondrial: passed on by the dam only', '0%', '–']]);
+    expect(root.querySelector('.health .clear')?.textContent).toBe('Clear in both parents: 0 other conditions.');
+  });
+
+  it('puts the bobtail and carrier × carrier warnings in the panel above the colour results', async () => {
+    const prcd = (copies: number) => healthRow('Progressive Rod-Cone Degeneration (prcd-PRA)', copies, 'AR', { gene: 'PRCD' });
+    const first = withHealth(a, 'Sample T', [prcd(1)], { shortTail: 1 });
+    const second = withHealth(b, 'Sample U', [prcd(1)], { shortTail: 1 });
+    const { root } = await pairOf(first, second);
+    const panel = root.querySelector('.warnings');
+    const items = [...(panel?.querySelectorAll('.err') ?? [])].map((item) => item.textContent ?? '');
+    expect(items.some((item) => item.includes('Bobtail × bobtail') && item.includes('About 1 in 4 embryos'))).toBe(true);
+    expect(items.some((item) => item.includes('Progressive Rod-Cone Degeneration (prcd-PRA): 25% (1 in 4)'))).toBe(true);
+    const outcomes = [...root.querySelectorAll('h3')].find((heading) => heading.textContent === 'Most likely puppies');
+    expect(panel && outcomes && panel.compareDocumentPosition(outcomes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('orders the panel colour first, then bobtail, then carrier × carrier', async () => {
+    const prcd = (copies: number) => healthRow('Progressive Rod-Cone Degeneration (prcd-PRA)', copies, 'AR', { gene: 'PRCD' });
+    const merle = (base: Report): Report['colour'] => ({ ...base.colour, PMEL: { M: 1 } });
+    const first = withHealth(a, 'Sample T', [prcd(1)], { shortTail: 1, colour: merle(a) });
+    const second = withHealth(b, 'Sample U', [prcd(1)], { shortTail: 1, colour: merle(b) });
+    const { root } = await pairOf(first, second);
+    expect([...root.querySelectorAll('.warnings .err b')].map((title) => title.textContent)).toEqual([
+      'Double merle: 25% (1 in 4).',
+      'Bobtail × bobtail.',
+      'Progressive Rod-Cone Degeneration (prcd-PRA): 25% (1 in 4).',
+    ]);
+  });
+
+  it('warns about affected daughters from an X-linked variant both parents carry', async () => {
+    const dam = withHealth(b, 'Sample F', [XR(1)], { sex: 'female' });
+    const sire = withHealth(a, 'Sample M', [XR(1)], { sex: 'male' });
+    const { root } = await pairOf(dam, sire);
+    expect(root.querySelector('.warnings')?.textContent).toContain('Hemophilia A: 50% (1 in 2) of daughters');
+  });
+
+  it.each([
+    {
+      case: 'the same either way',
+      copies: [1, 1],
+      title: 'Hemophilia A: 50% (1 in 2) of daughters',
+      either: 'the figure is the same either way.',
+    },
+    { case: 'a range', copies: [1, 2], title: 'Hemophilia A: 50–100% of daughters', either: 'the range covers both.' },
+  ])('names no dam in the X-linked warning when neither sex is read and the chance is $case', async ({ copies, title, either }) => {
+    const first = withHealth(b, 'Sample F', [XR(copies[0] ?? 0)], { sex: null });
+    const second = withHealth(a, 'Sample G', [XR(copies[1] ?? 0)], { sex: null });
+    const { root } = await pairOf(first, second);
+    expect(root.querySelector('.warnings .err')?.textContent).toBe(
+      `⚠${title}. Both parents carry this X-linked recessive variant, so daughters can be affected. Neither report's sex could be read, so either parent may be the dam; ${either}`,
+    );
+  });
+
+  it('says the daughters warning assumes a female × male pairing when one sex is unread', async () => {
+    const dam = withHealth(b, 'Sample F', [XR(1)], { sex: 'female' });
+    const unread = withHealth(a, 'Sample N', [XR(1)], { sex: null });
+    const { root } = await pairOf(dam, unread);
+    expect(root.querySelector('.warnings .err')?.textContent).toBe(
+      '⚠Hemophilia A: 50% (1 in 2) of daughters. The dam carries this X-linked recessive variant and the sire has it, so daughters can be affected. Assuming a female × male pairing.',
+    );
+  });
+
+  it.each([
+    {
+      case: 'one parent',
+      tails: [2, 1],
+      text: "Both parents carry the short-tail variant. About 1 in 2 embryos get two copies (T/T), which is not viable, so litters may be smaller. Parent 1's report shows 2 copies, which is unexpected in a live dog.",
+    },
+    {
+      case: 'both parents',
+      tails: [2, 2],
+      text: "Both parents carry the short-tail variant. Every embryo gets two copies (T/T), which is not viable, so litters may be smaller. Parent 1's report shows 2 copies, which is unexpected in a live dog. Parent 2's report shows 2 copies, which is unexpected in a live dog.",
+    },
+  ])('names $case reported with two bobtail copies', async ({ tails, text }) => {
+    const first = withHealth(a, 'Sample T', [], { shortTail: tails[0] ?? 0 });
+    const second = withHealth(b, 'Sample U', [], { shortTail: tails[1] ?? 0 });
+    const { root } = await pairOf(first, second);
+    expect(root.querySelector('.warnings .err')?.textContent).toBe(`⚠Bobtail × bobtail. ${text}`);
+  });
+
+  it('warns when both parents carry a variant of unknown inheritance', async () => {
+    const odd = (copies: number) => healthRow('Unlisted Condition', copies, null, { gene: 'XYZ1' });
+    const { root } = await pairOf(withHealth(a, 'Sample A', [odd(1)]), withHealth(b, 'Sample B', [odd(1)]));
+    expect(root.querySelector('.warnings')?.textContent).toContain('Unlisted Condition: inheritance unknown');
+  });
+
+  it('renders markup in a condition name as literal text', async () => {
+    const hostile = '<img src=x onerror=alert(1)>';
+    const row = (copies: number) => healthRow(hostile, copies, 'AR', { gene: 'EVIL' });
+    const { root } = await pairOf(withHealth(a, 'Sample A', [row(1)]), withHealth(b, 'Sample B', [row(1)]));
+    expect(root.querySelector('img')).toBeNull();
+    expect(root.querySelector('.health')?.textContent).toContain(hostile);
+    expect(root.querySelector('.warnings')?.textContent).toContain(hostile);
+  });
+});
+
+describe('the health analysis behind the page', () => {
+  const NO_TYRP1 = { basd: 0, bc: 0, bd: 0, be: 0, bh: 0, bs: 0 };
+
+  it('is redone when a report is replaced', async () => {
+    const first = withHealth(a, 'Sample A', [XR(1)], { sex: 'female' });
+    const second = withHealth(b, 'Sample B', [XR(0)], { sex: 'male' });
+    const replacement = withHealth(b, 'Sample C', [], { sex: 'male' });
+    const page = openPage({ '1.pdf': ok(first), '2.pdf': ok(second), '3.pdf': ok(replacement) });
+    await page.app.load(0, pdf('1.pdf'));
+    await page.app.load(1, pdf('2.pdf'));
+    expect(healthRows(page.root)).toHaveLength(3);
+    await page.app.load(1, pdf('3.pdf'));
+    expect(healthRows(page.root)).toEqual([]);
+    expect(page.root.querySelector('.health .one-parent')?.textContent).toContain('Hemophilia A: tested in Parent 1 only: Carrier');
+  });
+
+  it('is kept when a nose question is answered, which changes no health result', async () => {
+    const nose = await variant('a', 'Sample Q', { TYRP1: { ...NO_TYRP1, bc: 1, bd: 1 } });
+    const { root } = await pairOf(nose, b);
+    const calls = vi.mocked(analyseHealth).mock.calls.length;
+    const before = root.querySelector('.health')?.textContent;
+    root.querySelector<HTMLInputElement>('[data-key="nose-0-brown"]')?.click();
+    expect(root.querySelector<HTMLInputElement>('[data-key="nose-0-brown"]')?.checked).toBe(true);
+    expect(vi.mocked(analyseHealth).mock.calls.length).toBe(calls);
+    expect(root.querySelector('.health')?.textContent).toBe(before);
+  });
+});

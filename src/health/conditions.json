@@ -1,0 +1,1658 @@
+[
+  {
+    "name": "2,8-dihydroxyadenine (DHA) Urolithiasis",
+    "gene": "APRT",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Acral Mutilation Syndrome",
+    "gene": "GDNF",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Acute Respiratory Distress Syndrome",
+    "gene": "ANLN",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Alaskan Husky Encephalopathy",
+    "gene": "SLC19A3",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Alexander Disease",
+    "gene": "GFAP",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Amelogenesis Imperfecta (Discovered in the Italian Greyhound)",
+    "gene": "ENAM",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Amelogenesis Imperfecta (Discovered in the Lancashire Heeler)",
+    "gene": "Confidential",
+    "variant": "-",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Amelogenesis Imperfecta (Discovered in the Parson Russell Terrier)",
+    "gene": "ENAM",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Bandera's Neonatal Ataxia",
+    "gene": "GRM1",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Benign Familial Juvenile Epilepsy",
+    "gene": "LGI2",
+    "variant": "A>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Bernard-Soulier Syndrome (Discovered in the Cocker Spaniel)",
+    "gene": "GP9",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Canine Congenital Stationary Night Blindness (Discovered in the Beagle)",
+    "gene": "LRIT3",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Canine Leukocyte Adhesion Deficiency (CLAD), type III",
+    "gene": "FERMT3",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Canine Multifocal Retinopathy 1",
+    "gene": "BEST1",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Canine Multifocal Retinopathy 2",
+    "gene": "BEST1",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Canine Multifocal Retinopathy 3",
+    "gene": "BEST1",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Canine Multiple Systems Degeneration (Discovered in the Chinese Crested Dog)",
+    "gene": "SERAC1",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Canine Scott Syndrome",
+    "gene": "ANO6",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Cardiomyopathy and Juvenile Mortality (Discovered in the Belgian Shepherd)",
+    "gene": "YARS2",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Centronuclear Myopathy (Discovered in the Great Dane)",
+    "gene": "BIN1",
+    "variant": "A>G",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Centronuclear Myopathy (Discovered in the Labrador Retriever)",
+    "gene": "PTPLA",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Cerebellar Ataxia",
+    "gene": "RAB24",
+    "variant": "A>C",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Cerebellar Cortical Degeneration",
+    "gene": "SNX14",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Cerebellar Hypoplasia",
+    "gene": "VLDLR",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Cerebral Dysfunction",
+    "gene": "SLC6A3",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Chondrodysplasia (Discovered in Norwegian Elkhound and Karelian Bear Dog)",
+    "gene": "ITGA10",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Chondrodystrophy (CDDY) and Intervertebral Disc Disease (IVDD) Risk",
+    "gene": "FGF4 retrogene",
+    "variant": "Insertion",
+    "inheritance": "AD"
+  },
+  {
+    "name": "Cleft Lip & Palate with Syndactyly",
+    "gene": "ADAMTS20",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Cleft Palate",
+    "gene": "DLX6",
+    "variant": "C>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "CNS Atrophy with Cerebellar Ataxia (Discovered in the Belgian Shepherd)",
+    "gene": "SEPP1",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Coat Color Dilution and Neurological Defects (Discovered in the Miniature Dachshund)",
+    "gene": "MYO5A",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Collie Eye Anomaly (CEA)",
+    "gene": "NHEJ1",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Complement 3 Deficiency",
+    "gene": "C3",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Cone Degeneration (Discovered in the Alaskan Malamute)",
+    "gene": "CNGB3",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Cone Degeneration (Discovered in the German Shepherd Dog)",
+    "gene": "CNGA3",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Cone Degeneration (Discovered in the German Shorthaired Pointer)",
+    "gene": "CNGB3",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Cone-Rod Dystrophy",
+    "gene": "NPHP4",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Cone-Rod Dystrophy 1",
+    "gene": "PDE6B",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Cone-Rod Dystrophy 2",
+    "gene": "IQCB1",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Congenital Cornification (Discovered in the Labrador Retriever)",
+    "gene": "NSDHL",
+    "variant": "Deletion",
+    "inheritance": "XD"
+  },
+  {
+    "name": "Congenital Dyshormonogenic Hypothyroidism with Goiter (Discovered in the Shih Tzu)",
+    "gene": "SLC5A5",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Congenital Eye Malformations (Discovered in the Golden Retriever)",
+    "gene": "SIX6",
+    "variant": "C>T",
+    "inheritance": "AD"
+  },
+  {
+    "name": "Congenital Hypothyroidism (Discovered in the Tenterfield Terrier)",
+    "gene": "TPO",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Congenital Hypothyroidism (Discovered in the Toy Fox and Rat Terrier)",
+    "gene": "TPO",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Congenital Muscular Dystrophy (Discovered in the Italian Greyhound)",
+    "gene": "LAMA2",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Congenital Muscular Dystrophy (Discovered in the Staffordshire Bull Terrier)",
+    "gene": "LAMA2",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Congenital Myasthenic Syndrome (Discovered in the Golden Retriever)",
+    "gene": "COLQ",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Congenital Myasthenic Syndrome (Discovered in the Heideterrier)",
+    "gene": "CHRNE",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Congenital Myasthenic Syndrome (Discovered in the Jack Russell Terrier)",
+    "gene": "CHRNE",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Congenital Myasthenic Syndrome (Discovered in the Labrador Retriever)",
+    "gene": "COLQ",
+    "variant": "T>C",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Congenital Myasthenic Syndrome (Discovered in the Old Danish Pointer)",
+    "gene": "CHAT",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Congenital Stationary Night Blindness (CSNB)",
+    "gene": "RPE65",
+    "variant": "A>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Craniomandibular Osteopathy (Discovered in Scottish Terrier breeds)",
+    "gene": "SLC37A2",
+    "variant": "C>T",
+    "inheritance": "AD"
+  },
+  {
+    "name": "Craniomandibular Osteopathy (Discovered in the Australian Terrier)",
+    "gene": "COL1A1",
+    "variant": "C>T",
+    "inheritance": "AD"
+  },
+  {
+    "name": "Craniomandibular Osteopathy (Discovered in the Basset Hound)",
+    "gene": "SLC37A2",
+    "variant": "C>T",
+    "inheritance": "AD"
+  },
+  {
+    "name": "Craniomandibular Osteopathy (Discovered in the Weimaraner)",
+    "gene": "SLC35D1",
+    "variant": "Deletion",
+    "inheritance": "AD"
+  },
+  {
+    "name": "Cystic Renal Dysplasia and Hepatic Fibrosis",
+    "gene": "INPP5E",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Cystinuria Type I-A",
+    "gene": "SLC3A1",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Cystinuria Type II-A",
+    "gene": "SLC3A1",
+    "variant": "Deletion",
+    "inheritance": "AD"
+  },
+  {
+    "name": "Darier Disease (Discovered in the Irish Terrier)",
+    "gene": "ATP2A2",
+    "variant": "Insertion",
+    "inheritance": "AD"
+  },
+  {
+    "name": "Deafness and Vestibular Dysfunction (DINGS1), (Discovered in Doberman Pinscher)",
+    "gene": "PTPRQ",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Deafness and Vestibular Dysfunction (DINGS2), (Discovered in Doberman Pinscher)",
+    "gene": "MYO7A",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Degenerative Myelopathy",
+    "gene": "SOD1",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Demyelinating Neuropathy",
+    "gene": "SBF2",
+    "variant": "G>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Dental Hypomineralization",
+    "gene": "FAM20C",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Dental-Skeletal-Retinal Anomaly (Discovered in the Cane Corso)",
+    "gene": "MIA3",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Dilated Cardiomyopathy (Discovered in the Schnauzer)",
+    "gene": "RBM20",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Disproportionate Dwarfism (Discovered in the Dogo Argentino)",
+    "gene": "PRKG2",
+    "variant": "C>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Dominant Progressive Retinal Atrophy",
+    "gene": "RHO",
+    "variant": "C>G",
+    "inheritance": "AD"
+  },
+  {
+    "name": "Dystrophic Epidermolysis Bullosa (Discovered in the Basset Hound)",
+    "gene": "COL7A1",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Dystrophic Epidermolysis Bullosa (Discovered in the Central Asian Ovcharka)",
+    "gene": "COL7A1",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Dystrophic Epidermolysis Bullosa (Discovered in the Golden Retriever)",
+    "gene": "COL7A1",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Early Adult Onset Deafness For Border Collies only (Linkage test)",
+    "gene": "Intergenic",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Early Retinal Degeneration (Discovered in the Norwegian Elkhound)",
+    "gene": "STK38L",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Early-Onset Adult Deafness (Discovered in the Rhodesian Ridgeback)",
+    "gene": "EPS8L2",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Early-Onset Progressive Polyneuropathy (Discovered in the Alaskan Malamute)",
+    "gene": "NDRG1",
+    "variant": "G>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Early-Onset Progressive Polyneuropathy (Discovered in the Greyhound)",
+    "gene": "NDRG1",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Early-Onset Progressive Retinal Atrophy (Discovered in the Portuguese Water Dog)",
+    "gene": "CCDC66",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Early-Onset Progressive Retinal Atrophy, (Discovered in the Spanish Water Dog)",
+    "gene": "PDE6B",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Ehlers-Danlos Syndrome (Discovered in mixed breed)",
+    "gene": "COL5A1",
+    "variant": "G>A",
+    "inheritance": "AD"
+  },
+  {
+    "name": "Ehlers-Danlos Syndrome (Discovered in the Labrador Retriever)",
+    "gene": "COL5A1",
+    "variant": "Deletion",
+    "inheritance": "AD"
+  },
+  {
+    "name": "Epidermolytic Hyperkeratosis",
+    "gene": "KRT10",
+    "variant": "G>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Episodic Falling Syndrome",
+    "gene": "BCAN",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Exercise-Induced Collapse",
+    "gene": "DNM1",
+    "variant": "G>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Factor VII Deficiency",
+    "gene": "F7",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Factor XI Deficiency",
+    "gene": "FXI",
+    "variant": "Insertion",
+    "inheritance": "AD"
+  },
+  {
+    "name": "Familial Nephropathy (Discovered in the English Cocker Spaniel)",
+    "gene": "COL4A4",
+    "variant": "A>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Familial Nephropathy (Discovered in the English Springer Spaniel)",
+    "gene": "COL4A4",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Fanconi Syndrome",
+    "gene": "FAN1",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Fetal Onset Neuroaxonal Dystrophy",
+    "gene": "MFN2",
+    "variant": "G>C",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Focal Non-Epidermolytic Palmoplantar Keratoderma",
+    "gene": "KRT16",
+    "variant": "G>C",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Generalized Progressive Retinal Atrophy (Discovered in the Schapendoes)",
+    "gene": "CCDC66",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Glanzmann Thrombasthenia Type I (Discovered in Great Pyrenees)",
+    "gene": "ITGA2B",
+    "variant": "C>G",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Glanzmann Thrombasthenia Type I (Discovered in mixed breed dogs)",
+    "gene": "ITGA2B",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Globoid Cell Leukodystrophy (Discovered in Terriers)",
+    "gene": "GALC",
+    "variant": "A>C",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Globoid Cell Leukodystrophy (Discovered in the Irish Setter)",
+    "gene": "GALC",
+    "variant": "A>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Glycogen Storage Disease Type Ia (Discovered in the German Pinscher)",
+    "gene": "G6PC",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Glycogen Storage Disease Type Ia (Discovered in the Maltese)",
+    "gene": "G6PC",
+    "variant": "G>C",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Glycogen Storage Disease Type IIIa, (GSD IIIa)",
+    "gene": "AGL",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "GM1 Gangliosidosis (Discovered in the Portuguese Water Dog)",
+    "gene": "GLB1",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "GM1 Gangliosidosis (Discovered in the Shiba)",
+    "gene": "GLB1",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "GM2 Gangliosidosis (Discovered in the Japanese Chin)",
+    "gene": "HEXA",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "GM2 Gangliosidosis (Discovered in the Toy Poodle)",
+    "gene": "HEXB",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Hemophilia A (Discovered in Old English Sheepdog)",
+    "gene": "FVIII",
+    "variant": "C>T",
+    "inheritance": "XR"
+  },
+  {
+    "name": "Hemophilia A (Discovered in the Boxer)",
+    "gene": "FVIII",
+    "variant": "C>G",
+    "inheritance": "XR"
+  },
+  {
+    "name": "Hemophilia A (Discovered in the German Shepherd Dog - Variant 1)",
+    "gene": "FVIII",
+    "variant": "G>A",
+    "inheritance": "XR"
+  },
+  {
+    "name": "Hemophilia A (Discovered in the German Shepherd Dog - Variant 2)",
+    "gene": "FVIII",
+    "variant": "G>A",
+    "inheritance": "XR"
+  },
+  {
+    "name": "Hemophilia A (Discovered in the Havanese)",
+    "gene": "FVIII",
+    "variant": "Insertion",
+    "inheritance": "XR"
+  },
+  {
+    "name": "Hemophilia A (Discovered in the Labrador Retriever)",
+    "gene": "Confidential",
+    "variant": "-",
+    "inheritance": "XR"
+  },
+  {
+    "name": "Hemophilia B",
+    "gene": "FIX",
+    "variant": "G>A",
+    "inheritance": "XR"
+  },
+  {
+    "name": "Hemophilia B (Discovered in the Airedale Terrier)",
+    "gene": "FIX",
+    "variant": "Insertion",
+    "inheritance": "XR"
+  },
+  {
+    "name": "Hemophilia B (Discovered in the Lhasa Apso)",
+    "gene": "FIX",
+    "variant": "Deletion",
+    "inheritance": "XR"
+  },
+  {
+    "name": "Hereditary Ataxia (Discovered in the Belgian Malinois)",
+    "gene": "SLC12A6",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Hereditary Ataxia (Discovered in the Norwegian Buhund)",
+    "gene": "KCNIP4",
+    "variant": "T>C",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Hereditary Calcium Oxalate Urolithiasis, Type 1",
+    "gene": "Confidential",
+    "variant": "-",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Hereditary Elliptocytosis",
+    "gene": "SPTB",
+    "variant": "C>T",
+    "inheritance": "AD"
+  },
+  {
+    "name": "Hereditary Footpad Hyperkeratosis",
+    "gene": "FAM83G",
+    "variant": "G>C",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Hereditary Nasal Parakeratosis (Discovered in the Greyhound)",
+    "gene": "SUV39H2",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Hereditary Nasal Parakeratosis (Discovered in the Labrador Retriever)",
+    "gene": "SUV39H2",
+    "variant": "A>C",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Hereditary Vitamin D-Resistant Rickets Type II",
+    "gene": "VDR",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Hyperuricosuria",
+    "gene": "SLC2A9",
+    "variant": "G>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Hypocatalasia",
+    "gene": "CAT",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Hypomyelination",
+    "gene": "FNIP2",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Hypophosphatasia",
+    "gene": "Confidential",
+    "variant": "-",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Ichthyosis (Discovered in the American Bulldog)",
+    "gene": "NIPAL4",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Ichthyosis (Discovered in the Great Dane)",
+    "gene": "SLC27A4",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Ichthyosis Type 2 (Discovered in the Golden Retriever)",
+    "gene": "ABHD5",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Inflammatory Myopathy (Discovered in the Dutch Shepherd Dog)",
+    "gene": "SLC25A12",
+    "variant": "A>G",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Inflammatory Pulmonary Disease (Discovered in the Rough Collie)",
+    "gene": "AKNA",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Intestinal Cobalamin Malabsorption (Discovered in the Beagle)",
+    "gene": "CUBN",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Intestinal Cobalamin Malabsorption (Discovered in the Border Collie)",
+    "gene": "CUBN",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Intestinal Cobalamin Malabsorption (Discovered in the Komondor)",
+    "gene": "CUBN",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Intestinal Lipid Malabsorption (Discovered in the Australian Kelpie)",
+    "gene": "ACSL5",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Junctional Epidermolysis Bullosa (Discovered in the Australian Cattle Dog Mix)",
+    "gene": "LAMA3",
+    "variant": "T>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Junctional Epidermolysis Bullosa (Discovered in the Australian Shepherd)",
+    "gene": "LAMB3",
+    "variant": "A>G",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Juvenile Cataract (Discovered in the Wirehaired Pointing Griffon)",
+    "gene": "FYCO1",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Juvenile Dilated Cardiomyopathy (Discovered in the Toy Manchester Terrier)",
+    "gene": "ABCC9",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Juvenile Encephalopathy (Discovered in the Parson Russell Terrier)",
+    "gene": "Confidential",
+    "variant": "-",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Juvenile Laryngeal Paralysis and Polyneuropathy",
+    "gene": "RAB3GAP1",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Juvenile Myoclonic Epilepsy",
+    "gene": "DIRAS1",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "L-2-Hydroxyglutaric aciduria (Discovered in the Staffordshire Bull Terrier)",
+    "gene": "L2HGDH",
+    "variant": "T>C",
+    "inheritance": "AR"
+  },
+  {
+    "name": "L-2-Hydroxyglutaric Aciduria (Discovered in the West Highland White Terrier)",
+    "gene": "Confidential",
+    "variant": "-",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Lafora Disease (Linkage test)",
+    "gene": "NHLRC1",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Lagotto Storage Disease",
+    "gene": "ATG4D",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Lamellar Ichthyosis",
+    "gene": "TGM1",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Laryngeal Paralysis (Discovered in the Bull Terrier and Miniature Bull Terrier)",
+    "gene": "RAPGEF6",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Leigh-like Subacute Necrotizing Encephalopathy (Discovered in the Yorkshire Terrier)",
+    "gene": "SLC19A3",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Lethal Acrodermatitis (Discovered in the Bull Terrier)",
+    "gene": "MKLN1",
+    "variant": "A>C",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Leukodystrophy (Discovered in the Standard Schnauzer)",
+    "gene": "TSEN54",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Ligneous Membranitis",
+    "gene": "PLG",
+    "variant": "T>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Limb-girdle Muscular Dystrophy (Discovered in the Boston Terrier) Variant 1",
+    "gene": "SGCD",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Limb-girdle Muscular Dystrophy (Discovered in the Boston Terrier) Variant 2",
+    "gene": "SGCD",
+    "variant": "CAT>GG",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Limb-girdle Muscular Dystrophy, Type L3 (Discovered in the Miniature Dachshund)",
+    "gene": "SGCA",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Lung Developmental Disease (Discovered in the Airedale Terrier)",
+    "gene": "LAMP3",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Macrothrombocytopenia (Discovered in Norfolk and Cairn Terrier)",
+    "gene": "TUBB1",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "May-Hegglin Anomaly",
+    "gene": "MYH9",
+    "variant": "G>A",
+    "inheritance": "AD"
+  },
+  {
+    "name": "MDR1 Medication Sensitivity",
+    "gene": "MDR1/ABCB1",
+    "variant": "Deletion",
+    "inheritance": "AD"
+  },
+  {
+    "name": "Microphthalmia (Discovered in the Soft-Coated Wheaten Terrier)",
+    "gene": "RBP4",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Mucopolysaccharidosis Type IIIA (Discovered in the Dachshund)",
+    "gene": "SGSH",
+    "variant": "C>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Mucopolysaccharidosis Type IIIA (Discovered in the New Zealand Huntaway)",
+    "gene": "SGSH",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Mucopolysaccharidosis Type IIIB (Discovered in the Schipperke)",
+    "gene": "NAGLU",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Mucopolysaccharidosis Type VII (Discovered in the Brazilian Terrier)",
+    "gene": "GUSB",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Mucopolysaccharidosis Type VII (Discovered in the German Shepherd Dog)",
+    "gene": "GUSB",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Mucopolysaccharidosis VI (Discovered in the Miniature Pinscher)",
+    "gene": "ARSB",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Muscular Dystrophy (Discovered in the Cavalier King Charles Spaniel)",
+    "gene": "Dystrophin",
+    "variant": "G>T",
+    "inheritance": "XR"
+  },
+  {
+    "name": "Muscular Dystrophy (Discovered in the Golden Retriever)",
+    "gene": "Dystrophin",
+    "variant": "A>G",
+    "inheritance": "XR"
+  },
+  {
+    "name": "Muscular Dystrophy (Discovered in the Labrador Retriever) Variant 1",
+    "gene": "COL6A3",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Muscular Dystrophy (Discovered in the Landseer)",
+    "gene": "COL6A1",
+    "variant": "G>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Muscular Dystrophy (Discovered in the Norfolk Terrier)",
+    "gene": "Dystrophin",
+    "variant": "Deletion",
+    "inheritance": "XR"
+  },
+  {
+    "name": "Muscular Dystrophy-Dystroglycanopathy (Discovered in the Labrador Retriever)",
+    "gene": "LARGE",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Muscular Hypertrophy (Double Muscling)",
+    "gene": "MSTN",
+    "variant": "T>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Musladin-Lueke Syndrome",
+    "gene": "ADAMTSL2",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Myeloperoxidase Deficiency",
+    "gene": "MOP",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Myotonia Congenita (Discovered in Australian Cattle Dog)",
+    "gene": "CLCN1",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Myotonia Congenita (Discovered in the Labrador Retriever)",
+    "gene": "CLCN1",
+    "variant": "T>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Myotonia Congenita (Discovered in the Miniature Schnauzer)",
+    "gene": "CLCN1",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Myotubular Myopathy",
+    "gene": "MTM1",
+    "variant": "A>C",
+    "inheritance": "XR"
+  },
+  {
+    "name": "Narcolepsy (Discovered in the Dachshund)",
+    "gene": "HCRTR2",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Narcolepsy (Discovered in the Labrador Retriever)",
+    "gene": "HCRTR2",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Nemaline Myopathy",
+    "gene": "NEB",
+    "variant": "C>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Neonatal Cerebellar Cortical Degeneration",
+    "gene": "SPTBN2",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Neonatal Encephalopathy with Seizures",
+    "gene": "ATF2",
+    "variant": "T>G",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Neuroaxonal Dystrophy (Discovered in Spanish Water Dog)",
+    "gene": "TECPR2",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Neuroaxonal Dystrophy (Discovered in the Papillon)",
+    "gene": "PLA2G6",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Neuroaxonal Dystrophy (Discovered in the Rottweiler)",
+    "gene": "VPS11",
+    "variant": "A>G",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Neuronal Ceroid Lipofuscinosis 1",
+    "gene": "PPT1",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Neuronal Ceroid Lipofuscinosis 12 (Discovered in the Australian Cattle Dog)",
+    "gene": "ATP13A2",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Neuronal Ceroid Lipofuscinosis 5 (Discovered in the Border Collie)",
+    "gene": "CLN5",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Neuronal Ceroid Lipofuscinosis 5 (Discovered in the Golden Retriever)",
+    "gene": "CLN5",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Neuronal Ceroid Lipofuscinosis 7",
+    "gene": "MFSD8",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Neuronal Ceroid Lipofuscinosis 8 (Discovered in the Alpine Dachsbracke)",
+    "gene": "CLN8",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Neuronal Ceroid Lipofuscinosis 8 (Discovered in the Australian Shepherd)",
+    "gene": "CLN8",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Neuronal Ceroid Lipofuscinosis 8 (Discovered in the English Setter)",
+    "gene": "CLN8",
+    "variant": "T>C",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Neuronal Ceroid Lipofuscinosis 8 (Discovered in the Saluki)",
+    "gene": "CLN8",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Obesity risk (POMC)",
+    "gene": "POMC",
+    "variant": "Deletion",
+    "inheritance": "AD"
+  },
+  {
+    "name": "Osteochondrodysplasia",
+    "gene": "SLC13A1",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Osteochondromatosis (Discovered in the American Staffordshire Terrier)",
+    "gene": "EXT2",
+    "variant": "C>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Osteogenesis Imperfecta (Discovered in the Beagle)",
+    "gene": "COL1A2",
+    "variant": "C>T",
+    "inheritance": "AD"
+  },
+  {
+    "name": "Osteogenesis Imperfecta (Discovered in the Dachshund)",
+    "gene": "SERPINH1",
+    "variant": "T>C",
+    "inheritance": "AR"
+  },
+  {
+    "name": "P2RY12-associated Bleeding Disorder",
+    "gene": "P2RY12",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Palmoplantar Hyperkeratosis (Discovered in the Rottweiler)",
+    "gene": "DSG1",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Paroxysmal Dyskinesia",
+    "gene": "PIGN",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Persistent Müllerian Duct Syndrome",
+    "gene": "AMHR2",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Phosphofructokinase Deficiency",
+    "gene": "PFKM",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Pituitary Dwarfism (Discovered in the Karelian Bear Dog)",
+    "gene": "POU1F1",
+    "variant": "C>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Polycystic Kidney Disease",
+    "gene": "PKD1",
+    "variant": "G>A",
+    "inheritance": "AD"
+  },
+  {
+    "name": "Prekallikrein Deficiency",
+    "gene": "KLKB1",
+    "variant": "T>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Primary Ciliary Dyskinesia",
+    "gene": "CCDC39",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Primary Ciliary Dyskinesia (Discovered in the Alaskan Malamute)",
+    "gene": "NME5",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Primary Lens Luxation",
+    "gene": "ADAMTS17",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Primary Open Angle Glaucoma (Discovered in Basset Fauve de Bretagne)",
+    "gene": "ADAMTS17",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Primary Open Angle Glaucoma (Discovered in Petit Basset Griffon Vendeen)",
+    "gene": "ADAMTS17",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Primary Open Angle Glaucoma and Lens Luxation (Discovered in Chinese Shar-Pei)",
+    "gene": "ADAMTS17",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Progressive Early-Onset Cerebellar Ataxia",
+    "gene": "SEL1L",
+    "variant": "T>C",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Progressive Retinal Atrophy (Discovered in the Basenji)",
+    "gene": "SAG",
+    "variant": "T>C",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Progressive Retinal Atrophy (Discovered in the Golden Retriever - GR-PRA 2 variant)",
+    "gene": "TTC8",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Progressive Retinal Atrophy (Discovered in the Golden Retriever - GR-PRA1 variant)",
+    "gene": "SLC4A3",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Progressive Retinal Atrophy (Discovered in the Lapponian Herder)",
+    "gene": "IFT122",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Progressive Retinal Atrophy (Discovered in the Lhasa Apso)",
+    "gene": "IMPG2",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Progressive Retinal Atrophy (Discovered in the Miniature Long Haired Dachshund)",
+    "gene": "RPGRIP1",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Progressive Retinal Atrophy (Discovered in the Papillon and Phalène)",
+    "gene": "CNGB1",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Progressive Retinal Atrophy (Discovered in the Shetland Sheepdog - BBS2 variant)",
+    "gene": "Confidential",
+    "variant": "-",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Progressive Retinal Atrophy (Discovered in the Shetland Sheepdog - CNGA1 variant)",
+    "gene": "CNGA1",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Progressive Retinal Atrophy (Discovered in the Swedish Vallhund)",
+    "gene": "MERTK",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Progressive Retinal Atrophy 1 (Discovered in the Italian Greyhound)",
+    "gene": "Confidential",
+    "variant": "-",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Progressive Retinal Atrophy Type III",
+    "gene": "FAM161A",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Progressive Rod Cone Degeneration (prcd-PRA)",
+    "gene": "PRCD",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Protein Losing Nephropathy",
+    "gene": "NPHS1",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Pyruvate Dehydrogenase Phosphatase 1 Deficiency",
+    "gene": "PDP1",
+    "variant": "C>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Pyruvate Kinase Deficiency (Discovered in the Basenji)",
+    "gene": "PKLR",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Pyruvate Kinase Deficiency (Discovered in the Beagle)",
+    "gene": "PKLR",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Pyruvate Kinase Deficiency (Discovered in the Pug)",
+    "gene": "PKLR",
+    "variant": "T>C",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Pyruvate Kinase Deficiency (Discovered in the West Highland White Terrier)",
+    "gene": "PKLR",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "QT Syndrome",
+    "gene": "KCNQ1",
+    "variant": "C>A",
+    "inheritance": "AD"
+  },
+  {
+    "name": "Renal Cystadenocarcinoma and Nodular Dermatofibrosis",
+    "gene": "FLCN",
+    "variant": "A>G",
+    "inheritance": "AD"
+  },
+  {
+    "name": "Rod-Cone Dysplasia 1",
+    "gene": "PDE6B",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Rod-Cone Dysplasia 1a",
+    "gene": "PDE6B",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Rod-Cone Dysplasia 3",
+    "gene": "PDE6A",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Sensorineural Deafness (Discovered in the Rottweiler)",
+    "gene": "LOXHD1",
+    "variant": "G>C",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Sensory Ataxic Neuropathy",
+    "gene": "tRNATyr",
+    "variant": "Deletion",
+    "inheritance": "MT"
+  },
+  {
+    "name": "Sensory Neuropathy",
+    "gene": "FAM134B",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Severe Combined Immunodeficiency (Discovered in Frisian Water Dogs)",
+    "gene": "RAG1",
+    "variant": "G>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Severe Combined Immunodeficiency (Discovered in Russell Terriers)",
+    "gene": "PRKDC",
+    "variant": "G>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Shaking Puppy Syndrome (Discovered in the Border Terrier)",
+    "gene": "Confidential",
+    "variant": "-",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Skeletal Dysplasia 2",
+    "gene": "COL11A2",
+    "variant": "G>C",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Spinocerebellar Ataxia (Discovered in the Alpine Dachsbracke)",
+    "gene": "SCN8A",
+    "variant": "G>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Spinocerebellar Ataxia (Late-Onset Ataxia)",
+    "gene": "CAPN1",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Spinocerebellar Ataxia with Myokymia and/or Seizures",
+    "gene": "KCNJ10",
+    "variant": "C>G",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Spondylocostal Dysostosis",
+    "gene": "HES7",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Spongy Degeneration with Cerebellar Ataxia (Discovered in Belgian Malinois - SDCA1)",
+    "gene": "KCNJ10",
+    "variant": "T>C",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Spongy Degeneration with Cerebellar Ataxia (Discovered in Belgian Malinois - SDCA2)",
+    "gene": "ATP1B2",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Stargardt Disease (Discovered in the Labrador Retriever)",
+    "gene": "ABCA4",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Startle Disease (Discovered in Irish Wolfhounds)",
+    "gene": "SLC6A5",
+    "variant": "G>T",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Startle Disease (Discovered in the Miniature American Shepherd)",
+    "gene": "Confidential",
+    "variant": "-",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Succinic Semialdehyde Dehydrogenase Deficiency (Discovered in the Saluki)",
+    "gene": "ALDH5A1",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Thrombopathia (Discovered in the Basset Hound)",
+    "gene": "RASGRP1",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Thrombopathia (Discovered in the Eskimo Spitz)",
+    "gene": "RASGRP1",
+    "variant": "Insertion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Trapped Neutrophil Syndrome",
+    "gene": "VPS13B",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Van den Ende-Gupta Syndrome",
+    "gene": "SCARF2",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "von Willebrand's Disease, type 1",
+    "gene": "VWF",
+    "variant": "G>A",
+    "inheritance": "AD"
+  },
+  {
+    "name": "von Willebrand's Disease, type 2",
+    "gene": "VWF",
+    "variant": "T>G",
+    "inheritance": "AR"
+  },
+  {
+    "name": "von Willebrand's Disease, type 3 (Discovered in the Kooiker Hound)",
+    "gene": "VWF",
+    "variant": "G>A",
+    "inheritance": "AR"
+  },
+  {
+    "name": "von Willebrand's Disease, type 3 (Discovered in the Scottish Terrier)",
+    "gene": "VWF",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "von Willebrand's Disease, type 3 (Discovered in the Shetland Sheepdog)",
+    "gene": "VWF",
+    "variant": "Deletion",
+    "inheritance": "AR"
+  },
+  {
+    "name": "X-Linked Ectodermal Dysplasia",
+    "gene": "EDA",
+    "variant": "G>A",
+    "inheritance": "XR"
+  },
+  {
+    "name": "X-Linked Hereditary Nephropathy (Discovered in the Navasota Dog)",
+    "gene": "COL4A5",
+    "variant": "Deletion",
+    "inheritance": "XR"
+  },
+  {
+    "name": "X-Linked Hereditary Nephropathy (Discovered in the Samoyed)",
+    "gene": "COL4A5",
+    "variant": "G>T",
+    "inheritance": "XR"
+  },
+  {
+    "name": "X-Linked Myotubular Myopathy",
+    "gene": "MTM1",
+    "variant": "C>A",
+    "inheritance": "XR"
+  },
+  {
+    "name": "X-Linked Progressive Retinal Atrophy 1",
+    "gene": "RPGR",
+    "variant": "Deletion",
+    "inheritance": "XR"
+  },
+  {
+    "name": "X-Linked Progressive Retinal Atrophy 2",
+    "gene": "RPGR",
+    "variant": "Deletion",
+    "inheritance": "XR"
+  },
+  {
+    "name": "X-Linked Severe Combined Immunodeficiency (Discovered in the Basset Hound)",
+    "gene": "IL2RG",
+    "variant": "Deletion",
+    "inheritance": "XR"
+  },
+  {
+    "name": "X-Linked Severe Combined Immunodeficiency (Discovered in the Cardigan Welsh Corgi)",
+    "gene": "IL2RG",
+    "variant": "Insertion",
+    "inheritance": "XR"
+  },
+  {
+    "name": "X-Linked Tremors",
+    "gene": "PLP1",
+    "variant": "A>C",
+    "inheritance": "XR"
+  },
+  {
+    "name": "Xanthinuria (Discovered in a mixed breed dog)",
+    "gene": "Confidential",
+    "variant": "-",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Xanthinuria (Discovered in the Cavalier King Charles Spaniel)",
+    "gene": "Confidential",
+    "variant": "-",
+    "inheritance": "AR"
+  },
+  {
+    "name": "Xanthinuria (Discovered in the Toy Manchester Terrier)",
+    "gene": "Confidential",
+    "variant": "-",
+    "inheritance": "AR"
+  }
+]

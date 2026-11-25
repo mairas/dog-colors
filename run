@@ -37,6 +37,25 @@ function preview {
   npx --no-install vite preview "$@"
 }
 
+function preview-fixtures {
+  #@ Build with the dev-only fixture states into dist-fixtures/ and serve it with the CSP (extra arguments go to vite preview)
+  #@ Category: Development
+  npx --no-install vite build --mode fixtures --outDir dist-fixtures
+  npx --no-install vite preview --outDir dist-fixtures "$@"
+}
+
+function fixtures {
+  #@ [samples-dir]: rewrite tests/fixtures/sample-*.json from the local sample reports
+  #@ Category: Development
+  node scripts/extract-fixtures.ts "${1:-_local/samples}"
+}
+
+function conditions {
+  #@ [samples-dir]: rewrite src/health/conditions.json from the local current-format sample reports
+  #@ Category: Development
+  node scripts/build-conditions.ts "${1:-_local/samples}"
+}
+
 ################################################################################
 # Quality Commands
 
@@ -56,6 +75,12 @@ function check-csp {
   #@ Check that dist/index.html carries the Content-Security-Policy meta tag
   #@ Category: Quality
   node scripts/csp-check.ts dist/index.html
+}
+
+function check-fixtures {
+  #@ Check that dist/ carries none of the dev-only fixture states (run after build)
+  #@ Category: Quality
+  node scripts/fixture-check.ts dist
 }
 
 function check-pdfs {

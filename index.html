@@ -3,10 +3,91 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
     <title>Puppy colour predictor</title>
   </head>
   <body>
-    <main id="app"></main>
+    <header class="band">
+      <div class="wrap">
+        <h1>Puppy colour predictor</h1>
+        <p>
+          Load the Wisdom Panel genetic report PDF of each parent to see which coat colours their puppies can have, and
+          how likely each one is.
+        </p>
+      </div>
+    </header>
+    <main id="app" class="wrap"></main>
+    <footer>
+      <div class="wrap">
+        <p>
+          Predictions cover only the variants Wisdom Panel tests. They are not breeding or veterinary advice. Coat colour
+          also changes with age: greying and ticking are common in Spanish Water Dogs and are not predicted here.
+        </p>
+        <details class="sources">
+          <summary>Sources</summary>
+          <p>
+            The colour rules follow these studies, databases and laboratory notes. In the health section, condition names
+            and inheritance modes are those Wisdom Panel's reports print.
+          </p>
+          <ul>
+            <li>
+              Report layout, allele order and the ayt haplotype:
+              <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC6816562">Dreger et al. 2019</a>
+            </li>
+            <li>
+              MC1R: <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC7643265">Anderson et al. 2020</a> (eA),
+              <a href="https://doi.org/10.1111/age.13398">Honkanen et al. 2024</a> (eH),
+              <a href="https://doi.org/10.1093/jhered/esq061">Dreger and Schmutz 2010</a> (eG)
+            </li>
+            <li>
+              ASIP: <a href="https://pubmed.ncbi.nlm.nih.gov/21846741/">Dreger and Schmutz 2011</a>,
+              <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC8484016">Bannasch et al. 2021</a>,
+              <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC7397341">Dreger et al. 2020</a> (ayt phenotype)
+            </li>
+            <li>Saddle tan (RALY): <a href="https://pubmed.ncbi.nlm.nih.gov/23519866/">Dreger et al. 2013</a></li>
+            <li>Red intensity (MFSD12): <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC6562630">Hédan et al. 2019</a></li>
+            <li>Cocoa (HPS3): <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC7349258">Kiener et al. 2020</a></li>
+            <li>
+              Merle (PMEL): <a href="https://pubmed.ncbi.nlm.nih.gov/16407134/">Clark et al. 2006</a>,
+              <a href="https://pubmed.ncbi.nlm.nih.gov/30123327/">Murphy et al. 2018</a>; harlequin (PSMB7):
+              <a href="https://pubmed.ncbi.nlm.nih.gov/21256207/">Clark et al. 2011</a>
+            </li>
+            <li>Roan (USH2A): <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC7986734">Brancalion et al. 2021</a></li>
+            <li>
+              OMIA entries: <a href="https://omia.org/OMIA001249/9615/">brown (TYRP1)</a>,
+              <a href="https://omia.org/OMIA000214/9615/">white spotting</a>,
+              <a href="https://omia.org/OMIA000211/9615/">merle</a>,
+              <a href="https://omia.org/OMIA001590/9615/">mask</a>,
+              <a href="https://omia.org/OMIA001821/9615/">albinism</a>,
+              <a href="https://omia.org/OMIA002275/9615/">cocoa (HPS3)</a>
+            </li>
+            <li>
+              Laboratory notes: <a href="https://vgl.ucdavis.edu/test/mc1r-dog">UC Davis Veterinary Genetics Laboratory</a>
+              (eG), <a href="https://www.orivet.com/store/eh-locus-sable-cocker-spaniel-type/p/995">Orivet</a> (eH)
+            </li>
+          </ul>
+        </details>
+        <p class="author">
+          Made by Matti Airas &lt;<a href="mailto:mairas@iki.fi">mairas@iki.fi</a>&gt;, human daddy of
+          <button type="button" class="link" aria-controls="dogs" aria-haspopup="dialog">Haru and Allu</button> ·
+          <a href="https://github.com/mairas/dog-colors">Source code on GitHub</a>
+        </p>
+        <dialog id="dogs" class="dogs" aria-label="Haru and Allu">
+          <div class="dogs-body">
+            <figure>
+              <img
+                src="/dogs.jpg"
+                width="900"
+                height="853"
+                alt="Haru and Allu, two curly-coated Spanish Water Dogs in the heather: one brown, one white with a brown patch."
+              />
+              <figcaption>Haru and Allu</figcaption>
+            </figure>
+            <button type="button" class="btn">Close</button>
+          </div>
+        </dialog>
+      </div>
+    </footer>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

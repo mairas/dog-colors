@@ -1,0 +1,166 @@
+import { describe, expect, it } from 'vitest';
+import { formatPair } from '../../src/genetics/alleles.ts';
+import { resolveDog, type ResolvedDog } from '../../src/genetics/dog.ts';
+import { ownColourName } from '../../src/genetics/phenotype.ts';
+import type { ColourGene } from '../../src/report/loci.ts';
+import { sampleReport, syntheticReport } from './reports.ts';
+
+const names = (dog: ResolvedDog): string[] => dog.ownColours.map((colour) => colour.name);
+
+describe('resolveDog: the sample reports', () => {
+  it.each([
+    ['a', 'White with brown markings'],
+    ['b', 'Brown with white markings'],
+    ['c', 'Brown, solid'],
+    ['d', 'White with brown markings'],
+    ['e', 'Brown, solid'],
+  ])('Sample %s → %s, with no question and no ambiguity', async (letter, name) => {
+    const dog = resolveDog(await sampleReport(letter));
+    expect(names(dog)).toEqual([name]);
+    expect(dog.questions).toEqual([]);
+    expect(dog.ambiguousLoci).toEqual([]);
+    expect(dog.unsettled).toEqual([]);
+    expect(dog.missingLoci).toEqual([]);
+    expect(dog.inconsistentLoci).toEqual([]);
+    expect(dog.undocumentedLoci).toEqual([]);
+  });
+
+  it('Sample A is white with brown markings, one colour', async () => {
+    const [own] = resolveDog(await sampleReport('a')).ownColours;
+    expect(own?.phenotype).toMatchObject({ base: 'brown', pattern: 'one-colour', white: 'extensive' });
+  });
+
+  it('Sample B is brown with white markings', async () => {
+    const [own] = resolveDog(await sampleReport('b')).ownColours;
+    expect(own?.phenotype).toMatchObject({ base: 'brown', pattern: 'one-colour', white: 'limited' });
+  });
+});
+
+describe('resolveDog: ambiguity', () => {
+  const bdBc = syntheticReport({ 'TYRP1 bd': 1, 'TYRP1 bc': 1, 'CBD103 KB': 1, 'MITF sp': 2 });
+
+  it('lists each candidate own colour with the genotype that gives it, above the nose question', () => {
+    const dog = resolveDog(bdBc);
+    expect(dog.questions.map((question) => question.id)).toEqual(['nose']);
+    expect(dog.ambiguousLoci).toEqual(['TYRP1']);
+    expect(dog.unsettled).toEqual([]);
+    expect(
+      dog.ownColours.map((colour) => [colour.name, colour.genotypes.map((genotype) => formatPair(genotype.TYRP1 ?? ['?', '?']))]),
+    ).toEqual([
+      ['White with black markings', ['B/b']],
+      ['White with brown markings', ['b/b']],
+    ]);
+  });
+
+  it('narrows to one own colour once the nose question is answered, and keeps the question', () => {
+    const dog = resolveDog(bdBc, { nose: 'brown' });
+    expect(names(dog)).toEqual(['White with brown markings']);
+    expect(dog.ambiguousLoci).toEqual([]);
+    expect(dog.questions.map((question) => question.id)).toEqual(['nose']);
+  });
+
+  it('marks ASIP-only ambiguity as unsettled, with no question', () => {
+    const dog = resolveDog(syntheticReport({ 'ASIP ay': 1, 'ASIP at': 1 }));
+    expect(dog.questions).toEqual([]);
+    expect(dog.ambiguousLoci).toEqual(['ASIP']);
+    expect(dog.unsettled).toEqual(['ASIP']);
+  });
+
+  it('lists a name once, with every genotype that gives it and the flags of any of them', () => {
+    const dog = resolveDog(syntheticReport({ 'ASIP ay': 1, 'ASIP at': 1 }));
+    expect(names(dog)).toEqual(['Black sable, solid']);
+    const [own] = dog.ownColours;
+    expect(own?.genotypes.map((genotype) => formatPair(genotype.ASIP ?? ['?', '?']))).toEqual(['ay/at', 'ayt/aw']);
+    expect(own?.phenotype.flags).toEqual(['ayt-unknown']);
+  });
+
+  it('makes a field the merged candidates disagree on unknown', () => {
+    const dog = resolveDog(syntheticReport({ 'TYRP1 bd': 1, 'TYRP1 bc': 1, 'MC1R e1': 2 }, ['MFSD12']));
+    expect(names(dog)).toEqual(['Colour unknown, solid']);
+    expect(dog.ownColours[0]?.phenotype).toMatchObject({ base: 'unknown', nose: 'unknown' });
+  });
+
+  it('lists a beige dog whose nose TYRP1 leaves open once per nose', () => {
+    const dog = resolveDog(syntheticReport({ 'TYRP1 bd': 1, 'TYRP1 bc': 1, 'MC1R e1': 2 }));
+    expect(names(dog)).toEqual(['Beige, solid', 'Beige, brown nose, solid']);
+  });
+
+  it.each<[string, Readonly<Record<string, number>>]>([
+    ['ASIP ay 1 + at 1', { 'ASIP ay': 1, 'ASIP at': 1 }],
+    ['ASIP ay 1 + at 1 under KB', { 'ASIP ay': 1, 'ASIP at': 1, 'CBD103 KB': 2 }],
+    ['TYRP1 bd 1 + bc 1', { 'TYRP1 bd': 1, 'TYRP1 bc': 1, 'CBD103 KB': 1 }],
+    ['TYRP1 bd 1 + bc 1 on e/e', { 'TYRP1 bd': 1, 'TYRP1 bc': 1, 'MC1R e1': 2 }],
+    ['ASIP and TYRP1 both ambiguous', { 'ASIP ay': 1, 'ASIP at': 1, 'TYRP1 bd': 1, 'TYRP1 bc': 1 }],
+  ])('names every own colour differently: %s', (_name, copies) => {
+    const listed = names(resolveDog(syntheticReport(copies)));
+    expect(new Set(listed).size).toBe(listed.length);
+  });
+
+  it.each<[string, Readonly<Record<string, number>>, readonly ColourGene[]]>([
+    ['ASIP ay 1 + at 1', { 'ASIP ay': 1, 'ASIP at': 1 }, []],
+    ['ASIP ay 1 + at 1 under KB', { 'ASIP ay': 1, 'ASIP at': 1, 'CBD103 KB': 2 }, []],
+    ['TYRP1 bd 1 + bc 1 on e/e', { 'TYRP1 bd': 1, 'TYRP1 bc': 1, 'MC1R e1': 2 }, []],
+    ['TYRP1 bd 1 + bc 1, dilute', { 'TYRP1 bd': 1, 'TYRP1 bc': 1, 'CBD103 KB': 1, 'MLPH d1': 2 }, []],
+    ['ASIP and TYRP1 ambiguous, merle, PSMB7 missing', { 'ASIP ay': 1, 'ASIP at': 1, 'TYRP1 bd': 1, 'TYRP1 bc': 1, 'PMEL M': 1 }, ['PSMB7']],
+    ['TYRP1 ambiguous, PMEL missing', { 'TYRP1 bd': 1, 'TYRP1 bc': 1, 'CBD103 KB': 1, 'MITF sp': 1 }, ['PMEL']],
+    ['ASIP ambiguous, CBD103 and MITF missing', { 'ASIP ay': 1, 'ASIP at': 1 }, ['CBD103', 'MITF']],
+  ])('names every merged own colour by its merged phenotype: %s', (_name, copies, missing) => {
+    for (const colour of resolveDog(syntheticReport(copies, missing)).ownColours) {
+      expect(colour.name).toBe(ownColourName(colour.phenotype));
+    }
+  });
+
+  it('merges candidates that look the same, and still reports the locus unsettled', () => {
+    const dog = resolveDog(syntheticReport({ 'ASIP ay': 1, 'ASIP at': 1, 'CBD103 KB': 2 }));
+    expect(names(dog)).toEqual(['Black, solid']);
+    expect(dog.ownColours[0]?.genotypes.map((genotype) => formatPair(genotype.ASIP ?? ['?', '?']))).toEqual(['ay/at', 'ayt/aw']);
+    expect(dog.unsettled).toEqual(['ASIP']);
+  });
+
+  it('marks TYRP1 unsettled when the nose cannot tell (dilute)', () => {
+    const dog = resolveDog(syntheticReport({ 'TYRP1 bd': 1, 'TYRP1 bc': 1, 'CBD103 KB': 1, 'MLPH d1': 2 }));
+    expect(dog.questions).toEqual([]);
+    expect(dog.unsettled).toEqual(['TYRP1']);
+    expect(names(dog)).toEqual(['Blue, solid', 'Lilac, solid']);
+  });
+});
+
+describe('resolveDog: missing and inconsistent loci', () => {
+  it('leaves a missing locus unknown in the own colour', () => {
+    const dog = resolveDog(syntheticReport({ 'CBD103 KB': 1, 'MITF sp': 1 }, ['TYRP1']));
+    expect(dog.missingLoci).toEqual(['TYRP1']);
+    expect(names(dog)).toEqual(['Colour unknown, with limited white']);
+  });
+
+  it('reads TYRP1 bc 2 + bs 1 as brown with the undocumented-haplotype flag, naming TYRP1', () => {
+    const dog = resolveDog(syntheticReport({ 'TYRP1 bc': 2, 'TYRP1 bs': 1, 'CBD103 KB': 1 }));
+    expect(dog.inconsistentLoci).toEqual([]);
+    expect(dog.loci.TYRP1).toMatchObject({ status: 'resolved', undocumented: true });
+    expect(dog.undocumentedLoci).toEqual(['TYRP1']);
+    expect(names(dog)).toEqual(['Brown, solid']);
+    expect(dog.ownColours[0]?.phenotype.flags).toEqual(['undocumented-haplotype', 'brindle-possible']);
+  });
+
+  it('lists every undocumented locus in gene order', () => {
+    const dog = resolveDog(syntheticReport({ 'TYRP1 bc': 2, 'TYRP1 bs': 1, 'MLPH d1': 2, 'MLPH d2': 1, 'ASIP a': 1 }));
+    expect(dog.undocumentedLoci).toEqual(['ASIP', 'MLPH', 'TYRP1']);
+    expect(dog.inconsistentLoci).toEqual([]);
+  });
+
+  it('lists no undocumented locus for a documented report', () => {
+    expect(resolveDog(syntheticReport({ 'TYRP1 bc': 1, 'TYRP1 bs': 1 })).undocumentedLoci).toEqual([]);
+  });
+
+  it('reports MC1R eA 2 + eH 1 as inconsistent, not as a colour', () => {
+    const dog = resolveDog(syntheticReport({ 'MC1R eA': 2, 'MC1R eH': 1 }));
+    expect(dog.inconsistentLoci).toEqual([{ gene: 'MC1R', reason: 'no-phasing' }]);
+    expect(dog.undocumentedLoci).toEqual([]);
+    expect(dog.ownColours.map((colour) => colour.phenotype.base)).toEqual(['unknown']);
+  });
+
+  it('reports a locus whose copies fit no genotype as inconsistent, and treats it as unknown', () => {
+    const dog = resolveDog(syntheticReport({ 'TYRP1 bc': 1, 'TYRP1 bs': 1, 'TYRP1 be': 1, 'CBD103 KB': 1 }));
+    expect(dog.inconsistentLoci).toEqual([{ gene: 'TYRP1', reason: 'no-phasing' }]);
+    expect(dog.ownColours.map((colour) => colour.phenotype.base)).toEqual(['unknown']);
+  });
+});

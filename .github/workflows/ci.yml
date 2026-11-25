@@ -54,3 +54,6 @@ jobs:
 
       - name: Content-Security-Policy in the build
         run: ./run check-csp
+
+      - name: No fixture states in the build
+        run: ./run check-fixtures
