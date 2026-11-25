@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildLines, MAX_TEXT_ITEMS_PER_PAGE, type TextItem } from '../../src/report/pdfText.ts';
+import {
+  buildLines,
+  MAX_TEXT_ITEMS_PER_DOCUMENT,
+  MAX_TEXT_ITEMS_PER_PAGE,
+  type TextItem,
+} from '../../src/report/pdfText.ts';
+import { fastestRunMs, PASS_BUDGET_MS } from './timing.ts';
 
 const BODY = 8;
 const OLD_SUPERSCRIPT = { size: 5.3, rise: 5.3 };
@@ -157,6 +163,39 @@ describe('buildLines', () => {
     expect(performance.now() - start).toBeLessThan(SUPERSCRIPT_PASS_BUDGET_MS);
     expect(lines).toHaveLength(MAX_TEXT_ITEMS_PER_PAGE / 2 / perLine);
     expect(texts(lines).flat().every((text) => text === Array(perLine).fill('ay').join(' '))).toBe(true);
+  });
+
+  it('attaches a raised item of at least 0.4 of its base’s size, and leaves a smaller one apart', () => {
+    const raisedBeside = (size: number) =>
+      texts(buildLines([[item('A', 100, 500, 12, 20), item('y', 115, 502, 3, size)]]));
+    expect(raisedBeside(9)).toEqual([['Ay']]);
+    expect(raisedBeside(7)).toEqual([['A y']]);
+  });
+
+  it('attaches superscripts quickly on full pages that each carry one outsized item', () => {
+    const { size, rise } = CURRENT_SUPERSCRIPT;
+    const perLine = 50;
+    const outlierSize = 1000;
+    const pages = Math.floor(MAX_TEXT_ITEMS_PER_DOCUMENT / MAX_TEXT_ITEMS_PER_PAGE);
+    const pairsPerPage = (MAX_TEXT_ITEMS_PER_PAGE - 1) >> 1;
+    // Far enough below the rows to stay a line of its own.
+    const page = [
+      item('X', 0, -outlierSize, 10, outlierSize),
+      ...Array.from({ length: pairsPerPage }, (_, index) => {
+        const x = 30 + (index % perLine) * 10;
+        const y = 800 - Math.floor(index / perLine) * 7;
+        return [item('a', x, y, 4), item('y', x + 4.2, y + rise, 3, size)];
+      }).flat(),
+    ];
+    let lines: ReturnType<typeof buildLines> = [];
+    const elapsed = fastestRunMs(() => {
+      lines = buildLines(Array.from({ length: pages }, () => page));
+    });
+    // A band as deep as the outlier's rise took seconds here.
+    expect(elapsed).toBeLessThan(PASS_BUDGET_MS);
+    const pairs = texts(lines).flat().filter((text) => text !== 'X').join(' ').split(' ');
+    expect(pairs).toHaveLength(pages * pairsPerPage);
+    expect(pairs.every((text) => text === 'ay')).toBe(true);
   });
 
   it('keeps a copy count apart from result text a few points to its right', () => {

@@ -41,6 +41,10 @@ export interface Line {
 // Wisdom's own PDFs raise it 1.5 pt, browser prints of MyDogDNA about 5.3 pt
 // at 8 pt type; a footnote-sized item further away is something else.
 const SUPERSCRIPT_MAX_SIZE_RATIO = 0.8;
+// The samples' suffixes are 0.5–0.8 of their base's size. The floor bounds
+// how far below itself a suffix must look for a base by its own size, so one
+// outsized item on a page cannot deepen every suffix's search.
+const SUPERSCRIPT_MIN_SIZE_RATIO = 0.4;
 const SUPERSCRIPT_MAX_RISE_RATIO = 0.8;
 const SUPERSCRIPT_MAX_GAP_RATIO = 0.5;
 const SUPERSCRIPT_MAX_OVERLAP = 0.5;
@@ -91,18 +95,18 @@ function attachSuperscripts(items: readonly TextItem[]): Run[] {
   const runs: Run[] = items.filter((item) => !isBlank(item.str)).map((item) => ({ ...item }));
   const order = new Map(runs.map((run, index) => [run, index]));
   // Sorted by baseline, so that each candidate superscript scans only the
-  // runs in the band below it that the largest font's rise allows, rather
-  // than the whole page. A run without a finite position or size is never a
-  // base, as no comparison with it holds.
+  // band below it where a base it can pair with may sit, rather than the
+  // whole page. A run without a finite position or size is neither a base
+  // nor a superscript.
   const byBaseline = runs
     .filter((run) => Number.isFinite(run.y) && Number.isFinite(run.size))
     .sort((a, b) => a.y - b.y);
-  const maxRise = byBaseline.reduce((max, run) => Math.max(max, run.size), 0) * SUPERSCRIPT_MAX_RISE_RATIO;
   const attached = new Set<Run>();
   for (const sup of runs) {
-    if (!Number.isFinite(sup.y)) {
+    if (!Number.isFinite(sup.y) || !Number.isFinite(sup.size)) {
       continue;
     }
+    const maxRise = (sup.size / SUPERSCRIPT_MIN_SIZE_RATIO) * SUPERSCRIPT_MAX_RISE_RATIO;
     let best: Run | undefined;
     let bestGap = Number.POSITIVE_INFINITY;
     for (let index = firstAtOrAbove(byBaseline, sup.y - maxRise - BAND_SLACK); index < byBaseline.length; index++) {
@@ -110,7 +114,11 @@ function attachSuperscripts(items: readonly TextItem[]): Run[] {
       if (!base || base.y >= sup.y) {
         break;
       }
-      if (attached.has(base) || sup.size > base.size * SUPERSCRIPT_MAX_SIZE_RATIO) {
+      if (
+        sup.size > base.size * SUPERSCRIPT_MAX_SIZE_RATIO ||
+        sup.size < base.size * SUPERSCRIPT_MIN_SIZE_RATIO ||
+        attached.has(base)
+      ) {
         continue;
       }
       const rise = sup.y - base.y;
