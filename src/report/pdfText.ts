@@ -228,6 +228,26 @@ function hasPdfSignature(data: Uint8Array): boolean {
   return head.includes(PDF_SIGNATURE);
 }
 
+const ENCRYPT_KEY = new TextEncoder().encode('/Encrypt');
+const [NAME_START = 0] = ENCRYPT_KEY;
+
+/** Whether the file has an /Encrypt entry, which only an encrypted file's trailer carries. */
+function hasEncryptEntry(data: Uint8Array): boolean {
+  for (let at = data.indexOf(NAME_START); at !== -1; at = data.indexOf(NAME_START, at + 1)) {
+    if (ENCRYPT_KEY.every((byte, offset) => data[at + offset] === byte)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// pdf.js reports a file it cannot open for a reason other than a password or
+// a broken structure, such as a security handler it does not support, as an
+// UnknownErrorException. It does not export that class.
+const isUnknownPdfJsError = (error: unknown): error is Error =>
+  error instanceof Error && error.name === 'UnknownErrorException';
+const NAMES_ENCRYPTION = /crypt/i;
+
 function infoString(info: unknown, key: string): string | null {
   if (typeof info !== 'object' || info === null) {
     return null;
@@ -257,8 +277,9 @@ function toTextItem(raw: unknown): TextItem | null {
  *
  * Throws when the reader itself fails rather than the file, for example a
  * pdf.js worker that could not be loaded; pdf.js keeps that failure until the
- * page is reloaded. Once the document has loaded, a page or metadata pdf.js
- * cannot read is a damaged file, rejected as unreadable-text.
+ * page is reloaded. A file pdf.js cannot open is rejected as encrypted when
+ * it is, and otherwise as not-pdf. Once the document has loaded, a page or
+ * metadata pdf.js cannot read is a damaged file, rejected as unreadable-text.
  */
 export async function extractPdfText(data: Uint8Array): Promise<PdfTextResult> {
   if (data.byteLength > MAX_BYTES) {
@@ -267,6 +288,8 @@ export async function extractPdfText(data: Uint8Array): Promise<PdfTextResult> {
   if (!hasPdfSignature(data)) {
     return { ok: false, kind: 'not-pdf' };
   }
+  // Read before pdf.js takes the buffer.
+  const encryptEntry = hasEncryptEntry(data);
   const task = getDocument({
     data,
     disableFontFace: true,
@@ -282,6 +305,9 @@ export async function extractPdfText(data: Uint8Array): Promise<PdfTextResult> {
       }
       if (error instanceof InvalidPDFException) {
         return { ok: false, kind: 'not-pdf' };
+      }
+      if (isUnknownPdfJsError(error)) {
+        return { ok: false, kind: encryptEntry || NAMES_ENCRYPTION.test(error.message) ? 'encrypted' : 'not-pdf' };
       }
       throw error;
     }

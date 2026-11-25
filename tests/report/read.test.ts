@@ -64,6 +64,16 @@ describe('extractPdfText', () => {
     });
   });
 
+  it.each([
+    ['a security handler pdf.js does not know', '/Filter /Bogus /V 1 /R 2'],
+    ['an encryption version pdf.js does not support', '/Filter /Standard /V 9 /R 9'],
+  ])('rejects a PDF encrypted with %s as encrypted', async (_handler, securityHandler) => {
+    expect(await extractPdfText(buildPdf([MINI_REPORT], { securityHandler }))).toEqual({
+      ok: false,
+      kind: 'encrypted',
+    });
+  });
+
   it('rejects a PDF that loads but whose pages cannot be read as unreadable-text', async () => {
     expect(await extractPdfText(buildPdf([MINI_REPORT], { brokenPages: true }))).toEqual({
       ok: false,

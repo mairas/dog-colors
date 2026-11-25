@@ -13,6 +13,8 @@ export interface PdfOptions {
   readonly info?: Readonly<Record<string, string>>;
   /** Adds a standard security handler whose user password is not empty. */
   readonly encrypted?: boolean;
+  /** Adds a security handler with these /Filter, /V and /R entries in place of the standard one's. */
+  readonly securityHandler?: string;
   /** Leaves each page's /Contents array unclosed: the document loads, its pages do not. */
   readonly brokenPages?: boolean;
 }
@@ -49,9 +51,10 @@ export function buildPdf(pages: readonly (readonly TextRun[])[], options: PdfOpt
   const info = entries.length > 0
     ? add(`<< ${entries.map(([key, value]) => `/${key} (${escapeString(value)})`).join(' ')} >>`)
     : null;
-  const encrypt = options.encrypted
-    ? add(`<< /Filter /Standard /V 1 /R 2 /O <${'ab'.repeat(32)}> /U <${'cd'.repeat(32)}> /P -4 >>`)
-    : null;
+  const handler = options.securityHandler ?? (options.encrypted ? '/Filter /Standard /V 1 /R 2' : null);
+  const encrypt = handler === null
+    ? null
+    : add(`<< ${handler} /O <${'ab'.repeat(32)}> /U <${'cd'.repeat(32)}> /P -4 >>`);
 
   let pdf = '%PDF-1.4\n';
   const offsets = objects.map((body, index) => {
