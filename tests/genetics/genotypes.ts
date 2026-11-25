@@ -85,3 +85,20 @@ export function parentLoci(
     SLC45A2: resolve('SLC45A2'),
   };
 }
+
+/** Heterozygous at every locus, with four candidates at ASIP and MC1R: 16 per parent, 256 scenarios for a pair. */
+export const HETEROZYGOUS = {
+  ASIP: ['ay/at', 'ayt/aw', 'aw/at', 'at/a'],
+  MC1R: ['Em/e', 'E/e', 'Em/eA', 'eH/e'],
+  CBD103: 'KB/ky',
+  HPS3: 'co/+',
+  MFSD12: 'i/+',
+  MLPH: 'D/d',
+  TYRP1: 'B/b',
+  PMEL: 'M/m',
+  PSMB7: 'H/h',
+  RALY: '+/dup',
+  SLC45A2: 'cal/+',
+  MITF: 'sp/+',
+  USH2A: 'R/+',
+};
