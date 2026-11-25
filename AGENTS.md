@@ -79,4 +79,4 @@ Every state of the page can be rendered without real reports through a dev-only 
 | Results with an unknown locus | `?state=results-partial` |
 | Same-sex pair (two males) | `?fixtures=a,c` |
 
-`?fixtures=<first>,<second>` loads any two reports, unanswered: the samples `a` to `e`, or the synthetic `q` (nose question), `x` (ASIP ambiguity), `m` (TYRP1 missing), `w` and `v` (merle and dilute carriers with a bobtail). Their names are placeholders such as "Sample Q".
+`?fixtures=<first>,<second>` loads any two reports, unanswered: the samples `a` to `e`, or the synthetic `q` (nose question), `x` (ASIP ambiguity), `m` (TYRP1 missing), `w` and `v` (merle and dilute carriers with a bobtail, both carrying a recessive condition, with an X-linked condition and one tested in Parent 1 only). Their names are placeholders such as "Sample Q".
