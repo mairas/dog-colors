@@ -167,10 +167,41 @@ export function placeholderWidth(text: string): number {
   return round(text.length * NOMINAL_CHARACTER_WIDTH);
 }
 
-function substitute(cell: Cell, replacements: ReadonlyMap<string, string>): Cell {
+// Producers place text on exact positions; an edge or centre two cells share
+// agrees far more closely than this.
+const ANCHOR_TOLERANCE = 0.01;
+// Where a cell of x and width sits on its left edge, right edge and centre.
+const ALIGNMENTS: readonly ((x: number, width: number) => number)[] = [
+  (x) => x,
+  (x, width) => x + width,
+  (x, width) => x + width / 2,
+];
+
+/**
+ * The x of a replaced cell's new width on the edge or centre it is aligned
+ * by, so that x reveals nothing of the real width either. That is the one it
+ * shares with a cell of another width in the report: cells of one width
+ * share all three or none. A cell that shares none is refused, not guessed.
+ */
+function placeholderX(cell: Cell, width: number, layout: readonly Cell[]): number {
+  const near = (a: number, b: number): boolean => Math.abs(a - b) <= ANCHOR_TOLERANCE;
+  const anchor = ALIGNMENTS.find((at) =>
+    layout.some((other) => !near(other.width, cell.width) && near(at(other.x, other.width), at(cell.x, cell.width))),
+  );
+  if (anchor === undefined) {
+    throw new Error('a placeholder cell shares no left or right edge or centre with the rest of its report');
+  }
+  return anchor(cell.x, cell.width) - anchor(0, width);
+}
+
+function substitute(cell: Cell, replacements: ReadonlyMap<string, string>, layout: readonly Cell[]): Cell {
   const longestFirst = [...replacements].sort(([a], [b]) => b.length - a.length);
   const text = longestFirst.reduce((current, [real, placeholder]) => current.replaceAll(real, placeholder), cell.text);
-  return { text, x: round(cell.x), width: text === cell.text ? round(cell.width) : placeholderWidth(text) };
+  if (text === cell.text) {
+    return { text, x: round(cell.x), width: round(cell.width) };
+  }
+  const width = placeholderWidth(text);
+  return { text, x: round(placeholderX(cell, width, layout)), width };
 }
 
 export function buildFixture(text: PdfText, letter: string): Fixture {
@@ -202,6 +233,7 @@ export function buildFixture(text: PdfText, letter: string): Fixture {
 
   const header = readHeader(lines);
   const replacements = placeholders(header, displayName(header, format), letter);
+  const layout = lines.flatMap((line) => line.cells);
   return {
     healthRowCount: healthRows.length,
     lines: lines
@@ -209,7 +241,7 @@ export function buildFixture(text: PdfText, letter: string): Fixture {
       .map((line) => ({
         page: line.page,
         y: round(line.y),
-        cells: line.cells.map((cell) => substitute(cell, replacements)),
+        cells: line.cells.map((cell) => substitute(cell, replacements, layout)),
       })),
   };
 }

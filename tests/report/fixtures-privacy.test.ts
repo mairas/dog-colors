@@ -14,8 +14,8 @@ import {
   SAMPLES_DIRECTORY,
 } from '../../scripts/extract-fixtures.ts';
 import { readHeader } from '../../src/report/header.ts';
-import { findHealthRows } from '../../src/report/parse.ts';
-import { extractPdfText, type Line, type PdfText } from '../../src/report/pdfText.ts';
+import { detectFormat, findHealthRows } from '../../src/report/parse.ts';
+import { extractPdfText, type Cell, type Line, type PdfText } from '../../src/report/pdfText.ts';
 import { loadFixture } from './fixtures.ts';
 import { line } from './lines.ts';
 
@@ -52,6 +52,12 @@ function source(extra: readonly Line[] = []): PdfText {
       ...extra,
     ],
   };
+}
+
+/** The source report with these lines first, in the header block a fixture keeps. */
+function withHeaderLines(lines: readonly Line[]): PdfText {
+  const text = source();
+  return { ...text, lines: [...lines, ...text.lines] };
 }
 
 describe('extract-fixtures', () => {
@@ -93,6 +99,40 @@ describe('extract-fixtures', () => {
     };
     expect(registeredWidth(50)).toBe(placeholderWidth('Sample A Registered'));
     expect(registeredWidth(150)).toBe(placeholderWidth('Sample A Registered'));
+  });
+
+  it('places a right-aligned or centred replaced cell by its edge or centre, so its x reveals nothing of the real width', () => {
+    // "MyDogDNA" ends where the right-aligned kit ID does; "DNA Test Report" is centred where the footer kit ID is.
+    // The two kit-ID cells share every edge with each other, which tells nothing.
+    const placed = (realWidth: number) => {
+      const text = withHeaderLines([
+        line(1, 805, [576 - realWidth, 'Sample ID: ABCDEFG']),
+        line(1, 803, [544, 'MyDogDNA']),
+        line(1, 801, [276, 'DNA Test Report']),
+        line(1, 41, [306 - realWidth / 2, 'Sample ID: ABCDEFG']),
+      ]);
+      const lines = text.lines.map((kept) => ({
+        ...kept,
+        cells: kept.cells.map((cell) => (cell.text === 'Sample ID: ABCDEFG' ? { ...cell, width: realWidth } : cell)),
+      }));
+      return buildFixture({ ...text, lines }, 'a')
+        .lines.flatMap((kept) => kept.cells)
+        .filter((cell) => cell.text === 'Sample ID: KIT000A')
+        .map(({ x, width }) => ({ x, width }));
+    };
+    const width = placeholderWidth('Sample ID: KIT000A');
+    const expected = [
+      { x: 576 - width, width },
+      { x: 306 - width / 2, width },
+    ];
+    expect(placed(70)).toEqual(expected);
+    expect(placed(90)).toEqual(expected);
+  });
+
+  it('refuses a replaced cell that shares no edge or centre with the rest of its report, naming no value', () => {
+    const text = withHeaderLines([line(1, 805, [401.3, 'Dog: Rex'])]);
+    expect(() => buildFixture(text, 'a')).toThrow(/edge or centre/);
+    expect(() => buildFixture(text, 'a')).not.toThrow(/Rex/);
   });
 
   it('keeps no health rows for the other owners’ dogs', () => {
@@ -160,6 +200,22 @@ describe('extract-fixtures', () => {
   });
 });
 
+// One step of the fixtures' 0.1 pt rounding, with slack for binary fractions.
+const ROUNDING_STEP = 0.1 + 1e-9;
+
+/** The cells of a committed fixture that hold a placeholder, with their line's position. */
+function placeholderCells(letter: string): { cell: Cell; page: number; y: number }[] {
+  const upper = letter.toUpperCase();
+  // "Owner" counts only as a whole cell: labels such as "Owner reported breed" hold the word too.
+  const placeholder = new RegExp(
+    `(?<![\\p{L}\\p{N}])(Sample ${upper}|0{15}|XX00000/00|KIT000${upper}|2000-01-0[12]|1/[12]/2000|T-0000|Surname|XX)(?![\\p{L}\\p{N}])|^Owner$`,
+    'u',
+  );
+  return loadFixture(letter).lines.flatMap(({ page, y, cells }) =>
+    cells.filter((cell) => placeholder.test(cell.text)).map((cell) => ({ cell, page, y })),
+  );
+}
+
 describe('committed fixtures', () => {
   it.each(FIXTURE_LETTERS)('sample %s carries only placeholder identifiers', (letter) => {
     const header = readHeader(loadFixture(letter).lines);
@@ -179,17 +235,29 @@ describe('committed fixtures', () => {
   });
 
   it.each(FIXTURE_LETTERS)('sample %s sizes every placeholder cell by the placeholder rule', (letter) => {
-    const upper = letter.toUpperCase();
-    // "Owner" counts only as a whole cell: labels such as "Owner reported breed" hold the word too.
-    const placeholder = new RegExp(
-      `(?<![\\p{L}\\p{N}])(Sample ${upper}|0{15}|XX00000/00|KIT000${upper}|2000-01-0[12]|1/[12]/2000|T-0000|Surname|XX)(?![\\p{L}\\p{N}])|^Owner$`,
-      'u',
-    );
-    const cells = loadFixture(letter).lines.flatMap((kept) => kept.cells).filter((cell) => placeholder.test(cell.text));
+    const cells = placeholderCells(letter).map(({ cell }) => cell);
     expect(cells.length).toBeGreaterThan(0);
     for (const cell of cells) {
       expect({ text: cell.text, width: cell.width }).toEqual({ text: cell.text, width: placeholderWidth(cell.text) });
     }
+  });
+
+  it('places a placeholder cell at the same x in every fixture of a format that has it at the same position', () => {
+    const xs = new Map<string, Map<string, number>>();
+    for (const letter of FIXTURE_LETTERS) {
+      const format = detectFormat(loadFixture(letter).lines);
+      for (const { cell, y, page } of placeholderCells(letter)) {
+        const position = `${format} page ${page} y ${y} "${cell.text.replace(new RegExp(`(Sample |KIT000)${letter.toUpperCase()}`, 'g'), '$1?')}"`;
+        xs.set(position, new Map([...(xs.get(position) ?? []), [letter, cell.x]]));
+      }
+    }
+    const shared = [...xs].filter(([, byLetter]) => byLetter.size > 1);
+    expect(shared.length).toBeGreaterThan(0);
+    // One real position may round either way.
+    const differing = shared.filter(
+      ([, byLetter]) => Math.max(...byLetter.values()) - Math.min(...byLetter.values()) > ROUNDING_STEP,
+    );
+    expect(differing.map(([position, byLetter]) => `${position}: ${JSON.stringify(Object.fromEntries(byLetter))}`)).toEqual([]);
   });
 
   it.each(FIXTURE_LETTERS.filter((letter) => !HEALTH_FIXTURE_LETTERS.includes(letter)))(
