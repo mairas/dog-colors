@@ -19,6 +19,8 @@ export function alertBox(message: Message, className = ''): HTMLElement {
     h(
       'span',
       {},
+      message.title === undefined ? null : h('b', {}, `${message.title}.`),
+      message.title === undefined ? null : ' ',
       message.text,
       message.link === undefined ? null : ' ',
       message.link === undefined ? null : h('a', { href: message.link.href, rel: 'noopener' }, message.link.label),

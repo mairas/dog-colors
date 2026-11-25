@@ -8,6 +8,7 @@ import type { PuppyPrediction, Row, Table, TraitRow, UndocumentedLocus } from '.
 import { caveatText, COLOUR_WARNING_TEXT, type CaveatId, type ColourWarning } from '../genetics/warnings.ts';
 import { h, present, svg, type Child } from './dom.ts';
 import { chance, chanceParts } from './format.ts';
+import { alertBox } from './slots.ts';
 import {
   BASE_NAMES,
   BASE_WORDS,
@@ -91,11 +92,15 @@ function chanceRow(label: Child[], row: Pick<Row<unknown>, 'chance'>): HTMLEleme
   return h('tr', {}, h('td', {}, ...label), h('td', { class: 'v' }, chance(row.chance)));
 }
 
+/** A dosage row's "2 copies" pill and the space after it. */
+function copiesPill(copies: number | null): Child[] {
+  return copies === null ? [] : [h('span', { class: 'pill' }, copiesText(copies)), ' '];
+}
+
 function outcomeTable<V extends string>(key: string, title: string, table: Table<V>, label: (value: V) => Child[]): HTMLTableElement {
   const rows = table.rows.map((row) => {
-    const pill = row.copies === null ? null : h('span', { class: 'pill' }, copiesText(row.copies));
     const name: Child[] = row.value === 'unknown' ? [`Unknown: ${unknownLociText(table.unknown)}`] : label(row.value);
-    return chanceRow([pill, pill ? ' ' : null, ...name, flagTags(row.flags)], row);
+    return chanceRow([...copiesPill(row.copies), ...name, flagTags(row.flags)], row);
   });
   return chanceTable([title, ...caveatBadge(key, table.caveats, table.undocumented)], 'Outcome', rows);
 }
@@ -111,8 +116,7 @@ function traitTable(rows: readonly TraitRow[]): HTMLTableElement {
     rows.map((row) =>
       chanceRow(
         [
-          row.copies === null ? null : h('span', { class: 'pill' }, copiesText(row.copies)),
-          row.copies === null ? null : ' ',
+          ...copiesPill(row.copies),
           traitName(row.value),
           flagTags(row.flags),
           ...caveatBadge(`trait-${row.value}`, row.caveats),
@@ -201,21 +205,7 @@ function combinedOutcomes(prediction: PuppyPrediction): Child[] {
 }
 
 function warningPanel(items: readonly PanelItem[]): HTMLElement | null {
-  if (items.length === 0) {
-    return null;
-  }
-  return h(
-    'div',
-    { class: 'warnings' },
-    ...items.map((item) =>
-      h(
-        'p',
-        { class: 'err' },
-        h('span', { 'aria-hidden': 'true', class: 'icon' }, '⚠'),
-        h('span', {}, h('b', {}, `${item.title}.`), ` ${item.text}`),
-      ),
-    ),
-  );
+  return items.length === 0 ? null : h('div', { class: 'warnings' }, ...items.map((item) => alertBox(item)));
 }
 
 function colourWarning(warning: ColourWarning): PanelItem {

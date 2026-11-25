@@ -142,9 +142,18 @@ function genotypeTable(input: CardInput): HTMLElement {
   );
 }
 
+/** "TYRP1 (chocolate) is missing or unreadable in this report", or null when every locus was read. */
+function unreadLoci(dog: ResolvedDog): string | null {
+  const unknown = [...dog.missingLoci, ...dog.inconsistentLoci.map((locus) => locus.gene)];
+  if (unknown.length === 0) {
+    return null;
+  }
+  return `${unknown.map(geneName).join(', ')} ${unknown.length === 1 ? 'is' : 'are'} missing or unreadable in this report`;
+}
+
 function mismatchHelp(input: CardInput): HTMLElement {
   const { dog, slot } = input;
-  const unknown = [...dog.missingLoci, ...dog.inconsistentLoci.map((locus) => locus.gene)];
+  const unread = unreadLoci(dog);
   return h(
     'details',
     { class: 'why', 'data-key': `why-${slot}` },
@@ -154,9 +163,7 @@ function mismatchHelp(input: CardInput): HTMLElement {
       {},
       h('li', {}, "Brindle and greying can't be tested."),
       h('li', {}, 'Rare variants (eA, eG, eH) are not modelled precisely.'),
-      unknown.length > 0
-        ? h('li', {}, `${unknown.map(geneName).join(', ')} ${unknown.length === 1 ? 'is' : 'are'} missing or unreadable in this report.`)
-        : null,
+      unread === null ? null : h('li', {}, `${unread}.`),
       dog.undocumentedLoci.length > 0
         ? h('li', {}, `Undocumented combination (${dog.undocumentedLoci.join(', ')}): ${FLAG_INFO['undocumented-haplotype'].caveat}`)
         : null,
@@ -210,16 +217,8 @@ function unsettledNotes(dog: ResolvedDog): HTMLElement[] {
 }
 
 function missingNote(dog: ResolvedDog): HTMLElement | null {
-  const unknown = [...dog.missingLoci, ...dog.inconsistentLoci.map((locus) => locus.gene)];
-  if (unknown.length === 0) {
-    return null;
-  }
-  const verb = unknown.length === 1 ? 'is' : 'are';
-  return h(
-    'p',
-    { class: 'note' },
-    `${unknown.map(geneName).join(', ')} ${verb} missing or unreadable in this report, so what depends on it shows as unknown.`,
-  );
+  const unread = unreadLoci(dog);
+  return unread === null ? null : h('p', { class: 'note' }, `${unread}, so what depends on it shows as unknown.`);
 }
 
 export function renderCard(input: CardInput, actions: CardActions): HTMLElement {

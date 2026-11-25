@@ -3,6 +3,8 @@
 import type { RejectionKind } from '../report/types.ts';
 
 export interface Message {
+  /** A bold lead-in, written before the text and followed by a full stop. */
+  readonly title?: string;
   readonly text: string;
   readonly link?: { readonly href: string; readonly label: string };
 }
