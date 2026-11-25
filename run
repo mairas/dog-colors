@@ -77,6 +77,12 @@ function check-csp {
   node scripts/csp-check.ts dist/index.html
 }
 
+function check-fixtures {
+  #@ Check that dist/ carries none of the dev-only fixture states (run after build)
+  #@ Category: Quality
+  node scripts/fixture-check.ts dist
+}
+
 function check-pdfs {
   #@ [base-ref]: fail if a PDF is tracked by name or content; given base-ref, also if base-ref..HEAD added one
   #@ Category: Quality
