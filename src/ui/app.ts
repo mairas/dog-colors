@@ -6,11 +6,12 @@
 import { resolveDog, type ResolvedDog } from '../genetics/dog.ts';
 import type { NoseAnswer } from '../genetics/questions.ts';
 import { predictPuppies, type PuppyPrediction } from '../genetics/results.ts';
-import type { ParentIndex } from '../health/health.ts';
+import { analyseHealth, type HealthAnalysis, type ParentIndex } from '../health/health.ts';
 import type { ReadResult, Report, Sex } from '../report/types.ts';
 import { createAnnouncer } from './announce.ts';
 import { dogName, renderCard } from './card.ts';
 import { h, svg } from './dom.ts';
+import { healthWarnings, renderHealth } from './health.ts';
 import {
   DROP_FULL,
   DROP_ONE_FREE,
@@ -102,7 +103,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   let focusKey: string | null = null;
   let renderedKinds: readonly string[] = [];
   let resultsShown = false;
-  let cached: { key: readonly unknown[]; prediction: PuppyPrediction } | null = null;
+  let cached: { key: readonly unknown[]; prediction: PuppyPrediction; health: HealthAnalysis } | null = null;
 
   const announcer = createAnnouncer();
   const dropAlert = h('div', { class: 'drop-alert' });
@@ -179,12 +180,19 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     return dog;
   };
 
-  const predict = (first: LoadedSlot, second: LoadedSlot, dogs: readonly [ResolvedDog, ResolvedDog]): PuppyPrediction => {
+  const predict = (
+    first: LoadedSlot,
+    second: LoadedSlot,
+    dogs: readonly [ResolvedDog, ResolvedDog],
+  ): { prediction: PuppyPrediction; health: HealthAnalysis } => {
     const key = [first.report, first.nose, second.report, second.nose];
     if (cached === null || cached.key.some((item, index) => item !== key[index])) {
-      cached = { key, prediction: predictPuppies(dogs[0], dogs[1]) };
+      const health = cached !== null && cached.key[0] === first.report && cached.key[2] === second.report
+        ? cached.health
+        : analyseHealth(first.report, second.report);
+      cached = { key, prediction: predictPuppies(dogs[0], dogs[1]), health };
     }
-    return cached.prediction;
+    return cached;
   };
 
   function renderPair(): void {
@@ -259,13 +267,15 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     const pair = loaded();
     const show = pair !== null && !duplicate();
     if (show) {
-      const prediction = predict(pair[0], pair[1], [resolve(pair[0]), resolve(pair[1])]);
+      const { prediction, health } = predict(pair[0], pair[1], [resolve(pair[0]), resolve(pair[1])]);
       resultsEl.replaceChildren(
         ...renderResults({
           names: [dogName(pair[0].report, 0), dogName(pair[1].report, 1)],
           prediction,
           openQuestion: pair.some((slot) => slot.nose === undefined && resolve(slot).questions.length > 0),
           sameSex: sameSex(pair[0].report.sex, pair[1].report.sex),
+          healthWarnings: healthWarnings(health),
+          sections: [renderHealth(health)],
         }),
       );
     } else {

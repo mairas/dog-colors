@@ -559,6 +559,28 @@ table.t td.v {
 .caveats {
   margin-top: 26px;
 }
+.health {
+  margin-top: 40px;
+}
+.health > p.sec {
+  margin: 8px 0 12px;
+}
+table.ht tbody th {
+  font-weight: 400;
+}
+table.ht tr.parent-row > * {
+  border-bottom: none;
+}
+table.ht tr.sub th {
+  padding-left: 24px;
+}
+h3.minor {
+  font: 600 16px 'Source Sans 3', sans-serif;
+  margin: 16px 0 4px;
+}
+.one-parent {
+  margin-top: 0;
+}
 
 .sec {
   font-size: 14px;
