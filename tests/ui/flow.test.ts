@@ -452,7 +452,7 @@ describe('untrusted report text', () => {
     ownerLast: 'Ownerson',
   };
 
-  it('never puts the microchip, registration, kit ID or owner name into the page', async () => {
+  it('never puts the microchip, registration, kit ID, its hash or owner name into the page', async () => {
     const source = fixtureText('d');
     const lines = source.lines.map((line) => ({
       ...line,
@@ -472,7 +472,9 @@ describe('untrusted report text', () => {
     await app.load(1, pdf('b.pdf'));
     const html = document.documentElement.outerHTML;
     expect(html).toContain('Sample D');
-    for (const value of Object.values(FABRICATED)) {
+    const hash = report.ok ? report.report.kitIdHash : null;
+    expect(hash).toMatch(/^[0-9a-f]{64}$/);
+    for (const value of [...Object.values(FABRICATED), hash ?? '']) {
       expect(html).not.toContain(value);
     }
   });
