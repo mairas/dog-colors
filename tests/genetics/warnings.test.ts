@@ -28,6 +28,13 @@ describe('double merle wording', () => {
   });
 });
 
+describe('merle allele length', () => {
+  // Murphy 2018: unsized merle alleles range from faint to harlequin-length.
+  it('says an unsized merle may show weaker or stronger than predicted', () => {
+    expect(caveatText('merle-allele-length')).toMatch(/weaker or stronger than shown/);
+  });
+});
+
 describe('unknown-locus warnings', () => {
   it.each(['double-merle-unknown', 'harlequin-lethal-unknown'] as const)(
     '%s reads true when neither parent has a known result',

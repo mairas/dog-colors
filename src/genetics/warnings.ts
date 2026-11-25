@@ -69,7 +69,7 @@ export const CAVEAT_TEXT: Readonly<Record<CrossCaveat, string>> = {
   'white-piebald-only': `These rows describe piebald (MITF) white only. ${DOUBLE_MERLE_WHITE} whatever their row here; see the double merle warning.`,
   'dilution-alopecia': 'Dilute dogs can develop colour dilution alopecia (hair loss in dilute areas).',
   'linkage-d1': 'Dilution d1 is a linkage test: occasional wrong calls are possible.',
-  'merle-allele-length': "The test doesn't tell merle allele lengths apart, so the pattern and its risks may be weaker than shown.",
+  'merle-allele-length': "The test doesn't tell merle allele lengths apart, so the pattern and its risks may be weaker or stronger than shown.",
   'linkage-roan': 'Roan is a linkage test: occasional wrong calls are possible.',
   'independent-loci':
     'Each gene is treated as inherited independently. Saddle tan (RALY) sits next to the tan-points gene (ASIP), and red intensity (MFSD12) shares a chromosome with piebald (MITF).',
