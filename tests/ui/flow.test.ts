@@ -78,6 +78,16 @@ describe('the colour page', () => {
     expect(root.querySelector('legend')?.textContent).toBe('Nose and paw pads: black or brown?');
   });
 
+  it('shows what each locus reads as on the card, marking the answered one', async () => {
+    const { root } = await pair('nose.pdf', 'b.pdf');
+    root.querySelector<HTMLInputElement>('[data-key="nose-0-black"]')?.click();
+    const rows = [...root.querySelectorAll('[data-slot="0"] table.geno tbody tr')].map((row) => [
+      row.querySelector('th')?.textContent,
+      row.lastElementChild?.textContent,
+    ]);
+    expect(rows).toContainEqual(['TYRP1', 'B/b: black, carries brown (your answer)']);
+  });
+
   it('notes that the report can’t settle an ASIP-only ambiguity', async () => {
     const { root, text } = await pair('asip.pdf', 'b.pdf');
     expect(text()).toContain(SETTLE_NOTE);

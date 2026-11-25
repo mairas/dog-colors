@@ -81,7 +81,7 @@ export function hiderOf(coat: PigmentPhenotype): Hider | null {
 }
 
 /** A genotype in which the A locus shows: wild type everywhere, as a report with no variants reads. */
-const NEUTRAL: Genotype = (() => {
+export const NEUTRAL: Genotype = (() => {
   let result: Genotype = {};
   const wild = <G extends ColourGene>(gene: G): void => {
     const allele = GENE_RULES[gene].decode(new Set());
@@ -129,13 +129,18 @@ function byHider(
 
 const asipShows = (pattern: Pattern) => (pair: readonly string[]) => asipPattern(pair) === pattern;
 
-export const PIGMENT_HIDDEN: readonly HiddenItem<PigmentPhenotype>[] = [
+/** Recessive alleles carried once. */
+export const CARRIERS: readonly HiddenItem<PigmentPhenotype>[] = [
   carrier('carries-beige', 'MC1R', 'e'),
   carrier('carries-brown', 'TYRP1', 'b'),
   carrier('carries-cocoa', 'HPS3', 'co'),
   carrier('carries-dilute', 'MLPH', 'd'),
   carrier('carries-albino', 'SLC45A2', 'cal'),
   carrier('carries-recessive-black', 'ASIP', 'a'),
+];
+
+export const PIGMENT_HIDDEN: readonly HiddenItem<PigmentPhenotype>[] = [
+  ...CARRIERS,
   ...byHider('sable-hidden', 'ASIP', asipShows('sable'), HIDERS),
   ...byHider('wolf-sable-hidden', 'ASIP', asipShows('wolf-sable'), HIDERS),
   ...byHider('tan-points-hidden', 'ASIP', asipShows('tan-points'), HIDERS),

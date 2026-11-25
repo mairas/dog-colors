@@ -3,6 +3,7 @@
 
 import type { AllelePair } from '../genetics/alleles.ts';
 import type { OwnColour, ResolvedDog } from '../genetics/dog.ts';
+import { pairEffect } from '../genetics/effects.ts';
 import { FLAG_INFO, type BaseColour, type Unknown } from '../genetics/phenotype.ts';
 import type { NoseAnswer } from '../genetics/questions.ts';
 import type { ParentIndex } from '../health/health.ts';
@@ -12,7 +13,7 @@ import { h } from './dom.ts';
 import { flagTags } from './results.ts';
 import type { Message } from './messages.ts';
 import { alertBox } from './slots.ts';
-import { formatPairs, geneName, GENE_LABELS, lowerFirst, pairEffect, parentLabel } from './names.ts';
+import { formatPairs, geneName, GENE_LABELS, lowerFirst, parentLabel } from './names.ts';
 
 export interface CardInput {
   readonly slot: ParentIndex;
