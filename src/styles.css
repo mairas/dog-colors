@@ -580,6 +580,27 @@ footer {
   font-size: 14px;
   color: var(--mute);
 }
+footer p {
+  margin: 0 0 12px;
+}
+details.sources {
+  margin: 0 0 12px;
+}
+details.sources summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 600;
+}
+details.sources ul {
+  margin: 0;
+  padding-left: 20px;
+}
+details.sources li {
+  margin: 4px 0;
+}
 
 .ready,
 .print-only {
@@ -628,6 +649,7 @@ footer {
   .privacy,
   details.why,
   details.gd,
+  details.sources,
   fieldset {
     display: none !important;
   }
