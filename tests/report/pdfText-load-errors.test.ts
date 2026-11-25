@@ -2,7 +2,8 @@
 // extractPdfText through a stand-in getDocument. pdf.js does not export
 // UnknownErrorException; its errors carry their class name in `name`.
 import { describe, expect, it, vi } from 'vitest';
-import { extractPdfText } from '../../src/report/pdfText.ts';
+import { extractPdfText, MAX_BYTES } from '../../src/report/pdfText.ts';
+import { PASS_BUDGET_MS } from './timing.ts';
 
 const loadFailure = vi.hoisted(() => ({ error: new Error('unset') }));
 
@@ -39,6 +40,19 @@ describe('extractPdfText, when pdf.js fails to load the document', () => {
       ok: false,
       kind: 'encrypted',
     });
+  });
+
+  it('scans a largest-size file dense with name slashes for /Encrypt quickly', async () => {
+    loadFailure.error = unknownError('Bad FCHECK in flate stream');
+    const data = new Uint8Array(MAX_BYTES).fill('/'.charCodeAt(0));
+    data.set(new TextEncoder().encode('%PDF-1.7\n'));
+    let fastest = Number.POSITIVE_INFINITY;
+    for (let run = 0; run < 3; run++) {
+      const start = performance.now();
+      expect(await extractPdfText(data)).toEqual({ ok: false, kind: 'not-pdf' });
+      fastest = Math.min(fastest, performance.now() - start);
+    }
+    expect(fastest).toBeLessThan(PASS_BUDGET_MS);
   });
 
   it('throws any other error, such as a worker that could not start', async () => {

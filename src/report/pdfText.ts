@@ -228,17 +228,12 @@ function hasPdfSignature(data: Uint8Array): boolean {
   return head.includes(PDF_SIGNATURE);
 }
 
-const ENCRYPT_KEY = new TextEncoder().encode('/Encrypt');
-const [NAME_START = 0] = ENCRYPT_KEY;
+const ENCRYPT_KEY = '/Encrypt';
 
 /** Whether the file has an /Encrypt entry, which only an encrypted file's trailer carries. */
 function hasEncryptEntry(data: Uint8Array): boolean {
-  for (let at = data.indexOf(NAME_START); at !== -1; at = data.indexOf(NAME_START, at + 1)) {
-    if (ENCRYPT_KEY.every((byte, offset) => data[at + offset] === byte)) {
-      return true;
-    }
-  }
-  return false;
+  // A native string search: a per-byte loop over a crafted file dense with '/' takes seconds.
+  return new TextDecoder('latin1').decode(data).includes(ENCRYPT_KEY);
 }
 
 // pdf.js reports a file it cannot open for a reason other than a password or
