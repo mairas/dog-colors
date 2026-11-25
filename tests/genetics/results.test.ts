@@ -5,6 +5,7 @@ import { ownColourName } from '../../src/genetics/phenotype.ts';
 import type { Range } from '../../src/genetics/range.ts';
 import { predictPuppies, scenarioTables, type PuppyPrediction } from '../../src/genetics/results.ts';
 import { add, fraction, ZERO, type Fraction } from '../../src/health/fraction.ts';
+import { COLOUR_GENES } from '../../src/report/loci.ts';
 import { parentLoci } from './genotypes.ts';
 import { sampleReport, syntheticReport } from './reports.ts';
 
@@ -24,6 +25,11 @@ const HETEROZYGOUS = {
   MITF: 'sp/+',
   USH2A: 'R/+',
 };
+
+/** One candidate per locus, heterozygous wherever a locus has a variant. */
+const HETEROZYGOUS_SINGLE = Object.fromEntries(
+  Object.entries(HETEROZYGOUS).map(([gene, pairs]) => [gene, typeof pairs === 'string' ? pairs : (pairs[0] ?? '')]),
+);
 
 function frac(text: string): Fraction {
   const [numerator, denominator = '1'] = text.split('/');
@@ -380,6 +386,39 @@ describe('predictPuppies: missing and inconsistent loci', () => {
     // Harlequin needs H, which neither parent has, so it stays predictable.
     expect(prediction.traits.notPossible).toEqual(['dilute', 'beige', 'harlequin', 'roan']);
     expect(prediction.warnings).toEqual([]);
+  });
+
+  it('blames only the missing loci each figure reads', () => {
+    const prediction = predictPuppies(
+      { loci: parentLoci({ PMEL: 'M/m', MLPH: 'D/d' }, ['TYRP1', 'RALY', 'PMEL', 'USH2A']) },
+      { loci: parentLoci({ PMEL: 'M/m', MLPH: 'D/d', MITF: 'sp/+', USH2A: 'R/+' }, ['MITF']) },
+    );
+    expect(prediction.base.unknown).toEqual([{ gene: 'TYRP1', parent: 0, reason: 'missing' }]);
+    expect(prediction.white.unknown).toEqual([{ gene: 'MITF', parent: 1, reason: 'missing' }]);
+    expect(prediction.traits.cannotPredict).toEqual([
+      { trait: 'merle', unknown: [{ gene: 'PMEL', parent: 0, reason: 'missing' }] },
+      { trait: 'doubleMerle', unknown: [{ gene: 'PMEL', parent: 0, reason: 'missing' }] },
+      {
+        trait: 'roan',
+        unknown: [
+          { gene: 'MITF', parent: 1, reason: 'missing' },
+          { gene: 'USH2A', parent: 0, reason: 'missing' },
+        ],
+      },
+    ]);
+  });
+
+  it('names a missing locus whenever a figure is unknown', () => {
+    for (const gene of COLOUR_GENES) {
+      const prediction = predictPuppies({ loci: parentLoci(HETEROZYGOUS_SINGLE, [gene]) }, { loci: parentLoci(HETEROZYGOUS_SINGLE) });
+      for (const table of [prediction.base, prediction.pattern, prediction.white]) {
+        const unknown = table.rows.some((row) => row.value === 'unknown');
+        expect(table.unknown.map((locus) => locus.gene), gene).toEqual(unknown ? [gene] : []);
+      }
+      for (const { trait, unknown } of prediction.traits.cannotPredict) {
+        expect(unknown.map((locus) => locus.gene), `${gene} ${trait}`).toEqual([gene]);
+      }
+    }
   });
 
   it('treats a locus whose copies fit no genotype like a missing one, and says which', () => {

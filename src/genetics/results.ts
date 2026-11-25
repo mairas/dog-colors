@@ -7,7 +7,7 @@ import { compare, fraction, type Fraction } from '../health/fraction.ts';
 import type { ParentIndex } from '../health/health.ts';
 import { COLOUR_GENES, type ColourGene } from '../report/loci.ts';
 import { ALLELES } from './alleles.ts';
-import { crossScenarios, PIGMENT_GENES, sum, WHITE_GENES, type CrossParent, type GroupResult, type Scenario } from './cross.ts';
+import { crossScenarios, sum, type CrossParent, type GroupResult, type Scenario } from './cross.ts';
 import { PIGMENT_HIDDEN, WHITE_HIDDEN, type HiddenId, type Hider } from './hidden.ts';
 import {
   BASE_COLOURS,
@@ -130,6 +130,22 @@ const WHITE_COPIES: Readonly<Record<WhiteSpotting | Unknown, number | null>> = {
 const ALWAYS: readonly CaveatId[] = ['independent-loci', 'untested-loci', 'linkage-d1', 'linkage-roan'];
 
 const PIGMENT_TRAITS = ['merle', 'doubleMerle', 'dilute', 'beige', 'harlequin'] as const satisfies readonly Trait[];
+
+/**
+ * The loci each figure's rules in phenotype.ts read. A figure left unknown
+ * blames only these among the missing or inconsistent loci.
+ */
+const READS = {
+  base: ['SLC45A2', 'MC1R', 'MFSD12', 'TYRP1', 'HPS3', 'MLPH'],
+  pattern: ['SLC45A2', 'MC1R', 'CBD103', 'ASIP'],
+  white: ['MITF'],
+  merle: ['SLC45A2', 'MC1R', 'PMEL'],
+  doubleMerle: ['PMEL'],
+  dilute: ['SLC45A2', 'MLPH'],
+  beige: ['SLC45A2', 'MC1R'],
+  harlequin: ['SLC45A2', 'MC1R', 'PMEL', 'PSMB7'],
+  roan: ['MITF', 'USH2A'],
+} as const satisfies Readonly<Record<'base' | 'pattern' | 'white' | Trait, readonly ColourGene[]>>;
 
 /** One scenario's figures as counts out of their group's total. */
 interface ScenarioCounts {
@@ -520,7 +536,7 @@ function buildTraits(
     notPossible: predictable.filter((trait) => !positive(traits.range(trait))),
     cannotPredict: TRAITS.filter((trait) => unknownTraits.has(trait)).map((trait) => ({
       trait,
-      unknown: unknownIn(trait === 'roan' ? WHITE_GENES : PIGMENT_GENES),
+      unknown: unknownIn(READS[trait]),
     })),
   };
 }
@@ -631,9 +647,9 @@ export function predictPuppies(first: CrossParent, second: CrossParent): PuppyPr
     hasRanges: ranges.some((range) => !isSingle(range)),
     warnings,
     combined,
-    base: table(rows.base, [], PIGMENT_GENES),
-    pattern: table(rows.pattern, patternCaveats, PIGMENT_GENES),
-    white: table(rows.white, whiteCaveats, WHITE_GENES),
+    base: table(rows.base, [], READS.base),
+    pattern: table(rows.pattern, patternCaveats, READS.pattern),
+    white: table(rows.white, whiteCaveats, READS.white),
     traits,
     hidden,
     unknownLoci,
