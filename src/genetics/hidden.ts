@@ -24,6 +24,7 @@ export const HIDDEN_IDS = [
   'tan-points-hidden',
   'recessive-black-hidden',
   'dominant-black-hidden',
+  'dominant-black-unexpressed',
   'mask-hidden',
   'light-cream-hidden',
   'merle-hidden',
@@ -55,6 +56,7 @@ export const HIDDEN_EFFECTS: Readonly<Record<HiddenId, string>> = {
   'tan-points-hidden': 'Tan points',
   'recessive-black-hidden': 'Recessive black (a/a)',
   'dominant-black-hidden': 'Dominant Black (KB)',
+  'dominant-black-unexpressed': 'Dominant Black (KB), not expressed with eA or eH',
   'mask-hidden': 'Mask, hidden on solid coats',
   'light-cream-hidden': 'Light cream if ever beige',
   'merle-hidden': 'Merle',
@@ -139,6 +141,14 @@ export const PIGMENT_HIDDEN: readonly HiddenItem<PigmentPhenotype>[] = [
   ...byHider('tan-points-hidden', 'ASIP', asipShows('tan-points'), HIDERS),
   ...byHider('recessive-black-hidden', 'ASIP', asipShows('recessive-solid'), HIDERS),
   ...byHider('dominant-black-hidden', 'CBD103', (pair) => copies(pair, 'KB') > 0, ['beige', 'albino']),
+  // A KB coat that shows an A-locus pattern: MC1R eA or eH skipped the K step.
+  {
+    id: 'dominant-black-unexpressed',
+    hider: null,
+    gene: 'CBD103',
+    carries: (pair) => copies(pair, 'KB') > 0,
+    hidden: (coat) => ['sable', 'wolf-sable', 'tan-points', 'recessive-solid'].includes(coat.pattern),
+  },
   {
     id: 'mask-hidden',
     hider: null,

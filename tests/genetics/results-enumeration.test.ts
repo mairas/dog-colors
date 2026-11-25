@@ -89,6 +89,7 @@ function hiddenRows(spec: Spec): string[] {
     add(`${agouti}-hidden`, hider, true);
   }
   add('dominant-black-hidden', hider, dominantBlack && noEumelanin);
+  add('dominant-black-unexpressed', null, dominantBlack && kSkipped && !noEumelanin);
   add('mask-hidden', null, n('MC1R', 'Em') > 0 && !showsTanOrFawn);
   // Light cream shows on a beige coat and on tan or fawn areas.
   add('light-cream-hidden', null, n('MFSD12', 'i') === 2 && !showsTanOrFawn && !(recessiveRed && !albino));
@@ -110,6 +111,7 @@ const HIDDEN_GENE: Readonly<Record<string, ColourGene>> = {
   'tan-points-hidden': 'ASIP',
   'recessive-black-hidden': 'ASIP',
   'dominant-black-hidden': 'CBD103',
+  'dominant-black-unexpressed': 'CBD103',
   'mask-hidden': 'MC1R',
   'light-cream-hidden': 'MFSD12',
   'merle-hidden': 'PMEL',

@@ -179,6 +179,20 @@ describe('predictPuppies: hidden and carried rows', () => {
     expect(hiddenRow(prediction, 'dominant-black-hidden', 'beige')).toMatchObject({ genotypes: ['KB/ky'], chance: range('3/32') });
   });
 
+  it('lists Dominant Black that MC1R eA or eH leaves unexpressed', () => {
+    const prediction = predictPuppies(
+      { loci: parentLoci({ CBD103: 'KB/ky', MC1R: 'eH/e', ASIP: 'at/at' }) },
+      { loci: parentLoci({ MC1R: 'E/e', ASIP: 'at/at' }) },
+    );
+    // KB/ky (1/2) with eH/e (1/4): the other MC1R pairs carry E or are beige.
+    expect(hiddenRow(prediction, 'dominant-black-unexpressed', null)).toMatchObject({ genotypes: ['KB/ky'], chance: range('1/8') });
+  });
+
+  it('lists no unexpressed Dominant Black with eG, which keeps KB expressed', () => {
+    const prediction = predictPuppies({ loci: parentLoci({ CBD103: 'KB/ky', MC1R: 'eG/eG' }) }, { loci: parentLoci({ MC1R: 'eG/eG' }) });
+    expect(hiddenRow(prediction, 'dominant-black-unexpressed', null)).toBeUndefined();
+  });
+
   it('hides sable, wolf sable and recessive black under Dominant Black', () => {
     const prediction = predictPuppies({ loci: parentLoci({ ASIP: 'ay/a', CBD103: 'KB/KB' }) }, { loci: parentLoci({ ASIP: 'aw/a' }) });
     expect(hiddenRow(prediction, 'sable-hidden', 'dominant-black')).toMatchObject({ genotypes: ['ay/aw', 'ay/a'], chance: range('1/2') });
