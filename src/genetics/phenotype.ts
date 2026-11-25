@@ -204,6 +204,30 @@ interface Choice {
   readonly count: number;
 }
 
+const UNREAD = Symbol('unread');
+
+/**
+ * The rule's value when every locus it reads is known, or UNREAD. The cross
+ * evaluates complete genotypes tens of thousands of times, and this skips the
+ * search's bookkeeping for them.
+ */
+function direct<T>(genotype: Genotype, rule: Rule<T>): T | typeof UNREAD {
+  try {
+    return rule(<G extends ColourGene>(gene: G): AllelePair<G> => {
+      const pair = genotype[gene];
+      if (pair === undefined) {
+        throw UNREAD;
+      }
+      return pair;
+    });
+  } catch (error) {
+    if (error === UNREAD) {
+      return UNREAD;
+    }
+    throw error;
+  }
+}
+
 /**
  * Calls visit with the rule's value for each combination of pairs at the
  * unknown loci the rule reads, until visit returns false. It branches on a
@@ -211,6 +235,11 @@ interface Choice {
  * needs for this genotype: at most five, 3·21·3·15·3 = 8,505 combinations.
  */
 function search<T>(genotype: Genotype, rule: Rule<T>, visit: (value: T) => boolean): void {
+  const value = direct(genotype, rule);
+  if (value !== UNREAD) {
+    visit(value);
+    return;
+  }
   const choices: Choice[] = [];
   for (;;) {
     let depth = 0;
