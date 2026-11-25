@@ -331,7 +331,7 @@ export const FLAG_INFO: Readonly<Record<Flag, { readonly label: string; readonly
   'undocumented-haplotype': {
     label: 'undocumented combination',
     caveat:
-      "The report's variant copies fit no combination documented on one chromosome. Every way of placing them on the two chromosomes gives the same alleles, so those are used, but the combination itself is not described in the sources.",
+      "For the genes named, the report's variant copies fit no combination documented on one chromosome. Every way of placing them that keeps each variant's own effect gives the same alleles, so those are used, but the combination itself is not described in the sources.",
   },
   'not-modelled-eA': {
     label: 'not modelled precisely',

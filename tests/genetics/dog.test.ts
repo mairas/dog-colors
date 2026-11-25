@@ -20,6 +20,7 @@ describe('resolveDog: the sample reports', () => {
     expect(dog.unsettled).toEqual([]);
     expect(dog.missingLoci).toEqual([]);
     expect(dog.inconsistentLoci).toEqual([]);
+    expect(dog.undocumentedLoci).toEqual([]);
   });
 
   it('Sample A is brown, one colour, piebald to mostly white', async () => {
@@ -110,12 +111,30 @@ describe('resolveDog: missing and inconsistent loci', () => {
     expect(names(dog)).toEqual(['Colour unknown, with limited white']);
   });
 
-  it('reads TYRP1 bc 2 + bs 1 as brown with the undocumented-haplotype flag', () => {
+  it('reads TYRP1 bc 2 + bs 1 as brown with the undocumented-haplotype flag, naming TYRP1', () => {
     const dog = resolveDog(syntheticReport({ 'TYRP1 bc': 2, 'TYRP1 bs': 1, 'CBD103 KB': 1 }));
     expect(dog.inconsistentLoci).toEqual([]);
     expect(dog.loci.TYRP1).toMatchObject({ status: 'resolved', undocumented: true });
+    expect(dog.undocumentedLoci).toEqual(['TYRP1']);
     expect(names(dog)).toEqual(['Brown, solid']);
     expect(dog.ownColours[0]?.phenotype.flags).toEqual(['undocumented-haplotype', 'brindle-possible']);
+  });
+
+  it('lists every undocumented locus in gene order', () => {
+    const dog = resolveDog(syntheticReport({ 'TYRP1 bc': 2, 'TYRP1 bs': 1, 'MLPH d1': 2, 'MLPH d2': 1, 'ASIP a': 1 }));
+    expect(dog.undocumentedLoci).toEqual(['ASIP', 'MLPH', 'TYRP1']);
+    expect(dog.inconsistentLoci).toEqual([]);
+  });
+
+  it('lists no undocumented locus for a documented report', () => {
+    expect(resolveDog(syntheticReport({ 'TYRP1 bc': 1, 'TYRP1 bs': 1 })).undocumentedLoci).toEqual([]);
+  });
+
+  it('reports MC1R eA 2 + eH 1 as inconsistent, not as a colour', () => {
+    const dog = resolveDog(syntheticReport({ 'MC1R eA': 2, 'MC1R eH': 1 }));
+    expect(dog.inconsistentLoci).toEqual([{ gene: 'MC1R', reason: 'no-phasing' }]);
+    expect(dog.undocumentedLoci).toEqual([]);
+    expect(dog.ownColours.map((colour) => colour.phenotype.base)).toEqual(['unknown']);
   });
 
   it('reports a locus whose copies fit no genotype as inconsistent, and treats it as unknown', () => {

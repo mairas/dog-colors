@@ -37,6 +37,8 @@ export interface ResolvedDog {
   readonly missingLoci: readonly ColourGene[];
   /** Loci whose copy counts fit no genotype; treated as unknown. */
   readonly inconsistentLoci: readonly InconsistentLocus[];
+  /** Loci read from a combination no source documents; the undocumented-haplotype caveat names them. */
+  readonly undocumentedLoci: readonly ColourGene[];
   /** The predicted own colours, one per name, in candidate order. */
   readonly ownColours: readonly OwnColour[];
 }
@@ -78,7 +80,7 @@ export function resolveDog(report: Pick<Report, 'colour' | 'missingLoci'>, answe
     return locus.status === 'inconsistent' ? [{ gene, reason: locus.reason }] : [];
   });
 
-  const undocumented = COLOUR_GENES.some((gene) => {
+  const undocumentedLoci = COLOUR_GENES.filter((gene) => {
     const locus = loci[gene];
     return locus.status === 'resolved' && locus.undocumented === true;
   });
@@ -86,9 +88,10 @@ export function resolveDog(report: Pick<Report, 'colour' | 'missingLoci'>, answe
   const ownColours = new Map<string, { name: string; phenotype: Phenotype; genotypes: Genotype[] }>();
   for (const genotype of candidateGenotypes(loci)) {
     const genetic = phenotype(genotype);
-    const predicted: Phenotype = undocumented
-      ? { ...genetic, flags: FLAGS.filter((flag) => flag === 'undocumented-haplotype' || genetic.flags.includes(flag)) }
-      : genetic;
+    const predicted: Phenotype =
+      undocumentedLoci.length > 0
+        ? { ...genetic, flags: FLAGS.filter((flag) => flag === 'undocumented-haplotype' || genetic.flags.includes(flag)) }
+        : genetic;
     const name = ownColourName(predicted);
     const entry = ownColours.get(name);
     if (entry === undefined) {
@@ -106,6 +109,7 @@ export function resolveDog(report: Pick<Report, 'colour' | 'missingLoci'>, answe
     unsettled: ambiguousLoci.filter((gene) => !open.includes(gene)),
     missingLoci: COLOUR_GENES.filter((gene) => loci[gene].status === 'missing'),
     inconsistentLoci,
+    undocumentedLoci,
     ownColours: [...ownColours.values()],
   };
 }
