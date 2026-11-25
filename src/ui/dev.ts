@@ -10,10 +10,11 @@ import fixtureB from '../../tests/fixtures/sample-b.json' with { type: 'json' };
 import fixtureC from '../../tests/fixtures/sample-c.json' with { type: 'json' };
 import fixtureD from '../../tests/fixtures/sample-d.json' with { type: 'json' };
 import fixtureE from '../../tests/fixtures/sample-e.json' with { type: 'json' };
+import { healthRow } from '../../tests/health/rows.ts';
 import type { NoseAnswer } from '../genetics/questions.ts';
 import { parseReport } from '../report/parse.ts';
 import type { Line } from '../report/pdfText.ts';
-import type { HealthRow, Inheritance, Report } from '../report/types.ts';
+import type { Report } from '../report/types.ts';
 import type { AppState, SlotState } from './app.ts';
 import { DROP_FULL, REJECTIONS, replacementRejected, type Message } from './messages.ts';
 
@@ -48,11 +49,6 @@ const NO_TYRP1 = { basd: 0, bc: 0, bd: 0, be: 0, bh: 0, bs: 0 };
 
 const PRCD = 'Progressive Rod-Cone Degeneration (prcd-PRA)';
 const HEMOPHILIA = 'Hemophilia A';
-const RESULTS = ['Clear', 'Carrier', 'At Risk'] as const;
-
-function healthRow(name: string, copies: number, inheritance: Inheritance, knownInBreed = false): HealthRow {
-  return { name, gene: 'SYNTHETIC', variant: 'G>A', copies, result: RESULTS[copies] ?? 'At Risk', inheritance, knownInBreed };
-}
 
 /** Reports by short name: the five samples and the synthetic cases the samples lack. */
 const REPORTS: Readonly<Record<string, () => Promise<Report>>> = {
@@ -79,7 +75,7 @@ const REPORTS: Readonly<Record<string, () => Promise<Report>>> = {
       shortTail: 1,
       health: [
         ...(await sample('b')).health,
-        healthRow(PRCD, 1, 'AR', true),
+        healthRow(PRCD, 1, 'AR', { knownInBreed: true }),
         healthRow(HEMOPHILIA, 1, 'XR'),
         healthRow('Primary Lens Luxation', 0, 'AR'),
       ],
@@ -89,7 +85,7 @@ const REPORTS: Readonly<Record<string, () => Promise<Report>>> = {
     synthetic('a', {
       name: 'Sample V',
       shortTail: 1,
-      health: [...(await sample('a')).health, healthRow(PRCD, 1, 'AR', true), healthRow(HEMOPHILIA, 0, 'XR')],
+      health: [...(await sample('a')).health, healthRow(PRCD, 1, 'AR', { knownInBreed: true }), healthRow(HEMOPHILIA, 0, 'XR')],
       copies: { TYRP1: NO_TYRP1, PMEL: { M: 1 }, MLPH: { d1: 1, d2: 0, d3: 0 }, MITF: { sp: 0 }, MC1R: { Em: 0, e1: 0, e2: 0, e3: 0, eH: 0, eA: 0, eG: 0 } },
     }),
 };
