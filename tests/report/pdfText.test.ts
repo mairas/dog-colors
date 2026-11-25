@@ -108,6 +108,16 @@ describe('buildLines', () => {
     ]);
   });
 
+  it('gives a superscript equally close to two bases to the one earlier in the content stream', () => {
+    const { size } = CURRENT_SUPERSCRIPT;
+    // Both bases end at x = 110, where the suffix starts, on baselines 3 and 6 pt below it.
+    const upper = item('a', 104, 500, 6);
+    const lower = item('b', 105, 497, 5);
+    const suffix = item('y', 110, 503, 3, size);
+    expect(texts(buildLines([[upper, lower, suffix]]))).toEqual([['ay'], ['b']]);
+    expect(texts(buildLines([[lower, upper, suffix]]))).toEqual([['a'], ['by']]);
+  });
+
   it('keeps a wrapped fragment in full-size type on its own line', () => {
     const lines = buildLines([
       [
