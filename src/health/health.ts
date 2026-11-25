@@ -2,7 +2,9 @@
 // combinations the mating itself creates. Each condition is one variant, so
 // there is no phase ambiguity: a parent with n copies (0–2) passes the variant
 // to a puppy with chance n/2. The X chromosome and mitochondria need the
-// parents' sexes, which come from the reports, never from the slot order.
+// parents' sexes, which come from the reports, never from the slot order. A
+// mating is female × male, so when one report's sex can't be read, the other's
+// settles it.
 import type { HealthRow, Inheritance, Report } from '../report/types.ts';
 import { catalogueInheritance, findCondition, isWithheld, type ConditionKey } from './conditions.ts';
 import { add, fraction, multiply, ONE, subtract, toNumber, ZERO, type Fraction } from './fraction.ts';
@@ -31,7 +33,7 @@ export type UnknownReason =
   | 'inheritance-conflict'
   /** X-linked or MT, and both reports give the same sex. */
   | 'same-sex-parents'
-  /** X-linked or MT, and a report's sex could not be read. */
+  /** X-linked or MT, and neither report's sex could be read. */
   | 'sex-unknown';
 
 export type ConditionOdds =
@@ -50,6 +52,8 @@ export interface ConditionRow extends Condition {
   /** In slot order; null for the untested sire of an MT condition tested in the dam only. */
   readonly parents: readonly [ParentResult | null, ParentResult | null];
   readonly odds: ConditionOdds;
+  /** X-linked or MT odds computed with an unread parent's sex taken as the opposite of the other parent's. */
+  readonly sexInferred: boolean;
 }
 
 export interface OneParentCondition extends Condition {
@@ -57,7 +61,7 @@ export interface OneParentCondition extends Condition {
   readonly tested: ParentResult;
 }
 
-/** A chance that depends on which parent is the dam, when a report's sex could not be read; `low` < `high`. */
+/** A chance that depends on which parent is the dam, when neither report's sex could be read; `low` < `high`. */
 export interface ChanceRange {
   readonly low: Fraction;
   readonly high: Fraction;
@@ -69,8 +73,10 @@ export type HealthWarning =
       readonly kind: 'affected-puppies';
       readonly condition: Condition;
       readonly among: 'puppies' | 'daughters';
-      /** A range only for XR with a sex unread, and only when the two possible dams give different chances. */
+      /** A range only for XR with neither sex read, and only when the two possible dams give different chances. */
       readonly chance: Fraction | ChanceRange;
+      /** The chance rests on an unread parent's sex taken as the opposite of the other parent's. */
+      readonly sexInferred: boolean;
     }
   /** Both parents carry a variant whose inheritance mode is unknown. */
   | { readonly kind: 'inheritance-unknown'; readonly condition: Condition }
@@ -114,13 +120,10 @@ type Pair = readonly [HealthRow | null, HealthRow | null];
 type Dam = ParentIndex | 'same-sex-parents' | 'sex-unknown';
 
 function damOf(first: HealthParent, second: HealthParent): Dam {
-  if (first.sex === null || second.sex === null) {
-    return 'sex-unknown';
-  }
   if (first.sex === second.sex) {
-    return 'same-sex-parents';
+    return first.sex === null ? 'sex-unknown' : 'same-sex-parents';
   }
-  return first.sex === 'female' ? 0 : 1;
+  return first.sex === 'female' || second.sex === 'male' ? 0 : 1;
 }
 
 function inheritanceOf(pair: Pair): Inheritance | 'conflict' | null {
@@ -202,7 +205,12 @@ function xrDaughtersOverBothDams(copies: readonly [number, number]): Fraction | 
 }
 
 /** The panel warning for harm that needs the variant from both parents; none for what a puppy inherits from one. */
-function warningOf(condition: Condition, odds: ConditionOdds, copies: readonly [number, number]): HealthWarning | null {
+function warningOf(
+  condition: Condition,
+  odds: ConditionOdds,
+  copies: readonly [number, number],
+  sexInferred: boolean,
+): HealthWarning | null {
   if (copies[0] === 0 || copies[1] === 0) {
     return null;
   }
@@ -210,13 +218,13 @@ function warningOf(condition: Condition, odds: ConditionOdds, copies: readonly [
     return { kind: 'inheritance-unknown', condition };
   }
   if (condition.inheritance === 'AR' && odds.kind === 'puppies') {
-    return { kind: 'affected-puppies', condition, among: 'puppies', chance: odds.puppies.atRisk };
+    return { kind: 'affected-puppies', condition, among: 'puppies', chance: odds.puppies.atRisk, sexInferred };
   }
   if (condition.inheritance === 'XR' && odds.kind === 'by-sex') {
-    return { kind: 'affected-puppies', condition, among: 'daughters', chance: odds.daughters.atRisk };
+    return { kind: 'affected-puppies', condition, among: 'daughters', chance: odds.daughters.atRisk, sexInferred };
   }
   if (condition.inheritance === 'XR' && odds.kind === 'unknown' && odds.reason === 'sex-unknown') {
-    return { kind: 'affected-puppies', condition, among: 'daughters', chance: xrDaughtersOverBothDams(copies) };
+    return { kind: 'affected-puppies', condition, among: 'daughters', chance: xrDaughtersOverBothDams(copies), sexInferred };
   }
   return null;
 }
@@ -244,6 +252,7 @@ function pairRows(first: readonly HealthRow[], second: readonly HealthRow[]): Pa
 
 export function analyseHealth(first: HealthParent, second: HealthParent): HealthAnalysis {
   const dam = damOf(first, second);
+  const oneSexUnread = (first.sex === null) !== (second.sex === null);
   const rows: ConditionRow[] = [];
   const oneParentOnly: OneParentCondition[] = [];
   const clearInBoth: Condition[] = [];
@@ -267,8 +276,9 @@ export function analyseHealth(first: HealthParent, second: HealthParent): Health
     }
     const copies = [a?.copies ?? 0, b?.copies ?? 0] as const;
     const odds = oddsOf(mode, copies, dam);
-    rows.push({ ...condition, parents: [resultOf(a), resultOf(b)], odds });
-    const warning = warningOf(condition, odds, copies);
+    const sexInferred = oneSexUnread && (mode === 'XR' || mode === 'XD' || mode === 'MT');
+    rows.push({ ...condition, parents: [resultOf(a), resultOf(b)], odds, sexInferred });
+    const warning = warningOf(condition, odds, copies, sexInferred);
     if (warning) {
       warnings.push(warning);
     }

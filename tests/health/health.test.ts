@@ -58,6 +58,7 @@ describe('analyseHealth: samples', () => {
           { copies: 2, result: 'At Risk' },
         ],
         odds: { kind: 'puppies', puppies: { atRisk: ONE, carrier: null } },
+        sexInferred: false,
       },
       {
         name: DM,
@@ -70,6 +71,7 @@ describe('analyseHealth: samples', () => {
           { copies: 1, result: 'Carrier' },
         ],
         odds: { kind: 'puppies', puppies: { atRisk: ZERO, carrier: fraction(1, 2) } },
+        sexInferred: false,
       },
     ]);
     expect(analysis.clearInBoth).toHaveLength(7);
@@ -154,6 +156,7 @@ describe('analyseHealth: autosomal modes', () => {
         condition: { name: 'Test Condition', gene: 'GENE', variant: 'G>A', inheritance: 'AR', knownInBreed: false },
         among: 'puppies',
         chance: fraction(1, 4),
+        sexInferred: false,
       },
     ]);
   });
@@ -303,61 +306,127 @@ describe('analyseHealth: parent sex', () => {
     }
   });
 
-  it('a parent of unknown sex, in either slot: X-linked and MT rows unknown for that reason', () => {
-    for (const analysis of [pair(null, 'female'), pair('female', null)]) {
-      expect(analysis.rows.slice(0, 2).map(({ odds }) => odds)).toEqual([
-        { kind: 'unknown', reason: 'sex-unknown' },
-        { kind: 'unknown', reason: 'sex-unknown' },
-      ]);
+  const oddsByName = (analysis: HealthAnalysis) => analysis.rows.map(({ name, odds, sexInferred }) => [name, odds, sexInferred]);
+  const arOdds = { kind: 'puppies', puppies: { atRisk: fraction(1, 4), carrier: fraction(1, 2) } };
+
+  it('one sex unread: that parent taken as the opposite sex, X-linked and MT rows computed and marked inferred', () => {
+    const damFirst = [
+      ['X', { kind: 'by-sex', sons: { atRisk: fraction(1, 2), carrier: null }, daughters: { atRisk: ZERO, carrier: fraction(1, 2) } }, true],
+      ['M', { kind: 'puppies', puppies: { atRisk: ONE, carrier: null } }, true],
+      ['A', arOdds, false],
+    ];
+    const damSecond = [
+      ['X', { kind: 'by-sex', sons: { atRisk: ZERO, carrier: null }, daughters: { atRisk: ZERO, carrier: ONE } }, true],
+      ['M', { kind: 'puppies', puppies: { atRisk: ZERO, carrier: null } }, true],
+      ['A', arOdds, false],
+    ];
+    for (const [first, second, expected] of [
+      ['female', null, damFirst],
+      [null, 'male', damFirst],
+      ['male', null, damSecond],
+      [null, 'female', damSecond],
+    ] as const) {
+      expect(oddsByName(pair(first, second)), `${first} × ${second}`).toEqual(expected);
     }
   });
 
+  it('both sexes unread: X-linked and MT rows unknown for that reason', () => {
+    expect(oddsByName(pair(null, null))).toEqual([
+      ['X', { kind: 'unknown', reason: 'sex-unknown' }, false],
+      ['M', { kind: 'unknown', reason: 'sex-unknown' }, false],
+      ['A', arOdds, false],
+    ]);
+  });
+
   describe('both parents carry an XR variant and a sex is unreadable', () => {
-    const sexes = [
-      [null, 'female'],
-      ['male', null],
-      [null, null],
-    ] as const;
     const xr = { name: 'Test Condition', gene: 'GENE', variant: 'G>A', inheritance: 'XR', knownInBreed: false };
+    const xrPair = (first: Sex | null, second: Sex | null, copies: readonly [number, number]) =>
+      analyseHealth(parent(first, [condition('XR', copies[0])]), parent(second, [condition('XR', copies[1])]));
 
-    it('odds stay unknown, and the daughters warning spans the two possible dams', () => {
-      for (const [firstSex, secondSex] of sexes) {
-        for (const [firstCopies, secondCopies] of [
-          [1, 2],
-          [2, 1],
-        ] as const) {
-          const analysis = analyseHealth(
-            parent(firstSex, [condition('XR', firstCopies)]),
-            parent(secondSex, [condition('XR', secondCopies)]),
-          );
-          expect(onlyRow(analysis).odds).toEqual({ kind: 'unknown', reason: 'sex-unknown' });
-          expect(analysis.warnings).toEqual([
-            { kind: 'affected-puppies', condition: xr, among: 'daughters', chance: { low: fraction(1, 2), high: ONE } },
-          ]);
-        }
-      }
-    });
+    it('one sex read: Parent 2 is the dam, and the daughters warning is one exact chance, marked inferred', () => {
+      for (const [firstSex, secondSex] of [
+        ['male', null],
+        [null, 'female'],
+      ] as const) {
+        const carrierDam = xrPair(firstSex, secondSex, [2, 1]);
+        expect(onlyRow(carrierDam)).toMatchObject({
+          odds: {
+            kind: 'by-sex',
+            sons: { atRisk: fraction(1, 2), carrier: null },
+            daughters: { atRisk: fraction(1, 2), carrier: fraction(1, 2) },
+          },
+          sexInferred: true,
+        });
+        expect(carrierDam.warnings).toEqual([
+          { kind: 'affected-puppies', condition: xr, among: 'daughters', chance: fraction(1, 2), sexInferred: true },
+        ]);
 
-    it('a single chance when either parent as the dam gives the same', () => {
-      for (const [firstSex, secondSex] of sexes) {
-        const analysis = analyseHealth(parent(firstSex, [condition('XR', 1)]), parent(secondSex, [condition('XR', 1)]));
-        expect(analysis.warnings).toEqual([
-          { kind: 'affected-puppies', condition: xr, among: 'daughters', chance: fraction(1, 2) },
+        const atRiskDam = xrPair(firstSex, secondSex, [1, 2]);
+        expect(onlyRow(atRiskDam)).toMatchObject({
+          odds: { kind: 'by-sex', sons: { atRisk: ONE, carrier: null }, daughters: { atRisk: ONE, carrier: ZERO } },
+          sexInferred: true,
+        });
+        expect(atRiskDam.warnings).toEqual([
+          { kind: 'affected-puppies', condition: xr, among: 'daughters', chance: ONE, sexInferred: true },
         ]);
       }
     });
 
+    it('neither sex read: odds unknown, and the daughters warning spans the two possible dams', () => {
+      for (const copies of [
+        [1, 2],
+        [2, 1],
+      ] as const) {
+        const analysis = xrPair(null, null, copies);
+        expect(onlyRow(analysis)).toMatchObject({ odds: { kind: 'unknown', reason: 'sex-unknown' }, sexInferred: false });
+        expect(analysis.warnings).toEqual([
+          {
+            kind: 'affected-puppies',
+            condition: xr,
+            among: 'daughters',
+            chance: { low: fraction(1, 2), high: ONE },
+            sexInferred: false,
+          },
+        ]);
+      }
+    });
+
+    it('neither sex read: a single chance when either parent as the dam gives the same', () => {
+      expect(xrPair(null, null, [1, 1]).warnings).toEqual([
+        { kind: 'affected-puppies', condition: xr, among: 'daughters', chance: fraction(1, 2), sexInferred: false },
+      ]);
+    });
+
     it('no warning when only one parent carries it', () => {
-      for (const [firstSex, secondSex] of sexes) {
-        expect(analyseHealth(parent(firstSex, [condition('XR', 1)]), parent(secondSex, [condition('XR', 0)])).warnings).toEqual([]);
+      for (const [firstSex, secondSex] of [
+        ['male', null],
+        [null, 'female'],
+        [null, null],
+      ] as const) {
+        expect(xrPair(firstSex, secondSex, [1, 0]).warnings).toEqual([]);
       }
     });
   });
 
-  it('an MT condition tested in one parent of unknown sex is listed under that parent', () => {
-    const analysis = analyseHealth(parent(null, []), parent('female', [condition('MT', 1)]));
-    expect(analysis.rows).toEqual([]);
-    expect(analysis.oneParentOnly).toMatchObject([{ parent: 1, tested: { copies: 1, result: 'Carrier' } }]);
+  it('an MT condition tested in one parent, with a sex unread: computed when that parent is or is taken as the dam', () => {
+    const readDam = analyseHealth(parent(null, []), parent('female', [condition('MT', 1)]));
+    expect(onlyRow(readDam)).toMatchObject({
+      parents: [null, { copies: 1, result: 'Carrier' }],
+      odds: { kind: 'puppies', puppies: { atRisk: ONE, carrier: null } },
+      sexInferred: true,
+    });
+    const inferredDam = analyseHealth(parent(null, [condition('MT', 1)]), parent('male', []));
+    expect(onlyRow(inferredDam)).toMatchObject({
+      parents: [{ copies: 1, result: 'Carrier' }, null],
+      odds: { kind: 'puppies', puppies: { atRisk: ONE, carrier: null } },
+      sexInferred: true,
+    });
+    const inferredSire = analyseHealth(parent(null, [condition('MT', 1)]), parent('female', []));
+    expect(inferredSire.rows).toEqual([]);
+    expect(inferredSire.oneParentOnly).toMatchObject([{ parent: 0, tested: { copies: 1, result: 'Carrier' } }]);
+    const neitherRead = analyseHealth(parent(null, []), parent(null, [condition('MT', 1)]));
+    expect(neitherRead.rows).toEqual([]);
+    expect(neitherRead.oneParentOnly).toMatchObject([{ parent: 1, tested: { copies: 1, result: 'Carrier' } }]);
   });
 });
 
