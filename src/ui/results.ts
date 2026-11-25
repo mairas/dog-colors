@@ -3,15 +3,16 @@
 // carried alleles, and every caveat collected at the end.
 
 import { HIDDEN_EFFECTS, HIDER_LABELS } from '../genetics/hidden.ts';
-import { FLAG_INFO, ownColourName, type BaseColour, type Flag, type Phenotype, type Unknown } from '../genetics/phenotype.ts';
-import type { PuppyPrediction, Row, Table, TraitRow } from '../genetics/results.ts';
-import { CAVEAT_TEXT, COLOUR_WARNING_TEXT, CROSS_CAVEATS, type CaveatId, type CrossCaveat } from '../genetics/warnings.ts';
+import { FLAG_INFO, FLAGS, ownColourName, type BaseColour, type Flag, type Phenotype, type Unknown } from '../genetics/phenotype.ts';
+import type { PuppyPrediction, Row, Table, TraitRow, UndocumentedLocus } from '../genetics/results.ts';
+import { caveatText, COLOUR_WARNING_TEXT, type CaveatId, type ColourWarning } from '../genetics/warnings.ts';
 import { h, present, svg, type Child } from './dom.ts';
 import { chance, chanceParts } from './format.ts';
 import {
   BASE_NAMES,
   copiesText,
   lowerFirst,
+  parentLabel,
   PATTERN_NAMES,
   taggedFlags,
   TRAIT_NAMES,
@@ -35,17 +36,27 @@ export interface ResultsInput {
   readonly sections?: readonly Node[];
 }
 
-const isCrossCaveat = (id: CaveatId): id is CrossCaveat => (CROSS_CAVEATS as readonly string[]).includes(id);
+const UNDOCUMENTED: Flag = 'undocumented-haplotype';
 
-export const caveatText = (id: CaveatId): string => (isCrossCaveat(id) ? CAVEAT_TEXT[id] : FLAG_INFO[id].caveat);
+const isFlag = (id: CaveatId): id is Flag => (FLAGS as readonly string[]).includes(id);
+
+/** "Undocumented combination (TYRP1 in Parent 1's report)": the caveat that names its genes. */
+function undocumentedLabel(loci: readonly UndocumentedLocus[]): string {
+  const where = loci.map((locus) => `${locus.gene} in ${parentLabel(locus.parent)}'s report`).join(', ');
+  return `Undocumented combination (${where})`;
+}
 
 /** A badge that expands its caveats inline; collected again at the bottom of the results. */
-function caveatBadge(key: string, caveats: readonly CaveatId[]): Child[] {
-  if (caveats.length === 0) {
+function caveatBadge(key: string, caveats: readonly CaveatId[], undocumented: readonly UndocumentedLocus[] = []): Child[] {
+  const texts = [
+    ...caveats.map(caveatText),
+    ...(undocumented.length > 0 ? [`${undocumentedLabel(undocumented)}: ${caveatText(UNDOCUMENTED)}`] : []),
+  ];
+  if (texts.length === 0) {
     return [];
   }
   const id = `cav-${key}`;
-  const text = h('span', { class: 'cavtext', id, hidden: true }, caveats.map(caveatText).join(' '));
+  const text = h('span', { class: 'cavtext', id, hidden: true }, texts.join(' '));
   const button = h('button', { type: 'button', class: 'cav', 'aria-expanded': 'false', 'aria-controls': id, 'data-key': id }, 'caveat');
   button.addEventListener('click', () => {
     text.hidden = !text.hidden;
@@ -55,8 +66,8 @@ function caveatBadge(key: string, caveats: readonly CaveatId[]): Child[] {
 }
 
 /** Row-level flags as one muted tag after the name: " · possible saddle, low confidence". */
-export function flagTags(flags: readonly Flag[]): Child {
-  const labels = [...new Set(taggedFlags(flags).map((flag) => FLAG_INFO[flag].label))];
+export function flagTags(flags: readonly Flag[], relabel: Readonly<Partial<Record<Flag, string>>> = {}): Child {
+  const labels = [...new Set(taggedFlags(flags).map((flag) => relabel[flag] ?? FLAG_INFO[flag].label))];
   return labels.length === 0 ? null : h('span', { class: 'tag' }, labels.map((label) => ` · ${label}`).join(''));
 }
 
@@ -84,10 +95,14 @@ function outcomeTable<V extends string>(key: string, title: string, table: Table
     const name: Child[] = row.value === 'unknown' ? [`Unknown: ${unknownLociText(table.unknown)}`] : label(row.value);
     return chanceRow([pill, pill ? ' ' : null, ...name, flagTags(row.flags)], row);
   });
-  return chanceTable([title, ...caveatBadge(key, table.caveats)], 'Outcome', rows);
+  return chanceTable([title, ...caveatBadge(key, table.caveats, table.undocumented)], 'Outcome', rows);
 }
 
 function traitTable(rows: readonly TraitRow[]): HTMLTableElement {
+  // A harlequin puppy is also merle, so the merle figure counts it too.
+  const withHarlequin = rows.some((row) => row.value === 'harlequin');
+  const traitName = (trait: TraitRow['value']): string =>
+    trait === 'merle' && withHarlequin ? `${TRAIT_NAMES.merle} (includes harlequin)` : TRAIT_NAMES[trait];
   return chanceTable(
     ['Chance of each trait'],
     'Trait',
@@ -96,7 +111,7 @@ function traitTable(rows: readonly TraitRow[]): HTMLTableElement {
         [
           row.copies === null ? null : h('span', { class: 'pill' }, copiesText(row.copies)),
           row.copies === null ? null : ' ',
-          TRAIT_NAMES[row.value],
+          traitName(row.value),
           flagTags(row.flags),
           ...caveatBadge(`trait-${row.value}`, row.caveats),
         ],
@@ -112,7 +127,7 @@ function hiddenTable(prediction: PuppyPrediction): HTMLTableElement {
     'Trait',
     prediction.hidden.map((row) => {
       const effect = HIDDEN_EFFECTS[row.id] + (row.hider === null ? '' : `, ${HIDER_LABELS[row.hider]}`);
-      const only = row.onlyIn === null ? '' : ` (${lowerFirst(BASE_NAMES[row.onlyIn])} puppies)`;
+      const only = row.onlyIn === null ? '' : ` (all ${lowerFirst(BASE_NAMES[row.onlyIn])} puppies)`;
       return chanceRow([effect + only, h('br'), h('span', { class: 'sec' }, row.genotypes.join(', '))], row);
     }),
   );
@@ -200,11 +215,10 @@ function warningPanel(items: readonly PanelItem[]): HTMLElement | null {
   );
 }
 
-function colourWarnings(prediction: PuppyPrediction): PanelItem[] {
-  return prediction.warnings.map((warning) => {
-    const text = COLOUR_WARNING_TEXT[warning.kind];
-    return { title: `${text.title}: ${chance(warning.chance)}`, text: text.text };
-  });
+function colourWarning(warning: ColourWarning): PanelItem {
+  const text = COLOUR_WARNING_TEXT[warning.kind];
+  const figure = 'chance' in warning ? chance(warning.chance) : unknownLociText(warning.unknown);
+  return { title: `${text.title}: ${figure}`, text: text.text };
 }
 
 function caveatList(prediction: PuppyPrediction): HTMLElement {
@@ -217,8 +231,12 @@ function caveatList(prediction: PuppyPrediction): HTMLElement {
   prediction.pattern.caveats.forEach((id) => note(id, 'Colour pattern'));
   prediction.white.caveats.forEach((id) => note(id, 'White spotting'));
   prediction.traits.possible.forEach((row) => row.caveats.forEach((id) => note(id, TRAIT_NAMES[row.value])));
-  const items = prediction.caveats.map((id) => {
-    const where = context.get(id) ?? (isCrossCaveat(id) ? null : `“${FLAG_INFO[id].label}”`);
+  if (prediction.undocumentedLoci.length > 0) {
+    note(UNDOCUMENTED, undocumentedLabel(prediction.undocumentedLoci));
+  }
+  const ids = [...prediction.caveats, ...(prediction.undocumentedLoci.length > 0 ? [UNDOCUMENTED] : [])];
+  const items = [...new Set(ids)].map((id) => {
+    const where = context.get(id) ?? (isFlag(id) ? `“${FLAG_INFO[id].label}”` : null);
     return h('li', {}, where === null ? caveatText(id) : `${where}: ${caveatText(id)}`);
   });
   return h(
@@ -279,7 +297,7 @@ export function renderResults(input: ResultsInput): (Node | string)[] {
   return present([
     h('h2', { id: 'results-h', tabindex: '-1' }, `Puppy colours: ${names[0]} × ${names[1]}`),
     h('p', { class: 'sec' }, 'Odds for each puppy, not the make-up of a litter.'),
-    warningPanel([...colourWarnings(prediction), ...(input.healthWarnings ?? [])]),
+    warningPanel([...prediction.warnings.map(colourWarning), ...(input.healthWarnings ?? [])]),
     ...notes(input),
     ...combinedOutcomes(prediction),
     h(

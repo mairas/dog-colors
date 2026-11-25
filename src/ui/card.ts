@@ -3,7 +3,7 @@
 
 import type { AllelePair } from '../genetics/alleles.ts';
 import type { OwnColour, ResolvedDog } from '../genetics/dog.ts';
-import type { BaseColour, Unknown } from '../genetics/phenotype.ts';
+import { FLAG_INFO, type BaseColour, type Unknown } from '../genetics/phenotype.ts';
 import type { NoseAnswer } from '../genetics/questions.ts';
 import type { ParentIndex } from '../health/health.ts';
 import { COLOUR_GENES, COLOUR_VARIANTS, type ColourGene } from '../report/loci.ts';
@@ -156,6 +156,9 @@ function mismatchHelp(input: CardInput): HTMLElement {
       unknown.length > 0
         ? h('li', {}, `${unknown.map(geneName).join(', ')} ${unknown.length === 1 ? 'is' : 'are'} missing or unreadable in this report.`)
         : null,
+      dog.undocumentedLoci.length > 0
+        ? h('li', {}, `Undocumented combination (${dog.undocumentedLoci.join(', ')}): ${FLAG_INFO['undocumented-haplotype'].caveat}`)
+        : null,
       h('li', {}, 'Check that this is the right dog’s report. If it is, the results below may be affected.'),
     ),
   );
@@ -247,7 +250,7 @@ export function renderCard(input: CardInput, actions: CardActions): HTMLElement 
         h('span', { class: 'sec' }, 'Predicted own colour'),
         h('br'),
         h('b', { class: 'own-name' }, ownColourText(dog)),
-        flagTags(flags),
+        flagTags(flags, { 'undocumented-haplotype': `${FLAG_INFO['undocumented-haplotype'].label} (${dog.undocumentedLoci.join(', ')})` }),
       ),
     ),
     missingNote(dog),

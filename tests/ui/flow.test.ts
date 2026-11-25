@@ -341,3 +341,42 @@ describe('untrusted report text', () => {
     expect(text()).toContain(`Puppy colours: ${hostile} × Sample B`);
   });
 });
+
+describe('engine cases the page names', () => {
+  const NO_TYRP1 = { basd: 0, bc: 0, bd: 0, be: 0, bh: 0, bs: 0 };
+
+  it('warns that double merle is possible when a parent’s merle result is missing', async () => {
+    const merle = await variant('a', 'Sample W', { PMEL: { M: 1 } });
+    const { PMEL: _absent, ...colour } = b.colour;
+    const unknown: Report = { ...b, colour, missingLoci: ['PMEL'] };
+    const { app, root } = openPage({ 'w.pdf': ok(merle), 'u.pdf': ok(unknown) });
+    await app.load(0, pdf('w.pdf'));
+    await app.load(1, pdf('u.pdf'));
+    expect(root.querySelector('.warnings')?.textContent).toContain("Double merle possible: PMEL (merle) missing from Parent 2's report.");
+  });
+
+  it('names the gene of an undocumented combination on the card and in the caveats', async () => {
+    const undocumented = await variant('a', 'Sample U', { TYRP1: { ...NO_TYRP1, bc: 2, bs: 1 } });
+    const { app, root, text } = openPage({ 'u.pdf': ok(undocumented), 'b.pdf': ok(b) });
+    await app.load(0, pdf('u.pdf'));
+    await app.load(1, pdf('b.pdf'));
+    expect(root.querySelector('[data-slot="0"] .own .tag')?.textContent).toContain('undocumented combination (TYRP1)');
+    expect(text()).toContain("Undocumented combination (TYRP1 in Parent 1's report): For the genes named");
+  });
+
+  it('qualifies a hidden row that applies to one colour as all puppies of that colour', async () => {
+    const { root } = await pair('nose.pdf', 'b.pdf');
+    expect(tableRows(root, 'Hidden and carried').map(([label]) => label)).toContain('Carries brown (all black puppies)B/b');
+  });
+
+  it('says the merle figure includes harlequin puppies', async () => {
+    const merle = await variant('a', 'Sample W', { PMEL: { M: 1 } });
+    const harlequin = await variant('b', 'Sample H', { PSMB7: { H: 1 } });
+    const { app, root } = openPage({ 'w.pdf': ok(merle), 'h.pdf': ok(harlequin) });
+    await app.load(0, pdf('w.pdf'));
+    await app.load(1, pdf('h.pdf'));
+    const traits = tableRows(root, 'Chance of each trait').map(([label]) => label);
+    expect(traits.some((label) => label.includes('Merle (includes harlequin)'))).toBe(true);
+    expect(traits.some((label) => label.startsWith('Harlequin') || label.includes(' Harlequin'))).toBe(true);
+  });
+});
