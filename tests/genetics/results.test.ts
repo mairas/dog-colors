@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { crossScenarios, type CrossParent } from '../../src/genetics/cross.ts';
 import { resolveDog } from '../../src/genetics/dog.ts';
+import { ownColourName } from '../../src/genetics/phenotype.ts';
 import type { Range } from '../../src/genetics/range.ts';
 import { predictPuppies, scenarioTables, type PuppyPrediction } from '../../src/genetics/results.ts';
 import { add, fraction, ZERO, type Fraction } from '../../src/health/fraction.ts';
@@ -107,6 +108,15 @@ describe('predictPuppies: Sample A × Sample B', () => {
       ['brown', 'limited', range('1/2')],
     ]);
     expect(prediction.combined.other).toBeNull();
+  });
+});
+
+describe('predictPuppies: combined outcomes', () => {
+  it('lists each own-colour name once, merging the coats that share it', async () => {
+    const prediction = await samples('b', 'c');
+    const names = prediction.combined.outcomes.map((outcome) => ownColourName(outcome.phenotype));
+    expect(names.length).toBeGreaterThan(1);
+    expect(new Set(names).size).toBe(names.length);
   });
 });
 

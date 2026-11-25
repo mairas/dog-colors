@@ -13,8 +13,9 @@ import {
   BASE_COLOURS,
   combine,
   FLAGS,
+  mergePhenotypes,
+  ownColourName,
   PATTERNS,
-  phenotypeKey,
   TRAITS,
   WHITE_SPOTTING,
   type BaseColour,
@@ -144,13 +145,18 @@ interface ScenarioCounts {
   readonly combined: { readonly ids: readonly number[]; readonly counts: readonly number[] };
 }
 
-/** Combined coats of one pairing, numbered so that per-scenario counts stay cheap. */
+/**
+ * Combined coats of one pairing, numbered by the name the page shows, so that
+ * coats differing only in what the name leaves out (nose, flags) make one
+ * outcome, merged as a dog's own colours are.
+ */
 class Combiner {
   private readonly whiteIndex = new Map<WhitePhenotype, number>();
   private readonly whites: WhitePhenotype[] = [];
   /** Per pigment coat, the combined id for each white coat by its index. */
   private readonly rows = new Map<PigmentPhenotype, number[]>();
   private readonly ids = new Map<string, number>();
+  readonly names: string[] = [];
   readonly phenotypes: Phenotype[] = [];
 
   whiteOf(white: WhitePhenotype): number {
@@ -176,12 +182,15 @@ class Combiner {
         throw new Error(`no white coat ${white}`);
       }
       const phenotype = combine(pigment, spotting);
-      const key = phenotypeKey(phenotype);
-      id = this.ids.get(key);
+      const name = ownColourName(phenotype);
+      id = this.ids.get(name);
       if (id === undefined) {
         id = this.phenotypes.length;
-        this.ids.set(key, id);
+        this.ids.set(name, id);
+        this.names.push(name);
         this.phenotypes.push(phenotype);
+      } else {
+        this.phenotypes[id] = mergePhenotypes(this.phenotype(id), phenotype);
       }
       row[white] = id;
     }
@@ -194,6 +203,14 @@ class Combiner {
       throw new Error(`no combined outcome ${id}`);
     }
     return phenotype;
+  }
+
+  name(id: number): string {
+    const name = this.names[id];
+    if (name === undefined) {
+      throw new Error(`no combined outcome ${id}`);
+    }
+    return name;
   }
 }
 
@@ -257,7 +274,7 @@ export interface ScenarioTables {
   readonly base: ReadonlyMap<BaseColour | Unknown, Fraction>;
   readonly pattern: ReadonlyMap<Pattern | Unknown, Fraction>;
   readonly white: ReadonlyMap<WhiteSpotting | Unknown, Fraction>;
-  /** Keyed by phenotypeKey. */
+  /** Keyed by own-colour name. */
   readonly combined: ReadonlyMap<string, Fraction>;
   readonly traits: ReadonlyMap<Trait, Fraction>;
 }
@@ -276,7 +293,7 @@ export function scenarioTables(scenario: Scenario): ScenarioTables {
     white: exact(counts.whiteRows, whiteTotal),
     combined: new Map(
       counts.combined.ids.map((id, index) => [
-        phenotypeKey(combiner.phenotype(id)),
+        combiner.name(id),
         fraction(counts.combined.counts[index] ?? 0, pigmentTotal * whiteTotal),
       ]),
     ),
