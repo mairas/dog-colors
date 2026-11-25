@@ -79,7 +79,7 @@ const SLOTS = [0, 1] as const;
 /** The stylesheet's narrow layout. */
 const NARROW_QUERY = '(max-width: 700px)';
 /** Holds the epoch milliseconds until which the breeding note stays hidden. */
-const NOTE_HIDDEN_KEY = 'dog-colors:breeding-note-hidden-until';
+export const NOTE_HIDDEN_KEY = 'dog-colors:breeding-note-hidden-until';
 const NOTE_HIDDEN_MS = 30 * 24 * 60 * 60 * 1000;
 
 /** The parents' sex when both reports give the same one; an unread sex settles nothing. */

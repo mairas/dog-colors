@@ -1,6 +1,6 @@
 import './styles.css';
 import type { ReadResult } from './report/types.ts';
-import { startApp, type AppState } from './ui/app.ts';
+import { startApp, type AppOptions } from './ui/app.ts';
 import { wireDogsDialog } from './ui/dogs.ts';
 
 const found = document.querySelector<HTMLElement>('#app');
@@ -15,18 +15,18 @@ async function read(file: File): Promise<ReadResult> {
   return readReport(file);
 }
 
-async function fixtureState(): Promise<AppState | undefined> {
+/** A fixture state's starting slots and note storage, when the dev-only query asks for one. */
+async function devOptions(): Promise<Pick<AppOptions, 'initial' | 'storage'>> {
   const params = new URLSearchParams(window.location.search);
   if (!__FIXTURES__ || (!params.has('state') && !params.has('fixtures'))) {
-    return undefined;
+    return {};
   }
-  const { stateFromQuery } = await import('./ui/dev.ts');
-  return stateFromQuery(params);
+  const { fixtureOptions } = await import('./ui/dev.ts');
+  return fixtureOptions(params);
 }
 
 async function main(): Promise<void> {
-  const initial = await fixtureState();
-  startApp(root, { read, ...(initial === undefined ? {} : { initial }) });
+  startApp(root, { read, ...(await devOptions()) });
 }
 
 void main();

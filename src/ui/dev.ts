@@ -4,6 +4,7 @@
 //
 //   ?state=<name>        one of STATE_NAMES, as in the approved mockup
 //   ?fixtures=<a>,<b>    any two reports from REPORT_NAMES, unanswered
+//   &note=hidden         either of them with the breeding note dismissed
 
 import fixtureA from '../../tests/fixtures/sample-a.json' with { type: 'json' };
 import fixtureB from '../../tests/fixtures/sample-b.json' with { type: 'json' };
@@ -15,7 +16,7 @@ import type { NoseAnswer } from '../genetics/questions.ts';
 import { parseReport } from '../report/parse.ts';
 import type { Line } from '../report/pdfText.ts';
 import type { Report, Sex } from '../report/types.ts';
-import type { AppState, SlotState } from './app.ts';
+import { NOTE_HIDDEN_KEY, type AppOptions, type AppState, type NoteStorage, type SlotState } from './app.ts';
 import { DROP_FULL, REJECTIONS, replacementRejected, type Message } from './messages.ts';
 
 const FIXTURES: Readonly<Record<string, { readonly lines: readonly Line[] }>> = {
@@ -167,4 +168,32 @@ export async function stateFromQuery(params: URLSearchParams): Promise<AppState>
   }
   const [first = 'a', second = 'b'] = (params.get('fixtures') ?? '').split(',');
   return slots(card(first), card(second));
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The breeding note's storage for a fixture state: in memory, so a dismissal
+ * on the dev origin never hides the note in other states, and dismissed from
+ * the start with note=hidden.
+ */
+function storageFromQuery(params: URLSearchParams): NoteStorage {
+  const items = new Map<string, string>();
+  if (params.get('note') === 'hidden') {
+    items.set(NOTE_HIDDEN_KEY, String(Date.now() + DAY_MS));
+  }
+  return {
+    getItem: (key) => items.get(key) ?? null,
+    setItem: (key, value) => {
+      items.set(key, value);
+    },
+    removeItem: (key) => {
+      items.delete(key);
+    },
+  };
+}
+
+/** What a fixture URL starts the app with: its slots and the note's storage. */
+export async function fixtureOptions(params: URLSearchParams): Promise<Pick<AppOptions, 'initial' | 'storage'>> {
+  return { initial: await stateFromQuery(params), storage: storageFromQuery(params) };
 }
