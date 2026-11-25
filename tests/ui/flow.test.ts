@@ -348,6 +348,16 @@ describe('states between actions', () => {
     expect(heading(root, 0)).toBe('Parent 1Sample A');
   });
 
+  it('asks to wait, not to use Replace, when a drop finds both slots still reading', async () => {
+    const [first, second] = [slowRead(ok(a)), slowRead(ok(b))];
+    const { app, root } = openPage({ ...library, '1.pdf': first.read, '2.pdf': second.read });
+    const reading = [app.load(0, pdf('1.pdf')), app.load(1, pdf('2.pdf'))];
+    await app.drop([pdf('c.pdf')], null);
+    expect(root.querySelector('.drop-alert')?.textContent).toBe('⚠Both reports are still being read. Wait for them to finish, then use Replace on a card.');
+    expect([heading(root, 0), heading(root, 1)]).toEqual(['Parent 1Reading report…', 'Parent 2Reading report…']);
+    await Promise.all([first.release(), second.release(), ...reading]);
+  });
+
   it('settles the ranges note once the question is answered and only ASIP is left', async () => {
     const { root, text } = await pair('nose.pdf', 'asip.pdf');
     expect(text()).toContain(ANSWER_NOTE);
@@ -371,6 +381,13 @@ describe('states between actions', () => {
     expect(document.getElementById(badge.getAttribute('aria-controls') ?? '')?.hidden).toBe(false);
   });
 
+  it('scrolls a page-level drop message into view', async () => {
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
+    const { app, root } = openPage(library);
+    await app.drop(['a.pdf', 'b.pdf', 'c.pdf'].map(pdf), null);
+    expect(scroll.mock.contexts).toContain(root.querySelector('.drop-alert'));
+    scroll.mockRestore();
+  });
 });
 
 describe('drag and drop events', () => {

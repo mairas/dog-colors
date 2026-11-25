@@ -14,6 +14,7 @@ import { h, svg } from './dom.ts';
 import {
   DROP_FULL,
   DROP_ONE_FREE,
+  DROP_READING,
   DROP_TOO_MANY,
   READER_FAILED,
   REJECTIONS,
@@ -302,8 +303,12 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   function pageMessage(text: string): void {
     state = { ...state, pageAlert: text };
     render();
+    dropAlert.scrollIntoView({ block: 'nearest' });
     announcer.announce(text);
   }
+
+  /** Both slots are taken: Replace works on a card, but a slot still reading has none. */
+  const slotsTaken = (): string => (SLOTS.some((slot) => state.slots[slot].kind === 'loaded') ? DROP_FULL : DROP_READING);
 
   function answer(slot: ParentIndex, nose: NoseAnswer | undefined): void {
     const current = state.slots[slot];
@@ -341,7 +346,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       } else if (second === undefined) {
         const slot = target ?? free[0];
         if (slot === undefined) {
-          pageMessage(DROP_FULL);
+          pageMessage(slotsTaken());
         } else {
           await startLoad(slot, first);
         }
@@ -352,7 +357,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
         pageMessage(DROP_ONE_FREE);
         await loading;
       } else {
-        pageMessage(DROP_FULL);
+        pageMessage(slotsTaken());
       }
     },
   };

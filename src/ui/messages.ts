@@ -34,6 +34,7 @@ export const READER_FAILED: Message = { text: "Couldn't start the PDF reader. Re
 export const DROP_TOO_MANY = 'Drop at most two reports.';
 export const DROP_ONE_FREE = "Only one slot was free, so the second report wasn't loaded.";
 export const DROP_FULL = 'Both slots are full. Use Replace on a card.';
+export const DROP_READING = 'Both reports are still being read. Wait for them to finish, then use Replace on a card.';
 
 export function replacementRejected(message: Message): Message {
   return { ...message, text: `Replacement not loaded: ${message.text.charAt(0).toLowerCase()}${message.text.slice(1)}` };
