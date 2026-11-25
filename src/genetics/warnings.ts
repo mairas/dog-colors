@@ -7,12 +7,17 @@
 import type { HealthWarning } from '../health/health.ts';
 import type { Flag } from './phenotype.ts';
 import type { Range } from './range.ts';
+import type { UnknownLocus } from './results.ts';
 
 export type ColourWarning =
   /** M/M puppies, with their chance per live puppy. */
   | { readonly kind: 'double-merle'; readonly chance: Range }
+  /** One parent can carry M and the other's PMEL is unknown, so M/M can't be ruled out; `unknown` names the gene and parent. */
+  | { readonly kind: 'double-merle-unknown'; readonly unknown: readonly UnknownLocus[] }
   /** H/H conceptions, as a share of all conceptions; they die before birth and are left out of every other figure. */
-  | { readonly kind: 'harlequin-lethal'; readonly chance: Range };
+  | { readonly kind: 'harlequin-lethal'; readonly chance: Range }
+  /** One parent can carry H and the other's PSMB7 is unknown, so H/H can't be ruled out; `unknown` names the gene and parent. */
+  | { readonly kind: 'harlequin-lethal-unknown'; readonly unknown: readonly UnknownLocus[] };
 
 /** Everything the warning panel can show; the health section adds its own. */
 export type PanelWarning = ColourWarning | HealthWarning;
@@ -22,9 +27,17 @@ export const COLOUR_WARNING_TEXT: Readonly<Record<ColourWarning['kind'], { reado
     title: 'Double merle',
     text: 'Both parents carry merle. Double merle puppies (M/M) are usually mostly white and have a high risk of deafness and eye defects.',
   },
+  'double-merle-unknown': {
+    title: 'Double merle possible',
+    text: "One parent carries merle and the other parent's merle result is missing or unreadable, so double merle puppies (M/M) can't be ruled out. They are usually mostly white and have a high risk of deafness and eye defects.",
+  },
   'harlequin-lethal': {
     title: 'Harlequin × harlequin',
     text: 'Both parents carry harlequin. Puppies with two copies (H/H) die before birth, so litters may be smaller. The other chances are for live puppies.',
+  },
+  'harlequin-lethal-unknown': {
+    title: 'Harlequin × harlequin possible',
+    text: "One parent carries harlequin and the other parent's harlequin result is missing or unreadable, so puppies with two copies (H/H) can't be ruled out. H/H puppies are not seen alive; they are thought to die early in pregnancy, so litters may be smaller.",
   },
 };
 

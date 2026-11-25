@@ -50,7 +50,7 @@ function allRanges(prediction: PuppyPrediction): Range[] {
     ...[prediction.base, prediction.pattern, prediction.white].flatMap((table) => table.rows.map((row) => row.chance)),
     ...prediction.traits.possible.map((row) => row.chance),
     ...prediction.hidden.map((row) => row.chance),
-    ...prediction.warnings.map((warning) => warning.chance),
+    ...prediction.warnings.flatMap((warning) => ('chance' in warning ? [warning.chance] : [])),
   ];
 }
 
@@ -385,6 +385,22 @@ describe('predictPuppies: missing and inconsistent loci', () => {
     ]);
     // Harlequin needs H, which neither parent has, so it stays predictable.
     expect(prediction.traits.notPossible).toEqual(['dilute', 'beige', 'harlequin', 'roan']);
+  });
+
+  it("warns that double merle can't be ruled out when one parent's PMEL is missing and the other carries merle", () => {
+    const prediction = predictPuppies({ loci: parentLoci({}, ['PMEL']) }, { loci: parentLoci({ PMEL: 'M/m' }) });
+    expect(prediction.warnings).toEqual([{ kind: 'double-merle-unknown', unknown: [{ gene: 'PMEL', parent: 0, reason: 'missing' }] }]);
+  });
+
+  it("warns that H/H can't be ruled out when one parent's PSMB7 is missing and the other carries harlequin", () => {
+    const prediction = predictPuppies({ loci: parentLoci({ PSMB7: 'H/h', PMEL: 'M/m' }) }, { loci: parentLoci({}, ['PSMB7']) });
+    expect(prediction.warnings).toEqual([
+      { kind: 'harlequin-lethal-unknown', unknown: [{ gene: 'PSMB7', parent: 1, reason: 'missing' }] },
+    ]);
+  });
+
+  it('gives no such warning when the parent whose locus is known does not carry the allele', () => {
+    const prediction = predictPuppies({ loci: parentLoci({}, ['PMEL', 'PSMB7']) }, { loci: parentLoci({}) });
     expect(prediction.warnings).toEqual([]);
   });
 

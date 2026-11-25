@@ -6,7 +6,7 @@
 import { compare, fraction, type Fraction } from '../health/fraction.ts';
 import type { ParentIndex } from '../health/health.ts';
 import { COLOUR_GENES, type ColourGene } from '../report/loci.ts';
-import { ALLELES } from './alleles.ts';
+import { ALLELES, copies } from './alleles.ts';
 import { crossScenarios, sum, type CrossParent, type GroupResult, type Scenario } from './cross.ts';
 import { PIGMENT_HIDDEN, WHITE_HIDDEN, type HiddenId, type Hider } from './hidden.ts';
 import {
@@ -541,14 +541,34 @@ function buildTraits(
   };
 }
 
-function buildWarnings(traits: PuppyPrediction['traits'], lethal: Range): ColourWarning[] {
+function canCarry(parent: CrossParent, gene: ColourGene, allele: string): boolean {
+  const locus = parent.loci[gene];
+  const candidates: readonly (readonly string[])[] = locus.status === 'resolved' ? locus.candidates : [];
+  return candidates.some((pair) => copies(pair, allele) > 0);
+}
+
+function buildWarnings(
+  traits: PuppyPrediction['traits'],
+  lethal: Range,
+  parents: readonly [CrossParent, CrossParent],
+  unknownLoci: readonly UnknownLocus[],
+): ColourWarning[] {
+  // A parent's unknown locus can't rule out two copies when the other parent can carry the allele.
+  const unruledOut = (gene: ColourGene, allele: string): UnknownLocus[] =>
+    unknownLoci.filter((locus) => locus.gene === gene && canCarry(parents[locus.parent === 0 ? 1 : 0], gene, allele));
   const warnings: ColourWarning[] = [];
   const doubleMerle = traits.possible.find((row) => row.value === 'doubleMerle');
+  const merleUnknown = unruledOut('PMEL', 'M');
   if (doubleMerle !== undefined) {
     warnings.push({ kind: 'double-merle', chance: doubleMerle.chance });
+  } else if (merleUnknown.length > 0) {
+    warnings.push({ kind: 'double-merle-unknown', unknown: merleUnknown });
   }
+  const harlequinUnknown = unruledOut('PSMB7', 'H');
   if (positive(lethal)) {
     warnings.push({ kind: 'harlequin-lethal', chance: lethal });
+  } else if (harlequinUnknown.length > 0) {
+    warnings.push({ kind: 'harlequin-lethal-unknown', unknown: harlequinUnknown });
   }
   return warnings;
 }
@@ -618,7 +638,7 @@ export function predictPuppies(first: CrossParent, second: CrossParent): PuppyPr
   const flags = rowFlags(gathered);
   const rows = buildRows(gathered, flags);
   const traits = buildTraits(gathered, flags, unknownIn);
-  const warnings = buildWarnings(traits, gathered.lethal);
+  const warnings = buildWarnings(traits, gathered.lethal, [first, second], unknownLoci);
   const combined = buildCombined(gathered, combiner);
   const hidden = buildHidden(gathered);
 
@@ -639,7 +659,7 @@ export function predictPuppies(first: CrossParent, second: CrossParent): PuppyPr
     ...combined.outcomes.map((outcome) => outcome.chance),
     ...(combined.other === null ? [] : [combined.other]),
     ...hidden.map((row) => row.chance),
-    ...warnings.map((warning) => warning.chance),
+    ...warnings.flatMap((warning) => ('chance' in warning ? [warning.chance] : [])),
   ];
 
   return {
