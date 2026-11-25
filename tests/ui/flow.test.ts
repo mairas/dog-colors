@@ -376,6 +376,19 @@ describe('engine cases the page names', () => {
     expect(text()).toContain("Undocumented combination (TYRP1 in Parent 1's report): For the genes named");
   });
 
+  it('gives an undocumented locus that feeds the pattern table one caveat that names it', async () => {
+    const undocumented = syntheticReport({ 'ASIP a': 1 });
+    const { app, root } = openPage({ 'u.pdf': ok(undocumented), 'b.pdf': ok(b) });
+    await app.load(0, pdf('u.pdf'));
+    await app.load(1, pdf('b.pdf'));
+    const badge = document.getElementById(button(root, 'cav-pattern').getAttribute('aria-controls') ?? '');
+    expect(badge?.textContent?.split('For the genes named')).toHaveLength(2);
+    expect(badge?.textContent).toContain("Undocumented combination (ASIP in Parent 1's report): For the genes named");
+    const items = [...root.querySelectorAll('.caveats li')].map((item) => item.textContent ?? '');
+    expect(items).toContainEqual(expect.stringMatching(/^Undocumented combination \(ASIP in Parent 1's report\): For the genes named/));
+    expect(items.filter((item) => item.includes('For the genes named'))).toHaveLength(1);
+  });
+
   it('qualifies a hidden row that applies to one colour without claiming every such puppy has it', async () => {
     // Two dilute carriers: two thirds of the black puppies carry dilute, and no blue puppy does.
     const { root } = openPage({}, { initial: await stateFromQuery(new URLSearchParams({ state: 'results-warnings' })) });

@@ -49,9 +49,10 @@ function undocumentedLabel(loci: readonly UndocumentedLocus[]): string {
 
 /** A badge that expands its caveats inline; collected again at the bottom of the results. */
 function caveatBadge(key: string, caveats: readonly CaveatId[], undocumented: readonly UndocumentedLocus[] = []): Child[] {
+  const named = undocumented.length > 0;
   const texts = [
-    ...caveats.map(caveatText),
-    ...(undocumented.length > 0 ? [`${undocumentedLabel(undocumented)}: ${caveatText(UNDOCUMENTED)}`] : []),
+    ...caveats.filter((id) => !(named && id === UNDOCUMENTED)).map(caveatText),
+    ...(named ? [`${undocumentedLabel(undocumented)}: ${caveatText(UNDOCUMENTED)}`] : []),
   ];
   if (texts.length === 0) {
     return [];
@@ -230,12 +231,13 @@ function caveatList(prediction: PuppyPrediction): HTMLElement {
       context.set(id, where);
     }
   };
-  prediction.pattern.caveats.forEach((id) => note(id, 'Colour pattern'));
-  prediction.white.caveats.forEach((id) => note(id, 'White spotting'));
-  prediction.traits.possible.forEach((row) => row.caveats.forEach((id) => note(id, TRAIT_NAMES[row.value])));
+  // First, so that a table carrying the caveat doesn't take its gene names away.
   if (prediction.undocumentedLoci.length > 0) {
     note(UNDOCUMENTED, undocumentedLabel(prediction.undocumentedLoci));
   }
+  prediction.pattern.caveats.forEach((id) => note(id, 'Colour pattern'));
+  prediction.white.caveats.forEach((id) => note(id, 'White spotting'));
+  prediction.traits.possible.forEach((row) => row.caveats.forEach((id) => note(id, TRAIT_NAMES[row.value])));
   const ids = [...prediction.caveats, ...(prediction.undocumentedLoci.length > 0 ? [UNDOCUMENTED] : [])];
   const items = [...new Set(ids)].map((id) => {
     const where = context.get(id) ?? (isFlag(id) ? `“${FLAG_INFO[id].label}”` : null);
