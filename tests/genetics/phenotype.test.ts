@@ -419,4 +419,22 @@ describe('FLAG_INFO', () => {
     expect(FLAG_INFO['not-modelled-eA'].label).toBe('not modelled precisely');
     expect(FLAG_INFO['not-modelled-eA'].caveat).toMatch(/vary/);
   });
+
+  it('says roan may be incompletely dominant, not that one copy was never seen', () => {
+    const { caveat } = FLAG_INFO['roan-single-copy'];
+    expect(caveat).not.toMatch(/not been observed/);
+    expect(caveat).toMatch(/incomplete dominance/);
+    expect(caveat).toMatch(/linkage test/);
+  });
+
+  it('says double merle dogs are usually, not always, mostly white', () => {
+    expect(FLAG_INFO['mostly-white'].caveat).toMatch(/usually mostly white/);
+  });
+
+  it('says ay/at/at dogs were tan-pointed in one breed and fawn in another', () => {
+    const { caveat } = FLAG_INFO['ayt-unknown'];
+    expect(caveat).toMatch(/Dreger 2020/);
+    expect(caveat).toMatch(/tan-pointed/);
+    expect(caveat).toMatch(/fawn/);
+  });
 });

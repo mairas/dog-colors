@@ -98,7 +98,7 @@
       "locator": "Results, 'Allele frequency is influenced by within-breed selection…' (brown = MC1R E/_, TYRP1 b/b)"
     },
     "note": "Also Anderson 2020 Fig. 3 legend (c): KB solid eumelanin shade brown due to TYRP1 variants.",
-    "adaptation": "Brindle caveat added: the plan attaches it to every KB one-colour pattern, because the KB test also marks brindle haplotypes."
+    "adaptation": "Brindle caveat added: the plan attaches it to every KB one-colour pattern, because the KB test can't tell brindle from KB."
   },
   {
     "id": "eAeA-KB-ay",
@@ -627,7 +627,7 @@
       "locator": "Full text PMC1360527, Introduction and Fig. 1C (MM double merles predominantly white)"
     },
     "note": "OMIA 000211 Clinical features: MM deafness 10% unilateral, 15% bilateral. Locator obtained through a summarising fetch.",
-    "adaptation": "Brindle caveat added: the plan attaches it to every KB one-colour pattern, because the KB test also marks brindle haplotypes."
+    "adaptation": "Brindle caveat added: the plan attaches it to every KB one-colour pattern, because the KB test can't tell brindle from KB."
   },
   {
     "id": "harlequin",

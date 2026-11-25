@@ -173,7 +173,7 @@ const PIGMENT_FLAGS: Readonly<Record<Exclude<Flag, WhiteFlag | ReportFlag>, Rule
   'possible-saddle': (read) => patternOf(read) === 'tan-points' && has(read('RALY'), '+'),
   mask: (read) => showsPheomelanin(read) && has(read('MC1R'), 'Em'),
   'pheomelanin-light': (read) => showsPheomelanin(read) && copies(read('MFSD12'), 'i') === 2,
-  // The KB test also marks the brindle haplotypes, so any KB result may be brindle.
+  // The KB test can't tell brindle from KB, so any KB result may be brindle.
   'brindle-possible': (read) => patternOf(read) === 'one-colour',
   'merle-hidden': (read) => merleCopies(read) > 0 && hidesEumelanin(read),
   'merle-hard-to-see': (read) => merleCopies(read) > 0 && patternOf(read) === 'sable',
@@ -184,7 +184,8 @@ const PIGMENT_FLAGS: Readonly<Record<Exclude<Flag, WhiteFlag | ReportFlag>, Rule
 const spotting = (read: Reader): number => copies(read('MITF'), 'sp');
 
 const WHITE_FLAGS: Readonly<Record<WhiteFlag, Rule<boolean>>> = {
-  // Brancalion 2021 never observed one copy, and Wisdom's roan test is a linkage test.
+  // Brancalion 2021 proposes incomplete dominance; the one-copy coat is not
+  // described, and Wisdom's roan test is a linkage test.
   'roan-single-copy': (read) => spotting(read) > 0 && copies(read('USH2A'), 'R') === 1,
 };
 
@@ -346,7 +347,7 @@ export const FLAG_INFO: Readonly<Record<Flag, { readonly label: string; readonly
   'ayt-unknown': {
     label: 'ayt phenotype unknown',
     caveat:
-      'ASIP ay and at may sit on one chromosome (the ayt haplotype). Its coat effect is not known (Dreger 2019); it is shown as sable.',
+      'ASIP ay and at may sit on one chromosome (the ayt haplotype, Dreger 2019). Dogs with ay and two copies of at were tan-pointed in one breed and fawn in another (Dreger 2020), so the sable shown here is uncertain.',
   },
   'possible-saddle': {
     label: 'possible saddle, low confidence',
@@ -376,12 +377,12 @@ export const FLAG_INFO: Readonly<Record<Flag, { readonly label: string; readonly
   },
   'mostly-white': {
     label: 'mostly white',
-    caveat: 'Double merle (M/M) dogs are mostly white.',
+    caveat: 'Double merle (M/M) dogs are usually mostly white; two copies of the shorter merle alleles can show little white.',
   },
   'roan-single-copy': {
     label: 'roan uncertain',
     caveat:
-      "Roan has been seen with two copies; one copy has not been observed (Brancalion 2021), and Wisdom's roan test is a linkage test.",
+      "Roan may be partly dominant (Brancalion 2021 proposes incomplete dominance), but how one copy looks has not been described. Wisdom's roan test is a linkage test.",
   },
 };
 
