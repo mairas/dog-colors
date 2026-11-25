@@ -132,11 +132,20 @@ function noseOf(read: Reader): Nose {
   return brownish ? 'brown' : 'black';
 }
 
-/** Anderson 2020: KB was not expressed in eA/eA and eA/e dogs; Em/eA and E/eA were unaffected. */
-const skipsK: Rule<boolean> = (read) => {
-  const mc1r = read('MC1R');
-  return has(mc1r, 'eA') && copies(mc1r, 'eA') + copies(mc1r, 'e') === 2;
-};
+/**
+ * The MC1R alleles that leave KB unexpressed when the dog has neither E nor Em.
+ * Anderson 2020 saw it in eA/eA and eA/e dogs, with Em/eA and E/eA unaffected.
+ * eH rests on Honkanen 2024's abstract, which groups eA, eH and eG. eG is left
+ * out: Dreger 2010 reports KB epistatic to its grizzle and domino.
+ */
+const KB_SKIPPING_MC1R = ['eA', 'eH'] as const satisfies readonly Allele<'MC1R'>[];
+
+/** Whether KB goes unexpressed: an eA or eH allele with neither E nor Em. */
+export function skipsDominantBlack(mc1r: readonly string[]): boolean {
+  return KB_SKIPPING_MC1R.some((allele) => mc1r.includes(allele)) && !mc1r.includes('E') && !mc1r.includes('Em');
+}
+
+const skipsK: Rule<boolean> = (read) => skipsDominantBlack(read('MC1R'));
 
 function patternOf(read: Reader): Pattern {
   if (hidesEumelanin(read)) {
@@ -167,7 +176,7 @@ type WhiteFlag = 'roan-single-copy';
 type ReportFlag = 'undocumented-haplotype';
 
 const PIGMENT_FLAGS: Readonly<Record<Exclude<Flag, WhiteFlag | ReportFlag>, Rule<boolean>>> = {
-  'not-modelled-eA': (read) => !hidesEumelanin(read) && skipsK(read),
+  'not-modelled-eA': (read) => !hidesEumelanin(read) && skipsK(read) && has(read('MC1R'), 'eA'),
   'not-modelled-eH-eG': (read) => !hidesEumelanin(read) && (has(read('MC1R'), 'eH') || has(read('MC1R'), 'eG')),
   'ayt-unknown': (read) => patternOf(read) === 'sable' && has(read('ASIP'), 'ayt'),
   'possible-saddle': (read) => patternOf(read) === 'tan-points' && has(read('RALY'), '+'),
@@ -337,12 +346,12 @@ export const FLAG_INFO: Readonly<Record<Flag, { readonly label: string; readonly
   'not-modelled-eA': {
     label: 'not modelled precisely',
     caveat:
-      'MC1R eA: with two copies, or eA with e, Dominant Black (KB) was not expressed in the dogs studied, so this follows the A locus instead. Observed coats vary: dogs expected to be recessive black or tan-pointed showed wolf-sable, tan-point-like or nearly red coats (Anderson 2020).',
+      'MC1R eA without E or Em: Dominant Black (KB) was not expressed in the eA/eA and eA/e dogs studied, so this follows the A locus instead. Observed coats vary: dogs expected to be recessive black or tan-pointed showed wolf-sable, tan-point-like or nearly red coats (Anderson 2020).',
   },
   'not-modelled-eH-eG': {
     label: 'not modelled precisely',
     caveat:
-      'MC1R eH (Cocker sable) or eG (Sighthound domino) is present. Their effects outside their origin breeds are not well described, so the coat may differ from this prediction.',
+      'MC1R eH (Cocker sable) or eG (Sighthound domino) is present. Honkanen 2024 groups eA, eH and eG; on that grouping, with eH and without E or Em, Dominant Black (KB) is taken as not expressed and this follows the A locus. With eG and neither eA nor eH, KB is kept expressed, since Dreger 2010 reports KB epistatic to grizzle and domino. Their effects outside their origin breeds are not well described, so the coat may differ from this prediction.',
   },
   'ayt-unknown': {
     label: 'ayt phenotype unknown',

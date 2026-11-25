@@ -801,5 +801,48 @@
       "locator": "Abstract (ay/_ and e/e epistatic to +/_ saddle tan); OMIA 001806-9615 Markers"
     },
     "note": "No saddle flag."
+  },
+  {
+    "id": "eHe-KB-ay",
+    "genotype": {
+      "MC1R": "eH/e",
+      "CBD103": "KB/ky",
+      "ASIP": "ay/ay"
+    },
+    "expected": {
+      "pattern": "sable",
+      "flags": [
+        "not-modelled-eH-eG"
+      ]
+    },
+    "citation": {
+      "source": "Honkanen 2024",
+      "url": "https://doi.org/10.1111/age.13398",
+      "locator": "Abstract: eA, eH and eG associate with similar phenotypes in genotypes regulated by CBD103 (K locus) and ASIP, in the absence of the EM and E alleles; proposed order EM > E > eA/eH/eG > e1-3"
+    },
+    "note": "K skipped, as for eA. The sable cockers' own genotype table was not read; the rule follows the abstract's grouping with eA.",
+    "adaptation": "Only the skipped K step and the flag are asserted. The skip rests on the abstract's grouping alone, which the model does not follow for eG (Dreger 2010)."
+  },
+  {
+    "id": "eGeG-KB-ay",
+    "genotype": {
+      "MC1R": "eG/eG",
+      "CBD103": "KB/ky",
+      "ASIP": "ay/ay"
+    },
+    "expected": {
+      "pattern": "one-colour",
+      "flags": [
+        "not-modelled-eH-eG",
+        "brindle-possible"
+      ]
+    },
+    "citation": {
+      "source": "Dreger 2010",
+      "url": "https://doi.org/10.1093/jhered/esq061",
+      "locator": "Abstract: the KB allele at DEFB103 and the ay allele of ASIP are epistatic to grizzle and domino"
+    },
+    "note": "KB expressed: eG does not skip the K step, unlike eA and eH.",
+    "adaptation": "The study's KB dogs may also have carried E, so eG/eG without E is extrapolated; the flag qualifies it."
   }
 ]

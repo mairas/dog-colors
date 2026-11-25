@@ -29,8 +29,8 @@ interface OracleRow {
 const rows = JSON.parse(readFileSync(new URL('./oracle.json', import.meta.url), 'utf8')) as OracleRow[];
 
 describe('literature oracle', () => {
-  it('holds the 40 compiled rows, each with a citation', () => {
-    expect(rows).toHaveLength(40);
+  it('holds the 42 compiled rows, each with a citation', () => {
+    expect(rows).toHaveLength(42);
     expect(new Set(rows.map((row) => row.id)).size).toBe(rows.length);
     for (const row of rows) {
       expect(row.citation.source).not.toBe('');

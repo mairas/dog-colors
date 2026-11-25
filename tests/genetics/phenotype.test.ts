@@ -123,9 +123,36 @@ describe('phenotype: MC1R', () => {
       { pattern: 'tan-points', flags: ['not-modelled-eH-eG'] },
     ],
     [
-      'eA/eH → K not skipped, flagged for eH',
-      { CBD103: 'KB/ky', MC1R: 'eA/eH' },
+      'KB + Em/eG → one colour, flagged, K not skipped',
+      { CBD103: 'KB/ky', MC1R: 'Em/eG', ASIP: 'ay/ay' },
       { pattern: 'one-colour', flags: ['not-modelled-eH-eG', 'brindle-possible'] },
+    ],
+    // On Honkanen 2024's grouping of eH with eA: without E or Em, KB is not expressed.
+    [
+      'KB + eH/e + ay/ay → sable, K skipped and flagged',
+      { CBD103: 'KB/ky', MC1R: 'eH/e', ASIP: 'ay/ay' },
+      { pattern: 'sable', flags: ['not-modelled-eH-eG'] },
+    ],
+    [
+      'KB + eH/eH + at/at → black and tan, K skipped and flagged',
+      { CBD103: 'KB/KB', MC1R: 'eH/eH', ASIP: 'at/at' },
+      { base: 'black', pattern: 'tan-points', flags: ['not-modelled-eH-eG'] },
+    ],
+    // Dreger 2010: KB is epistatic to eG's grizzle and domino.
+    [
+      'KB + eG/eG + ay/ay → one colour, flagged, K not skipped',
+      { CBD103: 'KB/ky', MC1R: 'eG/eG', ASIP: 'ay/ay' },
+      { pattern: 'one-colour', flags: ['not-modelled-eH-eG', 'brindle-possible'] },
+    ],
+    [
+      'KB + eA/eG + at/at → tan points, K skipped for eA, flagged for both',
+      { CBD103: 'KB/ky', MC1R: 'eA/eG', ASIP: 'at/at' },
+      { pattern: 'tan-points', flags: ['not-modelled-eA', 'not-modelled-eH-eG'] },
+    ],
+    [
+      'KB + eA/eH + at/at → tan points, K skipped, flagged for both',
+      { CBD103: 'KB/ky', MC1R: 'eA/eH', ASIP: 'at/at' },
+      { pattern: 'tan-points', flags: ['not-modelled-eA', 'not-modelled-eH-eG'] },
     ],
   ])('%s', (_name, spec, expected) => check(spec, expected));
 });
@@ -439,6 +466,12 @@ describe('FLAG_INFO', () => {
   it('labels the eA flag "not modelled precisely" and says observed coats vary', () => {
     expect(FLAG_INFO['not-modelled-eA'].label).toBe('not modelled precisely');
     expect(FLAG_INFO['not-modelled-eA'].caveat).toMatch(/vary/);
+  });
+
+  it('says eH without E or Em follows the A locus and KB stays expressed with eG', () => {
+    const { caveat } = FLAG_INFO['not-modelled-eH-eG'];
+    expect(caveat).toMatch(/Honkanen 2024 groups eA, eH and eG[^.]*with eH and without E or Em[^.]*A locus/);
+    expect(caveat).toMatch(/eG and neither eA nor eH[^.]*KB[^.]*expressed[^.]*Dreger 2010/);
   });
 
   it('says roan may be incompletely dominant, not that one copy was never seen', () => {
