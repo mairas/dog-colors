@@ -3,8 +3,12 @@ import type { SavedStorage } from '../../src/saved/store.ts';
 
 /** A storage that forgets everything when the test ends; `failWrites` makes setItem throw as a full quota does. */
 export class MemoryStorage implements SavedStorage {
-  readonly items = new Map<string, string>();
+  readonly items: Map<string, string>;
   failWrites = false;
+
+  constructor(entries: Readonly<Record<string, string>> = {}) {
+    this.items = new Map(Object.entries(entries));
+  }
 
   getItem(key: string): string | null {
     return this.items.get(key) ?? null;

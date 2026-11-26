@@ -6,6 +6,7 @@ import { parseReport } from '../../src/report/parse.ts';
 import type { Line, PdfText } from '../../src/report/pdfText.ts';
 import type { ReadResult, Report } from '../../src/report/types.ts';
 import { startApp, type App, type AppState, type NoteStorage } from '../../src/ui/app.ts';
+import { MemoryStorage } from '../saved/storage.ts';
 
 // happy-dom replaces the global URL, which the shared fixture helpers resolve
 // paths with, so the DOM tests read the fixtures by directory instead.
@@ -53,27 +54,6 @@ export function pdf(name: string): File {
 
 export function ok(report: Report): ReadResult {
   return { ok: true, report };
-}
-
-/** A storage that forgets everything when the test ends. */
-export class MemoryStorage implements NoteStorage {
-  readonly items: Map<string, string>;
-
-  constructor(entries: Readonly<Record<string, string>> = {}) {
-    this.items = new Map(Object.entries(entries));
-  }
-
-  getItem(key: string): string | null {
-    return this.items.get(key) ?? null;
-  }
-
-  setItem(key: string, value: string): void {
-    this.items.set(key, value);
-  }
-
-  removeItem(key: string): void {
-    this.items.delete(key);
-  }
 }
 
 export interface PageOptions {

@@ -2,7 +2,8 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { Report } from '../../src/report/types.ts';
 import { stateFromQuery } from '../../src/ui/dev.ts';
-import { MemoryStorage, ok, openPage, pdf, sampleReport } from './app.ts';
+import { MemoryStorage } from '../saved/storage.ts';
+import { ok, openPage, pdf, sampleReport } from './app.ts';
 
 const HEADING = 'Colour is never a reason to choose a pairing';
 const REMINDER =
