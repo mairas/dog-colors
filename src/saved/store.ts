@@ -80,8 +80,6 @@ export interface SavedDogs {
   clear(): void;
 }
 
-type Held = CheckedEntry;
-
 /** A report to save, with the reader version that read it and a nose answer to carry. */
 interface Reading {
   readonly report: Report;
@@ -89,7 +87,7 @@ interface Reading {
   readonly nose: NoseAnswer | null;
 }
 
-type Patched<T> = { readonly next: readonly Held[]; readonly result: T };
+type Patched<T> = { readonly next: readonly CheckedEntry[]; readonly result: T };
 
 const HEX = 16;
 const ID_BYTES = 16;
@@ -107,7 +105,7 @@ function asksNose(report: Report): boolean {
   }
 }
 
-function held(id: string, readerVersion: number, savedAt: number, nose: NoseAnswer | null, report: Report): StoredDog {
+function storedDog(id: string, readerVersion: number, savedAt: number, nose: NoseAnswer | null, report: Report): StoredDog {
   const dog: UsableDog = {
     id,
     status: readerVersion === READER_VERSION ? 'current' : 'stale',
@@ -122,13 +120,13 @@ function held(id: string, readerVersion: number, savedAt: number, nose: NoseAnsw
   return { json: JSON.stringify({ id, readerVersion, savedAt, nose, report }), dog };
 }
 
-const serialise = (entries: readonly Held[]): string =>
+const serialise = (entries: readonly CheckedEntry[]): string =>
   `{"version":${STORED_VERSION},"dogs":[${entries.map((entry) => entry.json).join(',')}]}`;
 
-const listed = (entries: readonly Held[]): SavedDog[] => entries.flatMap((entry) => (entry.dog === null ? [] : [entry.dog]));
+const listed = (entries: readonly CheckedEntry[]): SavedDog[] => entries.flatMap((entry) => (entry.dog === null ? [] : [entry.dog]));
 
 /** The index of the first saved listed entry with the kit hash, or -1. */
-function firstWithHash(entries: readonly Held[], kitIdHash: string): number {
+function firstWithHash(entries: readonly CheckedEntry[], kitIdHash: string): number {
   let found = -1;
   let foundSavedAt = Number.POSITIVE_INFINITY;
   entries.forEach(({ dog }, index) => {
@@ -146,7 +144,7 @@ export function openSavedDogs(options: SavedDogsOptions): SavedDogs {
   const collator = new Intl.Collator(options.locale, { sensitivity: 'base' });
   let mode: StoreMode = 'working';
 
-  let entries: readonly Held[] = [];
+  let entries: readonly CheckedEntry[] = [];
   let sorted: readonly SavedDog[] = [];
   let byId = new Map<string, SavedDog>();
 
@@ -165,7 +163,7 @@ export function openSavedDogs(options: SavedDogsOptions): SavedDogs {
   };
 
   /** Takes the entries as the tab's own, keeping the objects of unchanged ones, and returns the listed IDs that went. */
-  function adopt(next: readonly Held[]): string[] {
+  function adopt(next: readonly CheckedEntry[]): string[] {
     const previous = new Map(entries.map((entry) => [entry.json, entry]));
     const kept = next.map((entry) => previous.get(entry.json) ?? entry);
     const ids = new Set(listed(kept).map((dog) => dog.id));
@@ -180,7 +178,7 @@ export function openSavedDogs(options: SavedDogsOptions): SavedDogs {
 
   /** Saves the reading over its target or the first saved dog with its kit hash, or as the fresh entry. */
   function patchAdd(
-    current: readonly Held[],
+    current: readonly CheckedEntry[],
     reading: Reading,
     target: string | undefined,
     fresh: () => StoredDog,
@@ -199,7 +197,7 @@ export function openSavedDogs(options: SavedDogsOptions): SavedDogs {
     const kept = answer !== null && asksNose(report);
     const nose: NoseOutcome = answer === null ? 'none' : kept ? 'kept' : 'dropped';
     const savedAt = Number.isFinite(matched.savedAt) ? matched.savedAt : now();
-    const renewed = held(matched.id, reading.readerVersion, savedAt, kept ? answer : null, report);
+    const renewed = storedDog(matched.id, reading.readerVersion, savedAt, kept ? answer : null, report);
     return {
       next: current.map((entry, at) => (at === index ? renewed : entry)),
       result: { outcome: { kind: matched.status === 'current' ? 'updated' : 'replaced', id: matched.id, nose } },
@@ -215,7 +213,7 @@ export function openSavedDogs(options: SavedDogsOptions): SavedDogs {
     }
   }
 
-  function write(next: readonly Held[]): boolean {
+  function write(next: readonly CheckedEntry[]): boolean {
     try {
       options.storage().setItem(SAVED_DOGS_KEY, serialise(next));
       return true;
@@ -224,14 +222,14 @@ export function openSavedDogs(options: SavedDogsOptions): SavedDogs {
     }
   }
 
-  const memoryMode = (stored: readonly Held[]): StoreMode => (listed(stored).length > 0 ? 'full' : 'nothing-stored');
+  const memoryMode = (stored: readonly CheckedEntry[]): StoreMode => (listed(stored).length > 0 ? 'full' : 'nothing-stored');
 
   /**
    * Applies the patch to the stored list and adopts it while storage works,
    * otherwise to the tab's own list. A patch that only removes entries
    * (`shrinks`) is also tried against storage in memory mode.
    */
-  function change<T>(patch: (current: readonly Held[]) => Patched<T>, shrinks = false): T & Change {
+  function change<T>(patch: (current: readonly CheckedEntry[]) => Patched<T>, shrinks = false): T & Change {
     if (mode === 'working') {
       const current = read();
       if (current === null) {
@@ -278,7 +276,7 @@ export function openSavedDogs(options: SavedDogsOptions): SavedDogs {
     add(report, target) {
       return change((current) =>
         patchAdd(current, { report, readerVersion: READER_VERSION, nose: null }, target, () =>
-          held(newId(), READER_VERSION, now(), null, report),
+          storedDog(newId(), READER_VERSION, now(), null, report),
         ),
       );
     },
@@ -289,7 +287,7 @@ export function openSavedDogs(options: SavedDogsOptions): SavedDogs {
           const dog = entry.dog;
           return dog === null || dog.id !== id || dog.status === 'unusable'
             ? entry
-            : held(dog.id, dog.readerVersion, dog.savedAt, nose, dog.report);
+            : storedDog(dog.id, dog.readerVersion, dog.savedAt, nose, dog.report);
         }),
         result: {},
       }));
