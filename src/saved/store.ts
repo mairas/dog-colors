@@ -73,9 +73,11 @@ export interface SavedDogs {
   /**
    * Saves a report read now: updates the first saved dog with its kit hash, or
    * adds a new dog. A re-add from a stale or unusable dog names it as the
-   * target, which is replaced when the kit hashes match or either is missing,
-   * unless another dog has the report's hash; a report with no hash keeps the
-   * target's.
+   * target. The target is replaced when its kit hash matches the report's or
+   * the report has none, or when it has no hash and no other dog has the
+   * report's; a report with no hash keeps the target's. Otherwise the first
+   * dog with the report's hash is updated, or a new dog added, and the target
+   * stays.
    */
   add(report: Report, target?: string): AddResult;
   setNose(id: string, nose: NoseAnswer | null): Change;
