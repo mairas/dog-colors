@@ -56,6 +56,16 @@ function conditions {
   node scripts/build-conditions.ts "${1:-_local/samples}"
 }
 
+function record-readings {
+  #@ Record the local sample reports' full readings for the current reader and pdfjs-dist versions
+  #@ Category: Development
+  if [[ ! -f _local/samples/manifest.json ]]; then
+    echo "record-readings: _local/samples/manifest.json is missing" >&2
+    return 1
+  fi
+  RECORD_READINGS=1 npx --no-install vitest run tests/report/real-pdfs.local.test.ts
+}
+
 ################################################################################
 # Quality Commands
 

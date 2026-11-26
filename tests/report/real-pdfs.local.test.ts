@@ -1,8 +1,9 @@
 // Reads the real sample reports through pdf.js. They live only in the
 // git-ignored _local/samples, so this suite skips itself where they are
 // absent, as in CI.
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import {
   FIXTURE_LETTERS,
@@ -11,12 +12,37 @@ import {
 } from '../../scripts/extract-fixtures.ts';
 import { readReport } from '../../src/report/read.ts';
 import type { Report } from '../../src/report/types.ts';
+import { READER_VERSION } from '../../src/report/version.ts';
 import { fixtureReport, loadFixture } from './fixtures.ts';
+import { pdfjsDistVersion } from './pdfjsVersion.ts';
 
 const manifest = readManifest(SAMPLES_DIRECTORY);
 
 async function readSample(relative: string): ReturnType<typeof readReport> {
   return readReport(new Blob([readFileSync(join(SAMPLES_DIRECTORY, relative))]));
+}
+
+async function sampleReport(letter: string): Promise<Report> {
+  const result = await readSample(manifest?.fixtures[letter] ?? '');
+  if (!result.ok) {
+    throw new Error(`sample ${letter} was rejected as ${result.kind}`);
+  }
+  return result.report;
+}
+
+// The full reports identify the dogs, so the recorded copy stays beside the samples.
+const READING_NAME = `readings/${READER_VERSION}-${pdfjsDistVersion()}.json`;
+const READING_PATH = join(SAMPLES_DIRECTORY, READING_NAME);
+const RECORDING = process.env.RECORD_READINGS === '1';
+
+type Reading = Readonly<Record<string, unknown>>;
+
+const asReading = (report: Report): Reading => JSON.parse(JSON.stringify(report)) as Reading;
+
+/** Names the fields that differ, without their values, which identify the dog. */
+function differingFields(actual: Reading, recorded: Reading): string[] {
+  const fields = new Set([...Object.keys(actual), ...Object.keys(recorded)]);
+  return [...fields].filter((field) => !isDeepStrictEqual(actual[field], recorded[field])).sort();
 }
 
 describe.skipIf(manifest === null)('real sample reports', () => {
@@ -46,11 +72,7 @@ describe.skipIf(manifest === null)('real sample reports', () => {
   );
 
   async function healthRows(letter: string): Promise<Report['health']> {
-    const result = await readSample(manifest?.fixtures[letter] ?? '');
-    if (!result.ok) {
-      throw new Error(`sample ${letter} was rejected as ${result.kind}`);
-    }
-    return result.report.health;
+    return (await sampleReport(letter)).health;
   }
 
   it('reads the same health conditions from samples A and B, one panel from two producers', async () => {
@@ -85,5 +107,33 @@ describe.skipIf(manifest === null)('real sample reports', () => {
   );
   it.each(rejections)('rejected sample %i is rejected as %s', async (_number, kind, relative) => {
     expect(await readSample(relative)).toEqual({ ok: false, kind });
+  });
+});
+
+describe.skipIf(manifest === null)(`real sample reports against their recorded copy, ${READING_NAME}`, () => {
+  it.runIf(RECORDING)('records every sample’s full report for this reader and pdfjs-dist version', async () => {
+    const readings = Object.fromEntries(
+      await Promise.all(FIXTURE_LETTERS.map(async (letter) => [letter, await sampleReport(letter)] as const)),
+    );
+    mkdirSync(dirname(READING_PATH), { recursive: true });
+    writeFileSync(READING_PATH, `${JSON.stringify(readings, null, 2)}\n`);
+  });
+
+  it.skipIf(RECORDING).each(FIXTURE_LETTERS)('sample %s reads as its recorded copy', async (letter) => {
+    if (!existsSync(READING_PATH)) {
+      expect.fail(
+        `No recorded copy for reader version ${READER_VERSION} and pdfjs-dist ${pdfjsDistVersion()}: record it with ./run record-readings.`,
+      );
+    }
+    const readings = JSON.parse(readFileSync(READING_PATH, 'utf8')) as Readonly<Record<string, Reading>>;
+    const recorded = readings[letter];
+    if (recorded === undefined) {
+      expect.fail(`The recorded copy holds no sample ${letter}: record it again with ./run record-readings.`);
+    }
+    expect(
+      differingFields(asReading(await sampleReport(letter)), recorded),
+      `Sample ${letter} reads differently from its recorded copy in these fields. ` +
+        'If the reader changed on purpose, bump READER_VERSION in src/report/version.ts and record with ./run record-readings.',
+    ).toEqual([]);
   });
 });
