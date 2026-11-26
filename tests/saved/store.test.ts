@@ -194,6 +194,31 @@ describe('stale and unusable entries', () => {
     expect((stored() as { dogs: unknown[] }).dogs).toEqual([unusable, expect.objectContaining({ id: 'id-1' })]);
   });
 
+  it('leaves an unusable entry as stored when its nose answer is set', () => {
+    const unusable = entry('bad', { ...withNoseQuestion(a), shortTail: 1.5 });
+    seed([unusable]);
+    const store = open();
+    expect(store.setNose('bad', 'brown')).toEqual({ gone: [] });
+    expect(store.dog('bad')).toMatchObject({ status: 'unusable', nose: null });
+    expect((stored() as { dogs: unknown[] }).dogs).toEqual([unusable]);
+  });
+
+  it('keeps __proto__ and constructor keys in stored records as data, through a write', () => {
+    const report = { ...a, colour: { ...a.colour, PROTO: { polluted: 1 } }, health: [{ ...b.health[0], constructor: 'x', PROTO: { polluted: true } }] };
+    storage.setItem(SAVED_DOGS_KEY, JSON.stringify({ version: 1, dogs: [entry('odd', report)] }).replaceAll('"PROTO"', '"__proto__"'));
+    const store = open();
+    const dog = usable(store.dog('odd'));
+    expect(Object.getPrototypeOf(dog.report.colour)).toBe(Object.prototype);
+    expect(Object.keys(dog.report.colour)).toContain('__proto__');
+    store.setNose('odd', 'brown');
+    store.add(b);
+    const text = storage.getItem(SAVED_DOGS_KEY) ?? '';
+    expect(text).toContain('"__proto__":{"polluted":1}');
+    expect(text).toContain('"constructor":"x"');
+    expect(open().dog('odd')?.nose).toBe('brown');
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
   it('replaces an unusable entry with the same kit hash on an ordinary add, with a time first saved it can store', () => {
     seed([entry('bad', { ...a, shortTail: 1.5 }, { savedAt: 'unknown' })]);
     const store = open();
@@ -288,6 +313,17 @@ describe('another tab', () => {
     expect(first.dog('id-1')).toBe(kept);
     expect(names(open())).toEqual(names(first));
     expect((stored() as { dogs: { id: string }[] }).dogs.map((dog) => dog.id)).not.toContain('no-name');
+  });
+
+  it('deleting a dog another tab already deleted returns it for undo, and does not report it gone', () => {
+    const first = open();
+    first.add(named(a, 'Deleted twice'));
+    first.add(named(b, 'Kept'));
+    open().remove('id-1');
+    const result = first.remove('id-1');
+    expect(result.deleted?.dog).toMatchObject({ id: 'id-1', name: 'Deleted twice' });
+    expect(result.gone).toEqual([]);
+    expect(names(first)).toEqual(['Kept']);
   });
 
   it('a delete in another tab is not undone by this tab’s nose answer, and the dog is reported gone', () => {
@@ -394,6 +430,21 @@ describe('deleting, restoring and clearing', () => {
     expect(open().dogs().map((dog) => [dog.id, dog.name, dog.status, dog.nose])).toEqual([['bad', 'Deleted', 'current', 'brown']]);
   });
 
+  it('restoring a dog whose ID is listed again changes nothing', () => {
+    const store = open();
+    store.add(withNoseQuestion(a));
+    store.setNose('id-1', 'brown');
+    const deleted = deletedFrom(store, 'id-1');
+    store.restore(deleted);
+    store.setNose('id-1', 'black');
+    const [dog, before] = [store.dog('id-1'), storage.getItem(SAVED_DOGS_KEY)];
+    expect(store.restore(deleted)).toEqual({ outcome: { kind: 'added', id: 'id-1' }, gone: [] });
+    expect(store.dogs()).toEqual([dog]);
+    expect(store.dog('id-1')).toBe(dog);
+    expect(dog?.nose).toBe('black');
+    expect(storage.getItem(SAVED_DOGS_KEY)).toBe(before);
+  });
+
   it('reports nothing deleted for an unknown ID', () => {
     const store = open();
     store.add(a);
@@ -475,6 +526,24 @@ describe('a stored value this page cannot use', () => {
     expect(storage.getItem(SAVED_DOGS_KEY)).toBe(before);
   });
 });
+
+/** The test's storage, whose getItem throws once stopReads is called. */
+function readsThatStop(): SavedStorage & { stopReads(): void } {
+  let reads = true;
+  return {
+    getItem: (key) => {
+      if (!reads) {
+        throw new DOMException('denied', 'SecurityError');
+      }
+      return storage.getItem(key);
+    },
+    setItem: (key, value) => storage.setItem(key, value),
+    removeItem: (key) => storage.removeItem(key),
+    stopReads: () => {
+      reads = false;
+    },
+  };
+}
 
 describe('storage that refuses', () => {
   it.each([
@@ -597,6 +666,32 @@ describe('storage that refuses', () => {
     expect(storage.getItem(SAVED_DOGS_KEY)).toBe(before);
     expect(store.dogs().map((dog) => dog.id)).toEqual(['id-2']);
     expect(store.mode()).toBe('out-of-date');
+  });
+
+  it('turns to memory when reads start failing after a working load, applying the change that found it in the tab', () => {
+    const flaky = readsThatStop();
+    const store = open({ storage: () => flaky });
+    store.add(named(a, 'First'));
+    store.add(named(b, 'Second'));
+    const before = storage.getItem(SAVED_DOGS_KEY);
+    flaky.stopReads();
+    const result = store.remove('id-1');
+    expect(store.mode()).toBe('full');
+    expect(result).toEqual({ deleted: expect.objectContaining({ dog: expect.objectContaining({ id: 'id-1' }) }), gone: [] });
+    expect(names(store)).toEqual(['Second']);
+    store.add(named(c, 'Third'));
+    expect(names(store)).toEqual(['Second', 'Third']);
+    expect(storage.getItem(SAVED_DOGS_KEY)).toBe(before);
+  });
+
+  it('turns to memory with nothing stored when reads start failing before any dog is listed', () => {
+    const flaky = readsThatStop();
+    const store = open({ storage: () => flaky });
+    flaky.stopReads();
+    store.add(a);
+    expect(store.mode()).toBe('nothing-stored');
+    expect(store.dogs()).toHaveLength(1);
+    expect(storage.getItem(SAVED_DOGS_KEY)).toBeNull();
   });
 
   it('turns to memory when a clear is refused while storage worked', () => {
