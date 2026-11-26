@@ -2,8 +2,8 @@
 // storage works, every change re-reads the key, changes one entry, writes it
 // back and adopts what was written, so two tabs neither resurrect a deleted dog
 // nor lose an added one. Once storage refuses, the tab's own list is the truth
-// for the rest of the visit; deletes and Clear are still tried, since they only
-// shrink what is stored.
+// for the rest of the visit; deletes, undo and Clear are still tried, since
+// they only take away or put back what the tab listed.
 
 import { resolveDog } from '../genetics/dog.ts';
 import type { NoseAnswer } from '../genetics/questions.ts';
@@ -240,10 +240,11 @@ export function openSavedDogs(options: SavedDogsOptions): SavedDogs {
 
   /**
    * Applies the patch to the stored list and adopts it while storage works,
-   * otherwise to the tab's own list. A patch that only removes entries
-   * (`shrinks`) is also tried against storage in memory mode.
+   * otherwise to the tab's own list. A delete or an undo (`triesStorage`) is
+   * also tried against storage in a memory mode other than out-of-date, and
+   * a refusal ignored: it only takes away or puts back what this tab listed.
    */
-  function change<T>(patch: (current: readonly CheckedEntry[]) => Patched<T>, shrinks = false): T & Change {
+  function change<T>(patch: (current: readonly CheckedEntry[]) => Patched<T>, triesStorage = false): T & Change {
     if (mode === 'working') {
       const current = read();
       if (current === null) {
@@ -257,13 +258,13 @@ export function openSavedDogs(options: SavedDogsOptions): SavedDogs {
         }
         return { ...result, gone: adopt(next) };
       }
-    } else if (shrinks && mode !== 'out-of-date') {
+    } else if (triesStorage && mode !== 'out-of-date') {
       const current = read();
       if (current?.kind === 'newer') {
         mode = 'out-of-date';
       } else if (current !== null) {
         const { next } = patch(current.entries);
-        if (next.length < current.entries.length) {
+        if (next.length !== current.entries.length || next.some((entry, at) => entry !== current.entries[at])) {
           write(next);
         }
       }
@@ -342,7 +343,7 @@ export function openSavedDogs(options: SavedDogsOptions): SavedDogs {
             : current,
           result: { outcome: { kind: 'updated', id: matched.id, nose: dog.nose === null ? 'none' : nose === dog.nose ? 'kept' : 'dropped' } },
         };
-      });
+      }, true);
     },
 
     clear() {

@@ -428,7 +428,7 @@ describe('a stored value this page cannot use', () => {
     expect(open().dogs().map((dog) => dog.id)).toEqual(['id-1']);
   });
 
-  it('is out of date over a newer stored version: adds, nose answers, deletes and a clear stay in this tab, and storage is untouched', () => {
+  it('is out of date over a newer stored version: adds, nose answers, deletes, an undo and a clear stay in this tab, and storage is untouched', () => {
     seed([{ anything: true }], 2);
     const before = storage.getItem(SAVED_DOGS_KEY);
     const store = open();
@@ -441,8 +441,10 @@ describe('a stored value this page cannot use', () => {
       ['id-1', 'brown'],
       ['id-2', null],
     ]);
-    store.remove('id-2');
+    const deleted = deletedFrom(store, 'id-2');
     expect(store.dogs().map((dog) => dog.id)).toEqual(['id-1']);
+    store.restore(deleted);
+    expect(store.dogs().map((dog) => dog.id)).toEqual(['id-1', 'id-2']);
     store.clear();
     expect(store.dogs()).toEqual([]);
     expect(storage.getItem(SAVED_DOGS_KEY)).toBe(before);
@@ -540,6 +542,47 @@ describe('storage that refuses', () => {
     open({ newId: sequentialIds('tab') }).add(named(c, 'Other tab'));
     expect(store.add(named(c, 'Here', hash('ab'))).gone).toEqual([]);
     expect(names(store)).toEqual(['First', 'Here', 'Unsaved']);
+  });
+
+  it('an undo in memory mode with dogs stored puts the dog back in storage, so a reload lists it again', () => {
+    const store = open();
+    store.add(named(a, 'First'));
+    store.add(named(b, 'Second'));
+    storage.failWrites = true;
+    store.add(named(c, 'Third'));
+    storage.failWrites = false;
+    const deleted = deletedFrom(store, 'id-1');
+    expect(names(open())).toEqual(['Second']);
+    expect(store.restore(deleted)).toEqual({ outcome: { kind: 'added', id: 'id-1' }, gone: [] });
+    expect(names(store)).toEqual(['First', 'Second', 'Third']);
+    expect(names(open())).toEqual(['First', 'Second']);
+    expect(store.mode()).toBe('full');
+  });
+
+  it('an undo in memory mode with nothing stored is tried against storage too', () => {
+    storage.failWrites = true;
+    const store = open();
+    store.add(named(a, 'First'));
+    expect(store.mode()).toBe('nothing-stored');
+    storage.failWrites = false;
+    store.restore(deletedFrom(store, 'id-1'));
+    expect(names(open())).toEqual(['First']);
+    expect(store.mode()).toBe('nothing-stored');
+  });
+
+  it('an undo in memory mode whose write is refused stays in the tab', () => {
+    const store = open();
+    store.add(named(a, 'First'));
+    store.add(named(b, 'Second'));
+    storage.failWrites = true;
+    store.add(named(c, 'Third'));
+    storage.failWrites = false;
+    const deleted = deletedFrom(store, 'id-1');
+    storage.failWrites = true;
+    expect(store.restore(deleted).outcome).toEqual({ kind: 'added', id: 'id-1' });
+    expect(names(store)).toEqual(['First', 'Second', 'Third']);
+    expect(names(open())).toEqual(['Second']);
+    expect(store.mode()).toBe('full');
   });
 
   it('a delete in memory mode leaves storage alone when storage now holds a newer version', () => {
