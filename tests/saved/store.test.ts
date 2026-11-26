@@ -224,6 +224,35 @@ describe('stale and unusable entries', () => {
     ]);
   });
 
+  it('a re-add whose report matches another dog’s kit hash updates that dog, even when the target has no hash, and the target stays', () => {
+    seed([entry('bad', { ...named(a, 'Old', null), shortTail: 1.5 }), entry('other', named(b, 'Other', hash('cd')))]);
+    const store = open();
+    expect(store.add(named(c, 'Other again', hash('cd')), 'bad').outcome).toEqual({ kind: 'updated', id: 'other', nose: 'none' });
+    expect(store.dogs().map((dog) => [dog.id, dog.name, dog.status])).toEqual([
+      ['bad', 'Old', 'unusable'],
+      ['other', 'Other again', 'current'],
+    ]);
+  });
+
+  it('a re-add whose report matches the target’s kit hash replaces the target, even when an earlier dog shares the hash', () => {
+    seed([
+      entry('earlier', named(b, 'Earlier', hash('ab')), { savedAt: NOW - 10 }),
+      entry('bad', { ...named(a, 'Old', hash('ab')), shortTail: 1.5 }),
+    ]);
+    const store = open();
+    expect(store.add(named(a, 'New', hash('ab')), 'bad').outcome).toEqual({ kind: 'replaced', id: 'bad', nose: 'none' });
+    expect(names(store)).toEqual(['Earlier', 'New']);
+  });
+
+  it('a re-add of a report with no kit hash keeps the target’s hash, so a later add of the dog still matches it', () => {
+    seed([entry('old', named(a, 'Old', hash('ab')), { readerVersion: READER_VERSION - 1 })]);
+    const store = open();
+    expect(store.add(named(a, 'New', null), 'old').outcome).toEqual({ kind: 'replaced', id: 'old', nose: 'none' });
+    expect(open().dog('old')).toMatchObject({ status: 'current', name: 'New', kitIdHash: hash('ab') });
+    expect(store.add(named(a, 'Again', hash('ab'))).outcome).toEqual({ kind: 'updated', id: 'old', nose: 'none' });
+    expect(store.dogs()).toHaveLength(1);
+  });
+
   it('a re-add whose target has gone is an ordinary add', () => {
     expect(open().add(named(a, 'New'), 'gone-already').outcome).toEqual({ kind: 'added', id: 'id-1' });
   });

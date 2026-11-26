@@ -69,7 +69,9 @@ export interface SavedDogs {
   /**
    * Saves a report read now: updates the first saved dog with its kit hash, or
    * adds a new dog. A re-add from a stale or unusable dog names it as the
-   * target, which is replaced when the kit hashes match or either is missing.
+   * target, which is replaced when the kit hashes match or either is missing,
+   * unless another dog has the report's hash; a report with no hash keeps the
+   * target's.
    */
   add(report: Report, target?: string): AddResult;
   setNose(id: string, nose: NoseAnswer | null): Change;
@@ -183,16 +185,19 @@ export function openSavedDogs(options: SavedDogsOptions): SavedDogs {
     target: string | undefined,
     fresh: () => StoredDog,
   ): Patched<{ outcome: AddOutcome }> {
-    const { report } = reading;
+    const { kitIdHash } = reading.report;
+    const hashIndex = kitIdHash === null ? -1 : firstWithHash(current, kitIdHash);
     const targetIndex = target === undefined ? -1 : current.findIndex((entry) => entry.dog?.id === target);
     const targetHash = current[targetIndex]?.dog?.kitIdHash;
-    const replacesTarget = targetIndex >= 0 && (targetHash === null || report.kitIdHash === null || targetHash === report.kitIdHash);
-    const index = replacesTarget ? targetIndex : report.kitIdHash === null ? -1 : firstWithHash(current, report.kitIdHash);
+    const replacesTarget =
+      targetIndex >= 0 && (kitIdHash === null || targetHash === kitIdHash || (targetHash === null && hashIndex < 0));
+    const index = replacesTarget ? targetIndex : hashIndex;
     const matched = current[index]?.dog;
     if (matched === undefined || matched === null) {
       const entry = fresh();
       return { next: [...current, entry], result: { outcome: { kind: 'added', id: entry.dog.id } } };
     }
+    const report = kitIdHash === null ? { ...reading.report, kitIdHash: matched.kitIdHash } : reading.report;
     const answer = reading.nose ?? matched.nose;
     const kept = answer !== null && asksNose(report);
     const nose: NoseOutcome = answer === null ? 'none' : kept ? 'kept' : 'dropped';
