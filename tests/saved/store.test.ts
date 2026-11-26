@@ -391,6 +391,15 @@ describe('deleting, restoring and clearing', () => {
     expect(store.dogs().map((dog) => [dog.id, dog.nose])).toEqual([['tab-1', 'black']]);
   });
 
+  it('restoring a dog with no nose answer over a dog with its kit hash saved meanwhile reports no nose answer', () => {
+    const store = open();
+    store.add(named(a, 'Deleted', hash('ab')));
+    const deleted = deletedFrom(store, 'id-1');
+    open({ newId: sequentialIds('tab') }).add(named(a, 'Matched', hash('ab')));
+    expect(store.restore(deleted).outcome).toEqual({ kind: 'updated', id: 'tab-1', nose: 'none' });
+    expect(store.dogs().map((dog) => [dog.id, dog.name, dog.nose])).toEqual([['tab-1', 'Matched', null]]);
+  });
+
   it('restoring a stale dog over a current reading with its kit hash keeps the current reading and its ID', () => {
     seed([entry('old', withNoseQuestion(named(a, 'Old', hash('ab'))), { readerVersion: READER_VERSION - 1, nose: 'brown' })]);
     const store = open();
@@ -625,6 +634,25 @@ describe('storage that refuses', () => {
     expect(store.restore(deleted)).toEqual({ outcome: { kind: 'added', id: 'id-1' }, gone: [] });
     expect(names(store)).toEqual(['First', 'Second', 'Third']);
     expect(names(open())).toEqual(['First', 'Second']);
+    expect(store.mode()).toBe('full');
+  });
+
+  it('an undo in memory mode with dogs stored over a dog with its kit hash saved meanwhile stores the carried nose answer', () => {
+    const store = open();
+    store.add(withNoseQuestion(named(a, 'Deleted', hash('ab'))));
+    store.setNose('id-1', 'brown');
+    store.add(named(b, 'Second'));
+    storage.failWrites = true;
+    store.add(named(c, 'Third'));
+    storage.failWrites = false;
+    expect(store.mode()).toBe('full');
+    const deleted = deletedFrom(store, 'id-1');
+    open({ newId: sequentialIds('tab') }).add(withNoseQuestion(named(a, 'Matched', hash('ab'))));
+    store.restore(deleted);
+    expect(open().dogs().map((dog) => [dog.id, dog.name, dog.nose])).toEqual([
+      ['tab-1', 'Matched', 'brown'],
+      ['id-2', 'Second', null],
+    ]);
     expect(store.mode()).toBe('full');
   });
 
