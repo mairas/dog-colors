@@ -125,6 +125,8 @@ describe('checkStored: entries', () => {
     ['health that is not a list', {}, { health: {} }],
     ['an unknown report format', {}, { format: 'pdf' }],
     ['missing loci that are not a list', {}, { missingLoci: 'TYRP1' }],
+    ['missing loci with a number in the list', {}, { missingLoci: ['TYRP1', 7] }],
+    ['missing loci with null in the list', {}, { missingLoci: [null] }],
     ['a breed that is a number', {}, { breed: 7 }],
     ['an over-long breed', {}, { breed: 'x'.repeat(1001) }],
     ['an uppercase kit hash', {}, { kitIdHash: 'A'.repeat(64) }],
@@ -159,6 +161,35 @@ describe('checkStored: entries', () => {
     ['a number', 5],
   ])('drops an entry with %s', (_name, entry) => {
     expect(dogsOf(value([entry]))).toEqual([]);
+  });
+
+  it('drops an entry with a number in its missing loci and a name that fails', () => {
+    expect(dogsOf(value([rawEntry({}, { missingLoci: [7], name: 42 })]))).toEqual([]);
+  });
+
+  /** The value as JSON, with every "PROTO" key renamed __proto__, which an object literal cannot hold as data. */
+  const withProtoKeys = (entry: Raw): string => value([entry]).replaceAll('"PROTO"', '"__proto__"');
+
+  it('reads __proto__ and constructor keys in colour and health records as data, polluting no prototype', () => {
+    const colour = { ...a.colour, PROTO: { polluted: 1 }, constructor: { constructor: 1 } };
+    const health = [{ ...row, PROTO: { polluted: true }, constructor: 'x' }];
+    const [dog] = dogsOf(withProtoKeys(rawEntry({}, { colour, health })));
+    if (dog?.status !== 'current') {
+      throw new Error(`expected a current dog, got ${dog?.status ?? 'none'}`);
+    }
+    expect(Object.getPrototypeOf(dog.report.colour)).toBe(Object.prototype);
+    expect(Object.keys(dog.report.colour)).toEqual(expect.arrayContaining(['__proto__', 'constructor']));
+    expect(Object.getPrototypeOf(dog.report.health[0])).toBe(Object.prototype);
+    expect(({} as Raw).polluted).toBeUndefined();
+  });
+
+  it('marks an entry whose colour holds a __proto__ key that is not a record unusable', () => {
+    const dogs = dogsOf(withProtoKeys(rawEntry({}, { colour: { ...a.colour, PROTO: 5 } })));
+    expect(dogs[0]).toMatchObject({ status: 'unusable', name: 'Sample A' });
+  });
+
+  it('drops an entry whose report has no name of its own but a __proto__ key holding one', () => {
+    expect(dogsOf(withProtoKeys(rawEntry({}, { name: undefined, PROTO: { name: 'Inherited' } })))).toEqual([]);
   });
 
   it('keeps only the first of two entries with the same ID', () => {
