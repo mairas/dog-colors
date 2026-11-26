@@ -57,7 +57,7 @@ function conditions {
 }
 
 function record-readings {
-  #@ Record the local sample reports' full readings for the current reader and pdfjs-dist versions
+  #@ Record the local sample reports' full readings and the pdfjs-dist version for the current reader version
   #@ Category: Development
   if [[ ! -f _local/samples/manifest.json ]]; then
     echo "record-readings: _local/samples/manifest.json is missing" >&2

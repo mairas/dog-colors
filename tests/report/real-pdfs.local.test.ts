@@ -31,13 +31,29 @@ async function sampleReport(letter: string): Promise<Report> {
 }
 
 // The full reports identify the dogs, so the recorded copy stays beside the samples.
-const READING_NAME = `readings/${READER_VERSION}-${pdfjsDistVersion()}.json`;
+// It is keyed by reader version alone, so a pdfjs-dist update is compared with the
+// copy the previous pdfjs-dist recorded.
+const READING_NAME = `readings/${READER_VERSION}.json`;
 const READING_PATH = join(SAMPLES_DIRECTORY, READING_NAME);
 const RECORDING = process.env.RECORD_READINGS === '1';
+const PDFJS_DIST = pdfjsDistVersion();
 
 type Reading = Readonly<Record<string, unknown>>;
 
+interface RecordedCopy {
+  readonly pdfjsDist: string;
+  readonly readings: Readonly<Record<string, Reading>>;
+}
+
 const asReading = (report: Report): Reading => JSON.parse(JSON.stringify(report)) as Reading;
+
+const recordedCopy: RecordedCopy | null =
+  !RECORDING && existsSync(READING_PATH) ? (JSON.parse(readFileSync(READING_PATH, 'utf8')) as RecordedCopy) : null;
+
+const pdfjsNote =
+  recordedCopy === null || recordedCopy.pdfjsDist === PDFJS_DIST
+    ? ''
+    : ` (recorded with pdfjs-dist ${recordedCopy.pdfjsDist}, read with ${PDFJS_DIST})`;
 
 /** Names the fields that differ, without their values, which identify the dog. */
 function differingFields(actual: Reading, recorded: Reading): string[] {
@@ -111,29 +127,32 @@ describe.skipIf(manifest === null)('real sample reports', () => {
 });
 
 describe.skipIf(manifest === null)(`real sample reports against their recorded copy, ${READING_NAME}`, () => {
-  it.runIf(RECORDING)('records every sample’s full report for this reader and pdfjs-dist version', async () => {
+  it.runIf(RECORDING)('records every sample’s full report and the pdfjs-dist version for this reader', async () => {
     const readings = Object.fromEntries(
       await Promise.all(FIXTURE_LETTERS.map(async (letter) => [letter, await sampleReport(letter)] as const)),
     );
+    const copy = { pdfjsDist: PDFJS_DIST, readings };
     mkdirSync(dirname(READING_PATH), { recursive: true });
-    writeFileSync(READING_PATH, `${JSON.stringify(readings, null, 2)}\n`);
+    writeFileSync(READING_PATH, `${JSON.stringify(copy, null, 2)}\n`);
   });
 
-  it.skipIf(RECORDING).each(FIXTURE_LETTERS)('sample %s reads as its recorded copy', async (letter) => {
-    if (!existsSync(READING_PATH)) {
-      expect.fail(
-        `No recorded copy for reader version ${READER_VERSION} and pdfjs-dist ${pdfjsDistVersion()}: record it with ./run record-readings.`,
-      );
+  it.skipIf(RECORDING).each(FIXTURE_LETTERS)(`sample %s reads as its recorded copy${pdfjsNote}`, async (letter) => {
+    if (recordedCopy === null) {
+      expect.fail(`No recorded copy for reader version ${READER_VERSION}: record it with ./run record-readings.`);
     }
-    const readings = JSON.parse(readFileSync(READING_PATH, 'utf8')) as Readonly<Record<string, Reading>>;
-    const recorded = readings[letter];
+    const recorded = recordedCopy.readings[letter];
     if (recorded === undefined) {
       expect.fail(`The recorded copy holds no sample ${letter}: record it again with ./run record-readings.`);
     }
+    const update =
+      pdfjsNote === ''
+        ? ''
+        : `The copy was recorded with pdfjs-dist ${recordedCopy.pdfjsDist} and ${PDFJS_DIST} is installed; ` +
+          'a pdfjs-dist update that changes a reading needs the bump too. ';
     expect(
       differingFields(asReading(await sampleReport(letter)), recorded),
-      `Sample ${letter} reads differently from its recorded copy in these fields. ` +
-        'If the reader changed on purpose, bump READER_VERSION in src/report/version.ts and record with ./run record-readings.',
+      `Sample ${letter} reads differently from its recorded copy in these fields. ${update}` +
+        'If the change is accepted, bump READER_VERSION in src/report/version.ts and record with ./run record-readings.',
     ).toEqual([]);
   });
 });
