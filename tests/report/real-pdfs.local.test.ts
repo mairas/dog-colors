@@ -9,23 +9,14 @@ import {
   readManifest,
   SAMPLES_DIRECTORY,
 } from '../../scripts/extract-fixtures.ts';
-import { parseReport } from '../../src/report/parse.ts';
 import { readReport } from '../../src/report/read.ts';
 import type { Report } from '../../src/report/types.ts';
-import { fixtureText, loadFixture } from './fixtures.ts';
+import { fixtureReport, loadFixture } from './fixtures.ts';
 
 const manifest = readManifest(SAMPLES_DIRECTORY);
 
 async function readSample(relative: string): ReturnType<typeof readReport> {
   return readReport(new Blob([readFileSync(join(SAMPLES_DIRECTORY, relative))]));
-}
-
-async function fixtureReport(letter: string): Promise<Report> {
-  const result = await parseReport(fixtureText(letter));
-  if (!result.ok) {
-    throw new Error(`fixture ${letter} was rejected as ${result.kind}`);
-  }
-  return result.report;
 }
 
 describe.skipIf(manifest === null)('real sample reports', () => {
