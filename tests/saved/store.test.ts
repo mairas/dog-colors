@@ -345,7 +345,7 @@ describe('deleting, restoring and clearing', () => {
     expect(store.dogs().map((dog) => dog.status)).toEqual(['stale', 'unusable']);
   });
 
-  it('restores through the ordinary add: a dog with the same kit hash saved meanwhile is updated', () => {
+  it('restoring over a dog with its kit hash saved meanwhile gives it the deleted nose answer when it has none and still asks', () => {
     const store = open();
     store.add(withNoseQuestion(a));
     store.setNose('id-1', 'black');
@@ -353,6 +353,45 @@ describe('deleting, restoring and clearing', () => {
     open({ newId: sequentialIds('tab') }).add(withNoseQuestion(a));
     expect(store.restore(deleted).outcome).toEqual({ kind: 'updated', id: 'tab-1', nose: 'kept' });
     expect(store.dogs().map((dog) => [dog.id, dog.nose])).toEqual([['tab-1', 'black']]);
+  });
+
+  it('restoring a stale dog over a current reading with its kit hash keeps the current reading and its ID', () => {
+    seed([entry('old', withNoseQuestion(named(a, 'Old', hash('ab'))), { readerVersion: READER_VERSION - 1, nose: 'brown' })]);
+    const store = open();
+    const deleted = deletedFrom(store, 'old');
+    open({ newId: sequentialIds('tab') }).add(withNoseQuestion(named(a, 'Current', hash('ab'))));
+    expect(store.restore(deleted).outcome).toEqual({ kind: 'updated', id: 'tab-1', nose: 'kept' });
+    const expected = [['tab-1', 'Current', 'current', 'brown']];
+    expect(store.dogs().map((dog) => [dog.id, dog.name, dog.status, dog.nose])).toEqual(expected);
+    expect(open().dogs().map((dog) => [dog.id, dog.name, dog.status, dog.nose])).toEqual(expected);
+  });
+
+  it.each<[string, boolean, 'black' | null]>([
+    ['has a nose answer of its own', true, 'black'],
+    ['has a reading that does not ask the nose question', false, null],
+  ])('restoring over a dog with its kit hash that %s leaves that dog as it was', (_name, asks, nose) => {
+    const matched = named(a, 'Matched', hash('ab'));
+    const store = open();
+    store.add(withNoseQuestion(named(a, 'Deleted', hash('ab'))));
+    store.setNose('id-1', 'brown');
+    const deleted = deletedFrom(store, 'id-1');
+    const other = open({ newId: sequentialIds('tab') });
+    other.add(asks ? withNoseQuestion(matched) : matched);
+    other.setNose('tab-1', nose);
+    const before = storage.getItem(SAVED_DOGS_KEY);
+    expect(store.restore(deleted).outcome).toEqual({ kind: 'updated', id: 'tab-1', nose: 'dropped' });
+    expect(store.dogs().map((dog) => [dog.id, dog.name, dog.nose])).toEqual([['tab-1', 'Matched', nose]]);
+    expect(storage.getItem(SAVED_DOGS_KEY)).toBe(before);
+  });
+
+  it('restoring over an unusable dog with its kit hash renews that dog with the deleted reading', () => {
+    const store = open();
+    store.add(withNoseQuestion(named(a, 'Deleted', hash('ab'))));
+    store.setNose('id-1', 'brown');
+    const deleted = deletedFrom(store, 'id-1');
+    seed([entry('bad', { ...named(a, 'Unusable', hash('ab')), shortTail: 1.5 })]);
+    expect(store.restore(deleted).outcome).toEqual({ kind: 'replaced', id: 'bad', nose: 'kept' });
+    expect(open().dogs().map((dog) => [dog.id, dog.name, dog.status, dog.nose])).toEqual([['bad', 'Deleted', 'current', 'brown']]);
   });
 
   it('reports nothing deleted for an unknown ID', () => {

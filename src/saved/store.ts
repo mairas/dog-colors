@@ -33,12 +33,16 @@ export interface SavedDogsOptions {
   readonly locale?: string;
 }
 
-/** What became of a matched dog's nose answer: none, or kept or dropped by whether the new reading still asks. */
+/**
+ * What became of the nose answer a matched dog carries (its own on an add, the
+ * deleted dog's on a restore): none, or kept or dropped by whether the reading
+ * it ends with still asks.
+ */
 export type NoseOutcome = 'none' | 'kept' | 'dropped';
 
 export type AddOutcome =
   | { readonly kind: 'added'; readonly id: string }
-  /** A current dog with the report's kit hash, read again. */
+  /** A current dog with the report's kit hash, read again; on a restore, a usable dog with the deleted dog's kit hash, kept as it is. */
   | { readonly kind: 'updated'; readonly id: string; readonly nose: NoseOutcome }
   /** A stale or unusable dog with the report's kit hash, or the re-add's target, renewed in place. */
   | { readonly kind: 'replaced'; readonly id: string; readonly nose: NoseOutcome };
@@ -76,7 +80,12 @@ export interface SavedDogs {
   add(report: Report, target?: string): AddResult;
   setNose(id: string, nose: NoseAnswer | null): Change;
   remove(id: string): DeleteResult;
-  /** Undo: an ordinary add of the deleted dog, which comes back as it was stored when nothing matches it. */
+  /**
+   * Undo: the deleted dog comes back as it was stored. A usable dog with its kit
+   * hash saved meanwhile keeps its reading and ID, and takes the deleted dog's
+   * nose answer only when it has none and its reading asks; an unusable one is
+   * renewed with the deleted reading.
+   */
   restore(deleted: StoredDog): AddResult;
   /** Removes the key, every entry included. */
   clear(): void;
@@ -315,9 +324,24 @@ export function openSavedDogs(options: SavedDogsOptions): SavedDogs {
         if (current.some((entry) => entry.dog?.id === dog.id)) {
           return { ...added, next: current };
         }
-        return dog.status === 'unusable'
-          ? added
-          : patchAdd(current, { report: dog.report, readerVersion: dog.readerVersion, nose: dog.nose }, undefined, () => deleted);
+        if (dog.status === 'unusable') {
+          return added;
+        }
+        const index = dog.kitIdHash === null ? -1 : firstWithHash(current, dog.kitIdHash);
+        const matched = current[index]?.dog;
+        if (matched === undefined || matched === null || matched.status === 'unusable') {
+          return patchAdd(current, { report: dog.report, readerVersion: dog.readerVersion, nose: dog.nose }, undefined, () => deleted);
+        }
+        const carried = matched.nose === null && dog.nose !== null && asksNose(matched.report);
+        const nose = carried ? dog.nose : matched.nose;
+        return {
+          next: carried
+            ? current.map((entry, at) =>
+                at === index ? storedDog(matched.id, matched.readerVersion, matched.savedAt, nose, matched.report) : entry,
+              )
+            : current,
+          result: { outcome: { kind: 'updated', id: matched.id, nose: dog.nose === null ? 'none' : nose === dog.nose ? 'kept' : 'dropped' } },
+        };
       });
     },
 
