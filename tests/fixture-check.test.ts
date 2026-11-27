@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { findFixtureMarkers, readBuild } from '../scripts/fixture-check.ts';
 
 const CLEAN = new Map([
-  ['index.html', '<!doctype html><script type="module" src="/dog-colors/assets/index.js"></script>'],
+  ['index.html', '<!doctype html><script type="module" src="/whatthepup/assets/index.js"></script>'],
   ['assets/index.js', 'const e=document.querySelector("#app");console.log("Puppy colours")'],
 ]);
 

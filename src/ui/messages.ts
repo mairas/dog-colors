@@ -10,7 +10,7 @@ export interface Message {
   readonly link?: { readonly href: string; readonly label: string };
 }
 
-const ISSUES = 'https://github.com/mairas/dog-colors/issues';
+const ISSUES = 'https://github.com/mairas/whatthepup/issues';
 
 export const REJECTIONS: Readonly<Record<RejectionKind, Message>> = {
   'not-pdf': { text: "This file isn't a PDF. Choose the report PDF from Wisdom Panel." },

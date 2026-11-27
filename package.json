@@ -1,8 +1,8 @@
 {
-  "name": "dog-colors",
+  "name": "whatthepup",
   "version": "0.0.0",
   "private": true,
-  "description": "Predict puppy coat colours from two Wisdom Panel genetic reports, in the browser",
+  "description": "Predict puppy coat colours and inherited health risks from two Wisdom Panel genetic reports, in the browser",
   "license": "MIT",
   "type": "module",
   "engines": {

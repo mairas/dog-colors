@@ -1,6 +1,6 @@
-# dog-colors
+# What the Pup?
 
-Predict puppy coat colours from two Wisdom Panel genetic reports, in the browser.
+Predict puppy coat colours and inherited health risks from two Wisdom Panel genetic reports, in the browser.
 
 Load the Wisdom Panel (MyDogDNA) PDF reports of two dogs, and the site predicts which coat colours their puppies can have and how likely each colour is per puppy. It also flags health conditions where the mating creates a harmful combination.
 
@@ -16,7 +16,7 @@ Requires Node.js (the version in `.nvmrc`) and npm.
 
 ```sh
 ./run setup   # install dependencies
-./run dev     # start the dev server at http://localhost:5173/dog-colors/
+./run dev     # start the dev server at http://localhost:5173/whatthepup/
 ./run test    # run the tests
 ./run         # list every command
 ```

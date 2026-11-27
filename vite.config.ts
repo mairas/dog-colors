@@ -42,7 +42,7 @@ function contentSecurityPolicy(): Plugin {
 // `./run preview-fixtures` builds them with the policy in force.
 export default defineConfig(({ mode }) => ({
   // Served as a GitHub Pages project page, under the repository name.
-  base: '/dog-colors/',
+  base: '/whatthepup/',
   define: { __FIXTURES__: JSON.stringify(mode !== 'production') },
   plugins: [contentSecurityPolicy()],
   test: {
