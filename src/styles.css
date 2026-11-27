@@ -300,15 +300,9 @@ summary:focus-visible {
   color: inherit;
   font-weight: 600;
 }
-.card-alert {
-  margin: 0 0 12px;
-}
 .pair .err {
   margin-top: 16px;
   align-items: baseline;
-}
-.pair .err button {
-  margin-left: 8px;
 }
 
 .spin {
@@ -390,13 +384,6 @@ input[type='radio'] {
 }
 .hint {
   margin: 0;
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 12px;
 }
 
 details > summary {
@@ -944,7 +931,6 @@ button.del:hover {
   .undo,
   .add,
   .stale-note,
-  .actions,
   button,
   .ready,
   .privacy,

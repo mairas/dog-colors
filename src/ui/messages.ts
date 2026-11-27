@@ -35,9 +35,16 @@ export const READER_FAILED: Message = { text: "Couldn't start the PDF reader. Re
 
 export const DROP_TOO_MANY = 'Drop at most two reports.';
 export const DROP_ONE_FREE = "Only one slot was free, so the second report wasn't loaded.";
-export const DROP_FULL = 'Both slots are full. Use Replace on a card.';
-export const DROP_READING = 'Both reports are still being read. Wait for them to finish, then use Replace on a card.';
+export const DROP_FULL = 'Both slots are full. Drop the report on the slot you want it in.';
+export const DROP_READING = 'Both reports are still being read. Drop the report on the slot you want it in.';
 
-export function replacementRejected(message: Message): Message {
-  return { ...message, text: `Replacement not loaded: ${message.text.charAt(0).toLowerCase()}${message.text.slice(1)}` };
+/** The results area's message when the genetics reject a pair's stored data. */
+export const RESULTS_FAILED: Message = {
+  title: 'Puppy colours can’t be worked out for this pair',
+  text: 'The saved data of one of these dogs can’t be used. Add its report again, or choose another dog.',
+};
+
+/** A slot's note when the report added there is the dog the other slot holds. */
+export function sameDogNotice(name: string, parent: string): Message {
+  return { text: `This report is ${name}, already ${parent}; the saved dog was updated.` };
 }

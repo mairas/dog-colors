@@ -4,13 +4,11 @@ import { resolveDog } from '../../src/genetics/dog.ts';
 import type { Phenotype } from '../../src/genetics/phenotype.ts';
 import type { ColourGene } from '../../src/report/loci.ts';
 import type { Report } from '../../src/report/types.ts';
-import { renderCard, renderCardBody } from '../../src/ui/card.ts';
+import { renderCardBody } from '../../src/ui/card.ts';
 import { coatChip } from '../../src/ui/coat.ts';
 import { syntheticReport } from '../genetics/synthetic.ts';
 import { withNoseQuestion } from '../saved/storage.ts';
 import { sampleReport, shapes } from './app.ts';
-
-const ACTIONS = { answer: () => undefined, replace: () => undefined, remove: () => undefined };
 
 interface Card {
   readonly ownColour: string;
@@ -20,7 +18,7 @@ interface Card {
 }
 
 function card(report: Report): Card {
-  const element = renderCard({ slot: 0, report, dog: resolveDog(report), nose: undefined, replacing: false, alert: null }, ACTIONS);
+  const element = renderCardBody({ slot: 0, name: 'Nina', report, dog: resolveDog(report), nose: undefined }, () => undefined, null);
   const rows = [...element.querySelectorAll('table.geno tbody tr')].map(
     (row): [string, string] => [row.querySelector('th')?.textContent ?? '', row.lastElementChild?.textContent ?? ''],
   );

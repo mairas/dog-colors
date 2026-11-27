@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Report } from '../../src/report/types.ts';
-import { stateFromQuery } from '../../src/ui/dev.ts';
+import { hash } from '../saved/storage.ts';
 import { syntheticReport } from '../genetics/synthetic.ts';
-import { button, fixtureText, ok, openPage, parsed, pdf, sampleReport, slowRead, tableRows, variant, type Library } from './app.ts';
+import { button, fixtureText, ok, openPage, openState, parsed, pdf, sampleReport, slowRead, tableRows, variant, type ReadResults } from './app.ts';
 
 const ANSWER_NOTE = "Some figures are ranges because a parent's genotype is uncertain. Answer the questions on the cards to narrow them.";
 const SETTLE_NOTE = "Some figures are ranges because the report can't settle a parent's genotype.";
@@ -16,13 +16,13 @@ let c: Report;
 let d: Report;
 let nose: Report;
 let asip: Report;
-let library: Library;
+let reads: ReadResults;
 
 beforeAll(async () => {
   [a, b, c, d] = await Promise.all([sampleReport('a'), sampleReport('b'), sampleReport('c'), sampleReport('d')]);
   nose = await variant('a', 'Sample Q', { TYRP1: { basd: 0, bc: 1, bd: 1, be: 0, bh: 0, bs: 0 } });
   asip = await variant('b', 'Sample X', { ASIP: { ay: 1, a: 0, at: 1 } });
-  library = {
+  reads = {
     'a.pdf': ok(a),
     'b.pdf': ok(b),
     'c.pdf': ok(c),
@@ -36,7 +36,7 @@ beforeAll(async () => {
 });
 
 async function pair(first: string, second: string) {
-  const page = openPage(library);
+  const page = openPage(reads);
   await page.app.load(0, pdf(first));
   await page.app.load(1, pdf(second));
   return page;
@@ -153,62 +153,23 @@ describe('the colour page', () => {
     expect(tableRows(root, 'Colour pattern').some(([, figure]) => figure.includes('–'))).toBe(true);
   });
 
-  it('hides the results when both slots hold the same report, offering Replace for Parent 2', async () => {
-    const { root, text } = await pair('a.pdf', 'a.pdf');
-    expect(results(root)?.hidden).toBe(true);
-    expect(text()).toContain('Both slots hold the same report.');
-    const input = root.querySelector<HTMLInputElement>('[data-testid="file-1"]');
-    const click = vi.spyOn(input ?? new HTMLInputElement(), 'click');
-    button(root, 'duplicate-replace').click();
-    expect(click).toHaveBeenCalled();
-  });
-
   it('does not treat two reports without a kit ID as the same report', async () => {
     const { root } = await pair('nose.pdf', 'asip.pdf');
     expect(results(root)?.hidden).toBe(false);
   });
 
-  it('hides the results on Remove and moves focus to that slot’s picker', async () => {
-    const { root, text } = await pair('a.pdf', 'b.pdf');
-    button(root, 'remove-1').click();
-    expect(results(root)?.hidden).toBe(true);
-    expect(text()).toContain('Sample A');
-    expect(document.activeElement?.getAttribute('data-key')).toBe('pick-1');
-  });
-
-  it('keeps the card with an inline alert when a replacement is rejected', async () => {
-    const { app, root } = await pair('a.pdf', 'b.pdf');
-    await app.load(0, pdf('other.pdf'));
-    const card = root.querySelector('[data-slot="0"]');
-    expect(card?.querySelector('h2')?.textContent).toContain('Sample A');
-    expect(card?.firstElementChild?.textContent).toContain(
-      "Replacement not loaded: this PDF isn't a Wisdom Panel dog report. Choose the genetics report you got from Wisdom Panel or MyDogDNA.",
-    );
-    expect(results(root)?.hidden).toBe(false);
-
-    button(root, 'remove-1').click();
-    expect(card?.isConnected).toBe(false);
-    expect(root.querySelector('[data-slot="0"] .card-alert')).toBeNull();
-  });
-
-  it('shows Reading… on Replace while the replacement parses, then the new card', async () => {
-    const { app, root, text } = await pair('a.pdf', 'b.pdf');
-    const loading = app.load(1, pdf('c.pdf'));
-    expect(button(root, 'replace-1').textContent).toBe('Reading…');
-    expect(text()).toContain('Sample B');
-    await loading;
-    expect(root.querySelector('[data-slot="1"] h2')?.textContent).toContain('Sample C');
-  });
-
-  it('clears a replaced dog’s answers', async () => {
-    const { app, root } = await pair('nose.pdf', 'b.pdf');
+  it('keeps the nose answer when the same dog’s report is read again', async () => {
+    const hashed: Report = { ...nose, kitIdHash: hash('ab') };
+    const { app, root } = openPage({ 'nose.pdf': ok(hashed), 'b.pdf': ok(b) });
+    await app.load(0, pdf('nose.pdf'));
+    await app.load(1, pdf('b.pdf'));
     root.querySelector<HTMLInputElement>('[data-key="nose-0-brown"]')?.click();
     await app.load(0, pdf('nose.pdf'));
-    expect(root.querySelector<HTMLInputElement>('[data-key="nose-0-unsure"]')?.checked).toBe(true);
+    expect(root.querySelector<HTMLInputElement>('[data-key="nose-0-brown"]')?.checked).toBe(true);
   });
 
   it('leaves a rejected slot empty with the message and focus on its retry picker', async () => {
-    const { app, root, text } = openPage({ ...library, 'f.pdf': { ok: false, kind: 'adobe-pdf-printer' } });
+    const { app, root, text } = openPage({ ...reads, 'f.pdf': { ok: false, kind: 'adobe-pdf-printer' } });
     await app.load(1, pdf('f.pdf'));
     expect(text()).toContain(ADOBE);
     expect(button(root, 'pick-1').textContent).toBe('Choose another PDF');
@@ -238,28 +199,28 @@ describe('the colour page', () => {
   });
 
   it('announces status through one polite live region', async () => {
-    const { app, root } = openPage(library);
+    const { app, root } = openPage(reads);
     await app.load(0, pdf('a.pdf'));
     const live = root.querySelectorAll('[aria-live]');
     expect(live).toHaveLength(1);
     expect(live[0]?.getAttribute('aria-live')).toBe('polite');
-    expect(live[0]?.textContent).toBe('Parent 1: Sample A loaded.');
+    expect(live[0]?.textContent).toBe('Parent 1: Sample A saved.');
     await app.load(1, pdf('b.pdf'));
-    expect(live[0]?.textContent).toBe('Parent 2: Sample B loaded. Results updated.');
+    expect(live[0]?.textContent).toBe('Parent 2: Sample B saved. Results updated.');
   });
 
   it.each([
     ['b.pdf', 'd.pdf', 'Sample D', 'female'],
     ['a.pdf', 'c.pdf', 'Sample C', 'male'],
-  ])('announces a same-sex pair (%s, %s) with the results, since focus stays on the card', async (first, second, name, sex) => {
-    const { app, root } = openPage(library);
+  ])('announces a same-sex pair (%s, %s) with the results, since focus stays in the slot', async (first, second, name, sex) => {
+    const { app, root } = openPage(reads);
     await app.load(0, pdf(first));
     await app.load(1, pdf(second));
-    expect(root.querySelector('[aria-live]')?.textContent).toBe(`Parent 2: ${name} loaded. Results updated. Both parents are ${sex}.`);
+    expect(root.querySelector('[aria-live]')?.textContent).toBe(`Parent 2: ${name} saved. Results updated. Both parents are ${sex}.`);
   });
 
   it('opens the file picker from the picker button', () => {
-    const { root } = openPage(library);
+    const { root } = openPage(reads);
     const input = root.querySelector<HTMLInputElement>('[data-testid="file-0"]');
     const click = vi.spyOn(input ?? new HTMLInputElement(), 'click');
     button(root, 'pick-0').click();
@@ -270,7 +231,7 @@ describe('the colour page', () => {
   it('flags a missing locus on the card and as unknown in the results', async () => {
     const { TYRP1: _absent, ...colour } = b.colour;
     const missing: Report = { ...b, name: 'Sample M', kitIdHash: null, colour, missingLoci: ['TYRP1'] };
-    const { app, root, text } = openPage({ ...library, 'm.pdf': ok(missing) });
+    const { app, root, text } = openPage({ ...reads, 'm.pdf': ok(missing) });
     await app.load(0, pdf('a.pdf'));
     await app.load(1, pdf('m.pdf'));
     expect(root.querySelector('[data-slot="1"] summary.sec')?.textContent).toContain('1 locus missing');
@@ -280,7 +241,7 @@ describe('the colour page', () => {
   });
 
   it('collapses the genotype tables on a narrow viewport once results exist', async () => {
-    const page = openPage(library, { narrow: true });
+    const page = openPage(reads, { narrow: true });
     await page.app.load(0, pdf('a.pdf'));
     expect(page.root.querySelector<HTMLDetailsElement>('[data-key="geno-0"]')?.open).toBe(true);
     await page.app.load(1, pdf('b.pdf'));
@@ -311,7 +272,7 @@ describe('the colour page', () => {
 
 describe('the drop rules', () => {
   const drop = async (files: string[], target: 0 | 1 | null, filled: string[] = []) => {
-    const page = openPage(library);
+    const page = openPage(reads);
     for (const [slot, name] of filled.entries()) {
       await page.app.load(slot === 0 ? 0 : 1, pdf(name));
     }
@@ -322,7 +283,7 @@ describe('the drop rules', () => {
   };
 
   it('prevents the browser from opening a dropped file', () => {
-    openPage(library);
+    openPage(reads);
     const event = new Event('drop', { cancelable: true });
     window.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
@@ -343,7 +304,7 @@ describe('the drop rules', () => {
     });
   });
 
-  it('treats one file on a filled slot as Replace', async () => {
+  it('places one file dropped on a filled slot there', async () => {
     expect((await drop(['c.pdf'], 1, ['a.pdf', 'b.pdf'])).names).toEqual(['Parent 1Sample A', 'Parent 2Sample C']);
   });
 
@@ -367,13 +328,13 @@ describe('the drop rules', () => {
   it('rejects a drop outside the slots when both are full', async () => {
     expect(await drop(['c.pdf'], null, ['a.pdf', 'b.pdf'])).toEqual({
       names: ['Parent 1Sample A', 'Parent 2Sample B'],
-      alert: '⚠Both slots are full. Use Replace on a card.',
+      alert: '⚠Both slots are full. Drop the report on the slot you want it in.',
     });
-    expect((await drop(['c.pdf', 'a.pdf'], 0, ['a.pdf', 'b.pdf'])).alert).toBe('⚠Both slots are full. Use Replace on a card.');
+    expect((await drop(['c.pdf', 'a.pdf'], 0, ['a.pdf', 'b.pdf'])).alert).toBe('⚠Both slots are full. Drop the report on the slot you want it in.');
   });
 
   it('clears the drop message at the next action', async () => {
-    const page = openPage(library);
+    const page = openPage(reads);
     await page.app.drop(['a.pdf', 'b.pdf', 'c.pdf'].map(pdf), null);
     await page.app.load(0, pdf('a.pdf'));
     expect(page.root.querySelector('.drop-alert')?.textContent).toBe('');
@@ -383,22 +344,22 @@ describe('the drop rules', () => {
 describe('states between actions', () => {
   const heading = (root: HTMLElement, slot: number) => root.querySelector(`[data-slot="${slot}"] h2`)?.textContent ?? '';
 
-  it('keeps a card removed when the replacement it was reading finishes', async () => {
+  it('keeps a slot cleared when the read it started finishes', async () => {
     const slow = slowRead(ok(c));
-    const { app, root } = openPage({ ...library, 'slow.pdf': slow.read });
+    const { app, root } = openPage({ ...reads, 'slow.pdf': slow.read });
     await app.load(0, pdf('a.pdf'));
     await app.load(1, pdf('b.pdf'));
     const loading = app.load(1, pdf('slow.pdf'));
-    button(root, 'remove-1').click();
+    button(root, 'dog-1-new-2').click();
     await slow.release();
     await loading;
-    expect(heading(root, 1)).toBe('Parent 2No report yet');
+    expect(heading(root, 1)).toBe('Parent 2Choose a dog');
     expect(results(root)?.hidden).toBe(true);
   });
 
   it('counts a slot that is still reading as taken when one file is dropped anywhere', async () => {
     const slow = slowRead(ok(a));
-    const { app, root } = openPage({ ...library, 'slow.pdf': slow.read });
+    const { app, root } = openPage({ ...reads, 'slow.pdf': slow.read });
     const reading = app.load(0, pdf('slow.pdf'));
     await app.drop([pdf('c.pdf')], null);
     expect([heading(root, 0), heading(root, 1)]).toEqual(['Parent 1Reading report…', 'Parent 2Sample C']);
@@ -407,12 +368,12 @@ describe('states between actions', () => {
     expect(heading(root, 0)).toBe('Parent 1Sample A');
   });
 
-  it('asks to wait, not to use Replace, when a drop finds both slots still reading', async () => {
+  it('points to the slots when a drop finds both slots still reading', async () => {
     const [first, second] = [slowRead(ok(a)), slowRead(ok(b))];
-    const { app, root } = openPage({ ...library, '1.pdf': first.read, '2.pdf': second.read });
+    const { app, root } = openPage({ ...reads, '1.pdf': first.read, '2.pdf': second.read });
     const reading = [app.load(0, pdf('1.pdf')), app.load(1, pdf('2.pdf'))];
     await app.drop([pdf('c.pdf')], null);
-    expect(root.querySelector('.drop-alert')?.textContent).toBe('⚠Both reports are still being read. Wait for them to finish, then use Replace on a card.');
+    expect(root.querySelector('.drop-alert')?.textContent).toBe('⚠Both reports are still being read. Drop the report on the slot you want it in.');
     expect([heading(root, 0), heading(root, 1)]).toEqual(['Parent 1Reading report…', 'Parent 2Reading report…']);
     await Promise.all([first.release(), second.release(), ...reading]);
     expect(root.querySelector('.drop-alert')?.textContent).not.toContain('still being read');
@@ -421,7 +382,7 @@ describe('states between actions', () => {
 
   it('stops saying both reports are being read once one of them fails', async () => {
     const [first, second] = [slowRead({ ok: false, kind: 'not-wisdom-dog' }), slowRead(ok(b))];
-    const { app, root } = openPage({ ...library, '1.pdf': first.read, '2.pdf': second.read });
+    const { app, root } = openPage({ ...reads, '1.pdf': first.read, '2.pdf': second.read });
     const reading = [app.load(0, pdf('1.pdf')), app.load(1, pdf('2.pdf'))];
     await app.drop([pdf('c.pdf')], null);
     expect(root.querySelector('.drop-alert')?.textContent).toContain('still being read');
@@ -455,20 +416,9 @@ describe('states between actions', () => {
     expect(document.getElementById(badge.getAttribute('aria-controls') ?? '')?.hidden).toBe(false);
   });
 
-  it('moves focus to the new card after Replace from the duplicate message', async () => {
-    const { app, root } = await pair('a.pdf', 'a.pdf');
-    const input = root.querySelector<HTMLInputElement>('[data-testid="file-1"]');
-    vi.spyOn(input ?? new HTMLInputElement(), 'click').mockImplementation(() => undefined);
-    const replace = button(root, 'duplicate-replace');
-    replace.focus();
-    replace.click();
-    await app.load(1, pdf('c.pdf'));
-    expect(document.activeElement?.getAttribute('data-key')).toBe('name-1');
-  });
-
   it('scrolls a page-level drop message into view', async () => {
     const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
-    const { app, root } = openPage(library);
+    const { app, root } = openPage(reads);
     await app.drop(['a.pdf', 'b.pdf', 'c.pdf'].map(pdf), null);
     expect(scroll.mock.contexts).toContain(root.querySelector('.drop-alert'));
     scroll.mockRestore();
@@ -485,14 +435,14 @@ describe('drag and drop events', () => {
   }
 
   it('lets a file be dragged over the page', () => {
-    openPage(library);
+    openPage(reads);
     const event = dragEvent('dragover', [pdf('c.pdf')]);
     window.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
   });
 
   it('loads a file dropped on the Parent 2 slot into Parent 2', async () => {
-    const { root } = openPage(library);
+    const { root } = openPage(reads);
     const target = root.querySelector('[data-slot="1"] .drop');
     const event = dragEvent('drop', [pdf('c.pdf')]);
     target?.dispatchEvent(event);
@@ -526,7 +476,7 @@ describe('untrusted report text', () => {
       })),
     }));
     const report = await parsed({ lines, info: source.info });
-    const { app } = openPage({ 'd.pdf': report, 'b.pdf': library['b.pdf'] ?? report });
+    const { app } = openPage({ 'd.pdf': report, 'b.pdf': reads['b.pdf'] ?? report });
     await app.load(0, pdf('d.pdf'));
     await app.load(1, pdf('b.pdf'));
     const html = document.documentElement.outerHTML;
@@ -586,7 +536,7 @@ describe('engine cases the page names', () => {
 
   it('qualifies a hidden row that applies to one colour without claiming every such puppy has it', async () => {
     // Two dilute carriers: two thirds of the black puppies carry dilute, and no blue puppy does.
-    const { root } = openPage({}, { initial: await stateFromQuery(new URLSearchParams({ state: 'results-warnings' })) });
+    const { root } = await openState({ state: 'results-warnings' });
     expect(tableRows(root, 'Hidden and carried')).toContainEqual(['Carries dilute (black puppies only)D/d', '50% (1 in 2)']);
   });
 

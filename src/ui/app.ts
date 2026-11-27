@@ -1,18 +1,31 @@
-// The page's state and its one render path. State lives in memory only, apart
-// from the breeding note's dismissal; every change re-renders the slots and
-// recomputes the results. Elements with a data-key keep their focus, open
-// disclosures and expanded caveats across renders, so answering a question
-// doesn't lose the keyboard position.
+// The page's state and its one render path. The saved dogs live in the store;
+// which dog each slot holds, reads in progress and the slots' messages live in
+// memory. Every change re-renders the slots and recomputes the results.
+// Elements with a data-key keep their focus, open disclosures and expanded
+// caveats across renders, so answering a question doesn't lose the keyboard
+// position.
 
-import { resolveDog, type ResolvedDog } from '../genetics/dog.ts';
-import type { NoseAnswer } from '../genetics/questions.ts';
 import { predictPuppies, type PuppyPrediction } from '../genetics/results.ts';
 import { analyseHealth, type HealthAnalysis, type ParentIndex } from '../health/health.ts';
 import type { ReadResult, Report, Sex } from '../report/types.ts';
+import type { SavedDog, UsableDog } from '../saved/check.ts';
+import { openSavedDogs } from '../saved/store.ts';
 import { createAnnouncer } from './announce.ts';
-import { dogName, renderCard } from './card.ts';
 import { h, svg } from './dom.ts';
 import { healthWarnings, renderHealth } from './health.ts';
+import {
+  filterField,
+  listing,
+  listingStatus,
+  listsDogs,
+  renderListing,
+  renderListSlot,
+  resolveSaved,
+  revealChosen,
+  showsFilter,
+  type ListActions,
+  type ListSlotInput,
+} from './list.ts';
 import {
   DROP_FULL,
   DROP_ONE_FREE,
@@ -20,27 +33,28 @@ import {
   DROP_TOO_MANY,
   READER_FAILED,
   REJECTIONS,
-  replacementRejected,
-  type Message,
+  RESULTS_FAILED,
+  sameDogNotice,
 } from './messages.ts';
-import { parentLabel } from './names.ts';
+import { parentLabel, savedName } from './names.ts';
 import { ETHICS_LINK_KEY, renderResults, sameSexLead } from './results.ts';
-import { alertBox, renderOpenSlot, slotHeadingId, type OpenSlot } from './slots.ts';
+import { alertBox, renderOpenSlot, slotHeadingId, type OpenSlot, type SlotNotice } from './slots.ts';
 
 /** Reads a chosen file; throws only when the reader itself fails. */
 export type ReadFile = (file: File) => Promise<ReadResult>;
 
-export interface LoadedSlot {
-  readonly kind: 'loaded';
-  readonly report: Report;
-  readonly nose: NoseAnswer | undefined;
-  /** A replacement is being read; the card stays until it succeeds. */
-  readonly replacing: boolean;
-  /** A rejected replacement's message, until the next action. */
-  readonly alert: Message | null;
+export interface SlotState {
+  /** The ID of the saved dog chosen here. */
+  readonly chosen: string | null;
+  /** The name of the file being read for this slot. */
+  readonly reading: string | null;
+  /** A rejection, or a note that the report added here was the other slot's dog; until the next choose, clear or add here. */
+  readonly notice: SlotNotice | null;
+  /** The filter field's text, kept while the field shows. */
+  readonly filter: string;
+  /** Show all: the list is not narrowed to the sex the other slot's dog asks for. */
+  readonly showAll: boolean;
 }
-
-export type SlotState = OpenSlot | LoadedSlot;
 
 export interface AppState {
   readonly slots: readonly [SlotState, SlotState];
@@ -48,7 +62,7 @@ export interface AppState {
   readonly pageAlert: string | null;
 }
 
-/** Where the breeding note's dismissal is kept: localStorage in the browser. */
+/** Where the saved dogs and the breeding note's dismissal are kept: localStorage in the browser. */
 export type NoteStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 export interface AppOptions {
@@ -59,6 +73,10 @@ export interface AppOptions {
   readonly storage?: NoteStorage;
   /** The current time in epoch milliseconds. */
   readonly now?: () => number;
+  /** IDs for newly saved dogs; random by default. */
+  readonly newId?: () => string;
+  /** The colour prediction; replaceable so that a pair the genetics reject can be shown. */
+  readonly predictPuppies?: typeof predictPuppies;
 }
 
 interface ViewState {
@@ -68,25 +86,26 @@ interface ViewState {
 }
 
 export interface App {
-  /** Loads a file into a slot, as the slot's picker does; replaces a loaded report. */
+  /** Reads a file into a slot, as the slot's picker does: a re-add when the picker was opened by Add the report again. */
   load(slot: ParentIndex, file: File): Promise<void>;
   /** Applies the drop rules to files dropped on a slot, or elsewhere when `target` is null. */
   drop(files: readonly File[], target: ParentIndex | null): Promise<void>;
 }
 
-const EMPTY: OpenSlot = { kind: 'empty', error: null };
+export const EMPTY_SLOT: SlotState = { chosen: null, reading: null, notice: null, filter: '', showAll: false };
 const SLOTS = [0, 1] as const;
 /** The stylesheet's narrow layout. */
 const NARROW_QUERY = '(max-width: 700px)';
+/** How long typing in a filter pauses before the number of listed dogs is announced. */
+const TYPING_PAUSE_MS = 600;
 /** Holds the epoch milliseconds until which the breeding note stays hidden. */
 export const NOTE_HIDDEN_KEY = 'dog-colors:breeding-note-hidden-until';
 const NOTE_HIDDEN_MS = 30 * 24 * 60 * 60 * 1000;
 
+const otherSlot = (slot: ParentIndex): ParentIndex => (slot === 0 ? 1 : 0);
+
 /** The parents' sex when both reports give the same one; an unread sex settles nothing. */
 const sameSex = (first: Sex | null, second: Sex | null): Sex | undefined => (first !== null && first === second ? first : undefined);
-
-const sameReport = (first: Report, second: Report): boolean =>
-  first.kitIdHash !== null && first.kitIdHash === second.kitIdHash;
 
 function privacyNote(): HTMLElement {
   return h(
@@ -193,14 +212,23 @@ function wireBreedingNote(root: HTMLElement, note: HTMLElement, storage: () => N
 export function startApp(root: HTMLElement, options: AppOptions): App {
   const narrow = options.narrow ?? (() => window.matchMedia(NARROW_QUERY).matches);
   const now = options.now ?? Date.now;
+  const predict = options.predictPuppies ?? predictPuppies;
   // Even reading window.localStorage throws where storage is disabled.
   const storage = (): NoteStorage => options.storage ?? window.localStorage;
-  let state: AppState = options.initial ?? { slots: [EMPTY, EMPTY], pageAlert: null };
+  const store = openSavedDogs({ storage, now, ...(options.newId === undefined ? {} : { newId: options.newId }) });
+  let state: AppState = options.initial ?? { slots: [EMPTY_SLOT, EMPTY_SLOT], pageAlert: null };
+  /** Each slot's latest read: an earlier one still saves its dog, but does not place it. */
   const tokens: [number, number] = [0, 0];
+  /** The dog Add the report again was pressed for, until the slot's picker gives a file or Add a dog opens it. */
+  const readdTargets: [string | null, string | null] = [null, null];
+  const typingTimers: [number | undefined, number | undefined] = [undefined, undefined];
   let focusKey: string | null = null;
-  let renderedKinds: readonly string[] = [];
+  let renderedLayouts: readonly string[] = [];
+  let revealed: readonly (string | null)[] = [null, null];
   let resultsShown = false;
-  let cached: { key: readonly unknown[]; prediction: PuppyPrediction; health: HealthAnalysis } | null = null;
+  let resultsFailed = false;
+  let cached: { dogs: readonly [UsableDog, UsableDog]; prediction: PuppyPrediction } | null = null;
+  let cachedHealth: { reports: readonly [Report, Report]; health: HealthAnalysis } | null = null;
 
   const announcer = createAnnouncer();
   const dropAlert = h('div', { class: 'drop-alert' });
@@ -225,6 +253,8 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     return input;
   };
   const inputs = [fileInput(0), fileInput(1)] as const;
+  // Made once, so typing is never interrupted by a render.
+  const fields = [filterField(0, (text) => typed(0, text)), filterField(1, (text) => typed(1, text))] as const;
   const note = breedingNote();
   root.replaceChildren(
     note,
@@ -240,72 +270,142 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
 
   wireBreedingNote(root, note, storage, now);
 
-  const setSlot = (slot: ParentIndex, value: SlotState): void => {
+  const setSlot = (slot: ParentIndex, changes: Partial<SlotState>): void => {
     const slots: [SlotState, SlotState] = [state.slots[0], state.slots[1]];
-    slots[slot] = value;
+    slots[slot] = { ...slots[slot], ...changes };
     state = { ...state, slots };
   };
 
-  /** Clears the messages that last only until the next action. */
+  /** Clears the page-level drop message, which lasts only until the next action. */
   const clearTransient = (): void => {
-    const clear = (slot: SlotState): SlotState => (slot.kind === 'loaded' && slot.alert !== null ? { ...slot, alert: null } : slot);
-    state = { pageAlert: null, slots: [clear(state.slots[0]), clear(state.slots[1])] };
+    state = { ...state, pageAlert: null };
   };
 
-  const loaded = (): [LoadedSlot, LoadedSlot] | null => {
-    const [first, second] = state.slots;
-    return first.kind === 'loaded' && second.kind === 'loaded' ? [first, second] : null;
+  /** The saved dog, when the page can choose it: usable, and its genetics read. */
+  const choosable = (id: string | null): UsableDog | null => {
+    const dog = id === null ? undefined : store.dog(id);
+    return dog === undefined || dog.status === 'unusable' || resolveSaved(dog) === null ? null : dog;
   };
 
-  const duplicate = (): boolean => {
-    const pair = loaded();
-    return pair !== null && sameReport(pair[0].report, pair[1].report);
+  const chosenDog = (slot: ParentIndex): SavedDog | null => {
+    const id = state.slots[slot].chosen;
+    return id === null ? null : (store.dog(id) ?? null);
   };
+
+  /** Chooses a dog in a slot, or clears it; the other slot's Show all lasts only while this slot's dog stays. */
+  function choose(slot: ParentIndex, id: string | null): void {
+    if (state.slots[slot].chosen !== id) {
+      setSlot(otherSlot(slot), { showAll: false });
+    }
+    setSlot(slot, { chosen: id, reading: null, notice: null });
+  }
+
+  /**
+   * Clears the slots whose dog the store no longer lists or the genetics
+   * reject, and the filter text once its field is gone; returns the slots cleared.
+   */
+  function settle(): ParentIndex[] {
+    const cleared = SLOTS.filter((slot) => {
+      const { chosen } = state.slots[slot];
+      return chosen !== null && (choosable(chosen) === null || (slot === 1 && chosen === state.slots[0].chosen));
+    });
+    cleared.forEach((slot) => choose(slot, null));
+    if (!showsFilter(store.dogs())) {
+      SLOTS.filter((slot) => state.slots[slot].filter !== '').forEach((slot) => setSlot(slot, { filter: '' }));
+    }
+    return cleared;
+  }
+
+  /** " Parent 1 cleared." for each slot a store write emptied. */
+  const clearedText = (cleared: readonly ParentIndex[]): string => cleared.map((slot) => ` ${parentLabel(slot)} cleared.`).join('');
 
   const pick = (slot: ParentIndex): void => {
+    readdTargets[slot] = null;
+    openPicker(slot);
+  };
+
+  function openPicker(slot: ParentIndex): void {
     clearTransient();
     render();
     const input = inputs[slot];
     input.value = '';
     input.click();
+  }
+
+  const listInput = (slot: ParentIndex): ListSlotInput => {
+    const current = state.slots[slot];
+    return {
+      slot,
+      dogs: store.dogs(),
+      chosen: current.chosen,
+      other: chosenDog(otherSlot(slot)),
+      filterText: current.filter,
+      showAll: current.showAll,
+      field: fields[slot],
+      notice: current.notice,
+      deleted: null,
+      reading: current.reading,
+      resolve: resolveSaved,
+    };
   };
 
-  // A loaded slot is replaced, never changed, so its resolved dog can be kept with it.
-  const resolved = new WeakMap<LoadedSlot, ResolvedDog>();
-  const resolve = (slot: LoadedSlot): ResolvedDog => {
-    let dog = resolved.get(slot);
-    if (dog === undefined) {
-      dog = resolveDog(slot.report, slot.nose === undefined ? {} : { nose: slot.nose });
-      resolved.set(slot, dog);
+  /** Re-renders only the slot's rows while its filter is typed in, and says how many are listed once typing pauses. */
+  function typed(slot: ParentIndex, text: string): void {
+    setSlot(slot, { filter: text });
+    const input = listInput(slot);
+    slotsEl.querySelector(`[data-slot="${slot}"] .listing`)?.replaceWith(renderListing(input, actions));
+    window.clearTimeout(typingTimers[slot]);
+    typingTimers[slot] = window.setTimeout(() => announcer.announce(listingStatus(listing(input))), TYPING_PAUSE_MS);
+  }
+
+  function renderSlot(slot: ParentIndex): { element: HTMLElement; layout: string } {
+    const current = state.slots[slot];
+    if (listsDogs(store.dogs(), chosenDog(otherSlot(slot)))) {
+      return { element: renderListSlot(listInput(slot), actions), layout: 'list' };
     }
-    return dog;
+    const warning = current.notice?.tone === 'warning' ? current.notice.message : null;
+    const info = current.notice?.tone === 'info' ? current.notice.message : null;
+    const open: OpenSlot = current.reading === null ? { kind: 'empty', error: warning } : { kind: 'reading', fileName: current.reading };
+    return { element: renderOpenSlot(slot, open, pick, { notice: info, deleted: null, undo: actions.undo }), layout: open.kind };
+  }
+
+  /** Both slots' dogs, when each holds one. */
+  const chosenPair = (): readonly [UsableDog, UsableDog] | null => {
+    const [first, second] = [choosable(state.slots[0].chosen), choosable(state.slots[1].chosen)];
+    return first === null || second === null ? null : [first, second];
   };
 
-  const predict = (
-    first: LoadedSlot,
-    second: LoadedSlot,
-    dogs: readonly [ResolvedDog, ResolvedDog],
-  ): { prediction: PuppyPrediction; health: HealthAnalysis } => {
-    const key = [first.report, first.nose, second.report, second.nose];
-    if (cached === null || cached.key.some((item, index) => item !== key[index])) {
-      const health = cached !== null && cached.key[0] === first.report && cached.key[2] === second.report
-        ? cached.health
-        : analyseHealth(first.report, second.report);
-      cached = { key, prediction: predictPuppies(dogs[0], dogs[1]), health };
+  /** The pair's prediction and health analysis, kept while the same dog objects are chosen. Throws when the genetics reject the pair. */
+  function pairResults(dogs: readonly [UsableDog, UsableDog]): { prediction: PuppyPrediction; health: HealthAnalysis } {
+    const reports = [dogs[0].report, dogs[1].report] as const;
+    if (cachedHealth === null || cachedHealth.reports[0] !== reports[0] || cachedHealth.reports[1] !== reports[1]) {
+      cachedHealth = { reports, health: analyseHealth(reports[0], reports[1]) };
     }
-    return cached;
-  };
+    if (cached === null || cached.dogs[0] !== dogs[0] || cached.dogs[1] !== dogs[1]) {
+      const [first, second] = [resolveSaved(dogs[0]), resolveSaved(dogs[1])];
+      if (first === null || second === null) {
+        throw new Error('a chosen dog cannot be resolved');
+      }
+      cached = { dogs, prediction: predict(first, second) };
+    }
+    return { prediction: cached.prediction, health: cachedHealth.health };
+  }
 
-  function renderPair(): void {
-    if (!duplicate()) {
-      pairEl.replaceChildren();
-      return;
+  /** The results section's content, or null when the genetics reject the pair. */
+  function results(dogs: readonly [UsableDog, UsableDog]): (Node | string)[] | null {
+    try {
+      const { prediction, health } = pairResults(dogs);
+      return renderResults({
+        names: [savedName(dogs[0].name), savedName(dogs[1].name)],
+        prediction,
+        openQuestion: dogs.some((dog) => dog.nose === null && (resolveSaved(dog)?.questions.length ?? 0) > 0),
+        sameSex: sameSex(dogs[0].sex, dogs[1].sex),
+        healthWarnings: healthWarnings(health),
+        sections: [renderHealth(health)],
+      });
+    } catch {
+      return null;
     }
-    const replace = h('button', { type: 'button', class: 'ghost', 'data-key': 'duplicate-replace' }, 'Replace Parent 2');
-    replace.addEventListener('click', () => pick(1));
-    const message = alertBox({ text: 'Both slots hold the same report. Replace one of them to see puppy colours.' });
-    message.lastElementChild?.append(' ', replace);
-    pairEl.replaceChildren(message);
   }
 
   /** The keyboard position, open disclosures and expanded caveats, by data-key. */
@@ -345,43 +445,29 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   }
 
   function render(): void {
+    settle();
     const view = snapshot();
 
     dropAlert.replaceChildren(...(state.pageAlert === null ? [] : [alertBox({ text: state.pageAlert })]));
 
-    const cards = SLOTS.map((slot) => {
-      const current = state.slots[slot];
-      if (current.kind !== 'loaded') {
-        return renderOpenSlot(slot, current, pick);
+    const slots = SLOTS.map(renderSlot);
+    slots.forEach(({ element, layout }, slot) => element.classList.toggle('enter', renderedLayouts[slot] !== layout));
+    renderedLayouts = slots.map(({ layout }) => layout);
+    slotsEl.replaceChildren(...slots.map(({ element }) => element));
+    // Once in the page, so that the capped lists can be scrolled.
+    SLOTS.forEach((slot) => {
+      if (state.slots[slot].chosen !== revealed[slot]) {
+        revealChosen(slots[slot]?.element ?? slotsEl);
       }
-      return renderCard(
-        { slot, report: current.report, dog: resolve(current), nose: current.nose, replacing: current.replacing, alert: current.alert },
-        { answer, replace: pick, remove },
-      );
     });
-    const kinds = SLOTS.map((slot) => state.slots[slot].kind);
-    cards.forEach((card, slot) => card.classList.toggle('enter', renderedKinds[slot] !== kinds[slot]));
-    renderedKinds = kinds;
-    slotsEl.replaceChildren(...cards);
-    renderPair();
+    revealed = state.slots.map((slot) => slot.chosen);
 
-    const pair = loaded();
-    const show = pair !== null && !duplicate();
-    if (show) {
-      const { prediction, health } = predict(pair[0], pair[1], [resolve(pair[0]), resolve(pair[1])]);
-      resultsEl.replaceChildren(
-        ...renderResults({
-          names: [dogName(pair[0].report, 0), dogName(pair[1].report, 1)],
-          prediction,
-          openQuestion: pair.some((slot) => slot.nose === undefined && resolve(slot).questions.length > 0),
-          sameSex: sameSex(pair[0].report.sex, pair[1].report.sex),
-          healthWarnings: healthWarnings(health),
-          sections: [renderHealth(health)],
-        }),
-      );
-    } else {
-      resultsEl.replaceChildren();
-    }
+    const pair = chosenPair();
+    const content = pair === null ? null : results(pair);
+    const show = content !== null;
+    resultsFailed = pair !== null && !show;
+    resultsEl.replaceChildren(...(content ?? []));
+    pairEl.replaceChildren(...(resultsFailed ? [alertBox(RESULTS_FAILED, 'results-error')] : []));
     resultsEl.hidden = !show;
     root.classList.toggle('has-results', show);
     const collapse = show && !resultsShown && narrow();
@@ -390,22 +476,33 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   }
 
   const resultsStatus = (): string => {
-    if (duplicate()) {
-      return ' Both slots hold the same report.';
+    if (resultsFailed) {
+      return ` ${RESULTS_FAILED.title ?? ''}.`;
     }
     if (!resultsShown) {
       return '';
     }
-    // Focus stays on the loaded card, so the same-sex card is announced here.
-    const pair = loaded();
-    const shared = pair === null ? undefined : sameSex(pair[0].report.sex, pair[1].report.sex);
+    // Focus stays where the user acted, so the same-sex card is announced here.
+    const pair = chosenPair();
+    const shared = pair === null ? undefined : sameSex(pair[0].sex, pair[1].sex);
     return ` Results updated.${shared === undefined ? '' : ` ${sameSexLead(shared)}`}`;
   };
 
-  async function startLoad(slot: ParentIndex, file: File): Promise<void> {
+  /** Whether focus is nowhere in the page, or inside the slot. */
+  function focusInSlotOrLost(slot: ParentIndex): boolean {
+    const active = document.activeElement;
+    const lost = active === null || active === document.body || !root.contains(active);
+    return lost || (slotsEl.querySelector(`[data-slot="${slot}"]`)?.contains(active) ?? false);
+  }
+
+  /**
+   * Reads a file for a slot and saves it. Only the slot's latest read places
+   * its dog there; a superseded or overtaken read is still saved. A report of
+   * the dog the other slot holds updates that dog and leaves it there.
+   */
+  async function startLoad(slot: ParentIndex, file: File, target: string | null): Promise<void> {
     const token = ++tokens[slot];
-    const current = state.slots[slot];
-    setSlot(slot, current.kind === 'loaded' ? { ...current, replacing: true, alert: null } : { kind: 'reading', fileName: file.name });
+    setSlot(slot, { reading: file.name, notice: null });
     render();
     announcer.announce(`Reading the report for ${parentLabel(slot)}…`);
 
@@ -415,38 +512,55 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     } catch {
       result = null;
     }
-    if (token !== tokens[slot]) {
-      return;
+    const placed = token === tokens[slot];
+    if (placed) {
+      setSlot(slot, { reading: null });
     }
     // It says both reads are in progress, which stops being true once one settles.
     if (state.pageAlert === DROP_READING) {
-      state = { ...state, pageAlert: null };
+      clearTransient();
     }
 
-    const before = state.slots[slot];
-    if (result?.ok === true) {
-      const active = document.activeElement;
-      const focusLost = active === null || active === document.body || !root.contains(active);
-      const inSlot = slotsEl.querySelector(`[data-slot="${slot}"]`)?.contains(active) ?? false;
-      // The duplicate message and its Replace button go once the new report loads.
-      const inPair = pairEl.contains(active);
-      setSlot(slot, { kind: 'loaded', report: result.report, nose: undefined, replacing: false, alert: null });
-      if (focusLost || inSlot || inPair) {
-        focusKey = `name-${slot}`;
+    if (result?.ok !== true) {
+      if (!placed) {
+        render();
+        return;
       }
+      const message = result === null ? READER_FAILED : REJECTIONS[result.kind];
+      setSlot(slot, { notice: { tone: 'warning', message } });
+      focusKey = `pick-${slot}`;
       render();
-      announcer.announce(`${parentLabel(slot)}: ${dogName(result.report, slot)} loaded.${resultsStatus()}`);
+      announcer.announce(`${parentLabel(slot)}: ${message.text}`);
       return;
     }
-    const message = result === null ? READER_FAILED : REJECTIONS[result.kind];
-    if (before.kind === 'loaded') {
-      setSlot(slot, { ...before, replacing: false, alert: replacementRejected(message) });
+
+    const moveFocus = focusInSlotOrLost(slot);
+    const { outcome } = store.add(result.report, target ?? undefined);
+    const name = savedName(store.dog(outcome.id)?.name ?? result.report.name);
+    const verb = outcome.kind === 'added' ? 'saved' : 'updated';
+    const other = otherSlot(slot);
+    let text: string;
+    if (outcome.id === state.slots[other].chosen) {
+      if (placed) {
+        const notice = sameDogNotice(name, parentLabel(other));
+        setSlot(slot, { notice: { tone: 'info', message: notice } });
+        focusKey = `pick-${slot}`;
+        text = notice.text;
+      } else {
+        text = `${name} updated.`;
+      }
+    } else if (placed) {
+      choose(slot, outcome.id);
+      if (moveFocus) {
+        focusKey = target === null ? `name-${slot}` : `dog-${slot}-${outcome.id}`;
+      }
+      text = `${parentLabel(slot)}: ${name} ${verb}.`;
     } else {
-      setSlot(slot, { kind: 'empty', error: message });
-      focusKey = `pick-${slot}`;
+      text = `${name} ${verb}.`;
     }
+    const cleared = settle();
     render();
-    announcer.announce(`${parentLabel(slot)}: ${before.kind === 'loaded' ? replacementRejected(message).text : message.text}`);
+    announcer.announce(`${text}${placed && outcome.id === state.slots[slot].chosen ? resultsStatus() : ''}${clearedText(cleared)}`);
   }
 
   function pageMessage(text: string): void {
@@ -456,53 +570,93 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     announcer.announce(text);
   }
 
-  /** Both slots are taken: Replace works on a card, but a slot still reading has none. */
-  const slotsTaken = (): string => (SLOTS.some((slot) => state.slots[slot].kind === 'loaded') ? DROP_FULL : DROP_READING);
+  /** A slot that has nothing chosen and is not reading. */
+  const free = (slot: ParentIndex): boolean => state.slots[slot].chosen === null && state.slots[slot].reading === null;
 
-  function answer(slot: ParentIndex, nose: NoseAnswer | undefined): void {
-    const current = state.slots[slot];
-    if (current.kind !== 'loaded') {
-      return;
-    }
-    clearTransient();
-    setSlot(slot, { ...current, nose, alert: null });
-    render();
-    announcer.announce(resultsShown ? 'Results updated.' : 'Answer saved.');
-  }
+  /** Both slots are taken: by a chosen dog, or by reads in progress. */
+  const slotsTaken = (): string => (SLOTS.some((slot) => state.slots[slot].chosen !== null) ? DROP_FULL : DROP_READING);
 
-  function remove(slot: ParentIndex): void {
-    tokens[slot]++;
-    clearTransient();
-    setSlot(slot, EMPTY);
-    focusKey = `pick-${slot}`;
-    render();
-    announcer.announce(`${parentLabel(slot)} removed.`);
-  }
+  const actions: ListActions = {
+    toggle(slot, id) {
+      const current = state.slots[slot];
+      const clearing = current.chosen === id;
+      if (current.reading !== null) {
+        // The read still saves its dog, without placing it here.
+        tokens[slot]++;
+      }
+      clearTransient();
+      choose(slot, clearing ? null : id);
+      render();
+      announcer.announce(clearing ? `${parentLabel(slot)} cleared.` : `${parentLabel(slot)}: ${savedName(store.dog(id)?.name ?? null)} chosen.${resultsStatus()}`);
+    },
+    remove(slot, id) {
+      const dog = store.dog(id);
+      if (dog === undefined) {
+        return;
+      }
+      SLOTS.filter((other) => state.slots[other].chosen === id).forEach((other) => choose(other, null));
+      store.remove(id);
+      const cleared = settle();
+      focusKey = `pick-${slot}`;
+      render();
+      announcer.announce(`Deleted ${savedName(dog.name)}.${clearedText(cleared)}`);
+    },
+    showAll(slot, all) {
+      setSlot(slot, { showAll: all });
+      render();
+    },
+    clearFilter(slot) {
+      setSlot(slot, { filter: '' });
+      focusKey = `find-${slot}`;
+      render();
+    },
+    undo() {
+      // The undo line arrives with deleting; until then nothing offers it.
+    },
+    pick,
+    readd(slot, id) {
+      readdTargets[slot] = id;
+      openPicker(slot);
+    },
+    answer(slot, nose) {
+      const { chosen } = state.slots[slot];
+      if (chosen === null) {
+        return;
+      }
+      clearTransient();
+      store.setNose(chosen, nose ?? null);
+      const cleared = settle();
+      render();
+      announcer.announce(`${resultsShown ? 'Results updated.' : 'Answer saved.'}${clearedText(cleared)}`);
+    },
+  };
 
   const app: App = {
     async load(slot, file) {
+      const target = readdTargets[slot];
+      readdTargets[slot] = null;
       clearTransient();
-      await startLoad(slot, file);
+      await startLoad(slot, file, target);
     },
     async drop(files, target) {
       clearTransient();
-      const free = SLOTS.filter((slot) => state.slots[slot].kind === 'empty');
+      const open = SLOTS.filter(free);
       const [first, second] = files;
       if (files.length > 2) {
         pageMessage(DROP_TOO_MANY);
       } else if (first === undefined) {
         render();
       } else if (second === undefined) {
-        const slot = target ?? free[0];
+        const slot = target ?? open[0];
         if (slot === undefined) {
           pageMessage(slotsTaken());
         } else {
-          await startLoad(slot, first);
+          await startLoad(slot, first, null);
         }
-      } else if (free.length === 2) {
-        await Promise.all([startLoad(0, first), startLoad(1, second)]);
-      } else if (free[0] !== undefined) {
-        const loading = startLoad(free[0], first);
+      } else if (open.length === 2) {
+        await Promise.all([startLoad(0, first, null), startLoad(1, second, null)]);
+      } else if (open[0] !== undefined) {
+        const loading = startLoad(open[0], first, null);
         pageMessage(DROP_ONE_FREE);
         await loading;
       } else {
@@ -511,7 +665,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     },
   };
 
-  // A stray drop must never navigate away and discard the loaded reports.
+  // A stray drop must never navigate away and discard what the page holds.
   window.addEventListener('dragover', (event) => event.preventDefault());
   window.addEventListener('drop', (event) => {
     event.preventDefault();

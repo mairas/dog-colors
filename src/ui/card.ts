@@ -1,6 +1,6 @@
-// A parent's card: who the report says the dog is, its colour genotype as
-// read, its predicted own colour, and the question that can settle it. A
-// list-mode slot shows the same content as its card body, under its list.
+// A chosen dog's card, under its slot's list: who the report says the dog is,
+// its colour genotype as read, its predicted own colour, and the question that
+// can settle it.
 
 import type { AllelePair } from '../genetics/alleles.ts';
 import type { OwnColour, ResolvedDog } from '../genetics/dog.ts';
@@ -14,24 +14,11 @@ import type { Report } from '../report/types.ts';
 import { coatChip } from './coat.ts';
 import { h, type Child } from './dom.ts';
 import { flagTags } from './results.ts';
-import type { Message } from './messages.ts';
-import { alertBox, slotHeading, slotHeadingId } from './slots.ts';
-import { formatPairs, geneName, GENE_LABELS, lowerFirst, parentLabel, SEX_NAMES } from './names.ts';
-
-export interface CardInput {
-  readonly slot: ParentIndex;
-  readonly report: Report;
-  readonly dog: ResolvedDog;
-  readonly nose: NoseAnswer | undefined;
-  /** A replacement is being read; the Replace button reads "Reading…". */
-  readonly replacing: boolean;
-  readonly alert: Message | null;
-}
+import { alertBox } from './slots.ts';
+import { formatPairs, geneName, GENE_LABELS, lowerFirst, SEX_NAMES } from './names.ts';
 
 export interface CardActions {
   answer(slot: ParentIndex, nose: NoseAnswer | undefined): void;
-  replace(slot: ParentIndex): void;
-  remove(slot: ParentIndex): void;
 }
 
 /** What a card shows about one dog. */
@@ -44,8 +31,6 @@ export interface CardContent {
 }
 
 type Answer = CardActions['answer'];
-
-export const dogName = (report: Report, slot: ParentIndex): string => report.name ?? parentLabel(slot);
 
 /** The coat picture of what the possible own colours share: a part they disagree on is unknown or left out. */
 export function ownPicture(colours: readonly OwnColour[]): SVGSVGElement | null {
@@ -259,28 +244,6 @@ function cardDetails(content: CardContent, answer: Answer): Child[] {
     ...unsettledNotes(dog),
     genotypeTable(content),
   ];
-}
-
-export function renderCard(input: CardInput, actions: CardActions): HTMLElement {
-  const { report, slot } = input;
-  const nameId = slotHeadingId(slot);
-  const name = dogName(report, slot);
-
-  const button = (key: string, text: string): HTMLButtonElement =>
-    h('button', { type: 'button', class: 'ghost', 'data-key': `${key}-${slot}`, 'aria-describedby': nameId }, text);
-  const replace = button('replace', input.replacing ? 'Reading…' : 'Replace');
-  replace.addEventListener('click', () => actions.replace(slot));
-  const remove = button('remove', 'Remove');
-  remove.addEventListener('click', () => actions.remove(slot));
-
-  return h(
-    'section',
-    { class: 'slot card', 'aria-labelledby': nameId, 'data-slot': String(slot) },
-    input.alert === null ? null : alertBox(input.alert, 'card-alert'),
-    slotHeading(slot, name),
-    ...cardDetails({ slot, name, report, dog: input.dog, nose: input.nose }, actions.answer),
-    h('div', { class: 'actions' }, replace, remove),
-  );
 }
 
 /**

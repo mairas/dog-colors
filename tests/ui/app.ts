@@ -5,8 +5,10 @@ import { join } from 'node:path';
 import { parseReport } from '../../src/report/parse.ts';
 import type { Line, PdfText } from '../../src/report/pdfText.ts';
 import type { ReadResult, Report } from '../../src/report/types.ts';
-import { startApp, type App, type AppState, type NoteStorage } from '../../src/ui/app.ts';
-import { MemoryStorage } from '../saved/storage.ts';
+import { SAVED_DOGS_KEY, openSavedDogs } from '../../src/saved/store.ts';
+import { stateFromQuery } from '../../src/ui/dev.ts';
+import { startApp, type App, type AppOptions, type AppState, type NoteStorage } from '../../src/ui/app.ts';
+import { MemoryStorage, sequentialIds } from '../saved/storage.ts';
 
 // happy-dom replaces the global URL, which the shared fixture helpers resolve
 // paths with, so the DOM tests read the fixtures by directory instead.
@@ -30,8 +32,8 @@ export interface Page {
   text(): string;
 }
 
-/** Files by name; a function is called, so a read can throw or stay pending. */
-export type Library = Readonly<Record<string, ReadResult | (() => Promise<ReadResult>)>>;
+/** Read results by file name; a function is called, so a read can throw or stay pending. */
+export type ReadResults = Readonly<Record<string, ReadResult | (() => Promise<ReadResult>)>>;
 
 /** A read that stays pending until released. */
 export function slowRead(result: ReadResult): { readonly read: () => Promise<ReadResult>; release(): Promise<void> } {
@@ -62,15 +64,18 @@ export interface PageOptions {
   readonly storage?: NoteStorage;
   /** The clock's fixed reading, in epoch milliseconds. */
   readonly now?: number;
+  /** IDs for dogs the page saves; new-1, new-2, … by default. */
+  readonly newId?: () => string;
+  readonly predictPuppies?: AppOptions['predictPuppies'];
 }
 
-export function openPage(library: Library, options: PageOptions = {}): Page {
+export function openPage(reads: ReadResults, options: PageOptions = {}): Page {
   document.body.replaceChildren();
   const root = document.createElement('main');
   document.body.append(root);
   const app = startApp(root, {
     read: async (file) => {
-      const entry = library[file.name];
+      const entry = reads[file.name];
       if (entry === undefined) {
         throw new Error(`no fixture for ${file.name}`);
       }
@@ -79,7 +84,9 @@ export function openPage(library: Library, options: PageOptions = {}): Page {
     narrow: () => options.narrow ?? false,
     storage: options.storage ?? new MemoryStorage(),
     now: () => options.now ?? Date.now(),
+    newId: options.newId ?? sequentialIds('new'),
     ...(options.initial === undefined ? {} : { initial: options.initial }),
+    ...(options.predictPuppies === undefined ? {} : { predictPuppies: options.predictPuppies }),
   });
   return { app, root, text: () => root.textContent ?? '' };
 }
@@ -119,4 +126,50 @@ export function button(root: HTMLElement, key: string): HTMLButtonElement {
 /** A coat picture's shapes, as "tag class". */
 export function shapes(picture: SVGSVGElement): string[] {
   return [...picture.children].map((shape) => `${shape.tagName.toLowerCase()} ${shape.getAttribute('class') ?? ''}`);
+}
+
+/** A storage holding the reports as saved dogs with IDs dog-1, dog-2, … in the order given. */
+export function savedStorage(...reports: readonly Report[]): MemoryStorage {
+  const storage = new MemoryStorage();
+  const store = openSavedDogs({ storage: () => storage, newId: sequentialIds('dog') });
+  for (const report of reports) {
+    store.add(report);
+  }
+  return storage;
+}
+
+/** Rewrites stored entries: each entry with a listed ID passes through `change`. */
+export function rewriteSaved(
+  storage: MemoryStorage,
+  ids: readonly string[],
+  change: (entry: Record<string, unknown>) => Record<string, unknown>,
+): void {
+  const stored = JSON.parse(storage.getItem(SAVED_DOGS_KEY) ?? '{}') as { version: number; dogs: Record<string, unknown>[] };
+  stored.dogs = stored.dogs.map((entry) => (ids.includes(String(entry['id'])) ? change(entry) : entry));
+  storage.setItem(SAVED_DOGS_KEY, JSON.stringify(stored));
+}
+
+/** A slot's heading as text: "Parent 1Sample A". */
+export function heading(root: HTMLElement, slot: number): string {
+  return root.querySelector(`[data-slot="${slot}"] h2`)?.textContent ?? '';
+}
+
+/** The polite region's current text. */
+export function spoken(root: HTMLElement): string {
+  return root.querySelector('[aria-live]')?.textContent ?? '';
+}
+
+/** The data-key of the focused element. */
+export function focused(): string | null {
+  return document.activeElement?.getAttribute('data-key') ?? null;
+}
+
+/** Opens the page in a fixture state, its dogs saved into the storage given or a new one. */
+export async function openState(
+  query: Readonly<Record<string, string>>,
+  options: PageOptions & { readonly storage?: MemoryStorage } = {},
+): Promise<Page & { readonly storage: MemoryStorage }> {
+  const storage = options.storage ?? new MemoryStorage();
+  const start = await stateFromQuery(new URLSearchParams(query), storage);
+  return { ...openPage({}, { ...options, ...start, storage }), storage };
 }

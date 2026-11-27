@@ -2,9 +2,12 @@
 // synthetic reports built from them, without real PDFs. Loaded only when
 // __FIXTURES__ is true, so the production build carries none of it.
 //
-//   ?state=<name>        one of STATE_NAMES, as in the approved mockup
-//   ?fixtures=<a>,<b>    any two reports from REPORT_NAMES, unanswered
+//   ?state=<name>        one of STATE_NAMES, as in the approved mockups
+//   ?fixtures=<a>,<b>    any two reports from REPORT_NAMES, saved and chosen, unanswered
 //   &note=hidden         either of them with the breeding note dismissed
+//
+// The saved dogs go into an in-memory storage through the store, with the
+// reports' short names as IDs, so a state never touches window.localStorage.
 
 import fixtureA from '../../tests/fixtures/sample-a.json' with { type: 'json' };
 import fixtureB from '../../tests/fixtures/sample-b.json' with { type: 'json' };
@@ -16,8 +19,10 @@ import type { NoseAnswer } from '../genetics/questions.ts';
 import { parseReport } from '../report/parse.ts';
 import type { Line } from '../report/pdfText.ts';
 import type { Report, Sex } from '../report/types.ts';
-import { NOTE_HIDDEN_KEY, type AppOptions, type AppState, type NoteStorage, type SlotState } from './app.ts';
-import { DROP_FULL, REJECTIONS, replacementRejected, type Message } from './messages.ts';
+import { READER_VERSION } from '../report/version.ts';
+import { openSavedDogs, SAVED_DOGS_KEY } from '../saved/store.ts';
+import { EMPTY_SLOT, NOTE_HIDDEN_KEY, type AppOptions, type AppState, type NoteStorage, type SlotState } from './app.ts';
+import { DROP_FULL, REJECTIONS, sameDogNotice, type Message } from './messages.ts';
 
 const FIXTURES: Readonly<Record<string, { readonly lines: readonly Line[] }>> = {
   a: fixtureA,
@@ -121,61 +126,175 @@ const REPORTS: Readonly<Record<string, () => Promise<Report>>> = {
 
 export const REPORT_NAMES = Object.keys(REPORTS);
 
-const empty = (error: Message | null = null): SlotState => ({ kind: 'empty', error });
+/** What a fixture state starts the page with, besides its storage. */
+export interface FixtureStart {
+  readonly initial: AppState;
+  readonly predictPuppies?: NonNullable<AppOptions['predictPuppies']>;
+}
 
-async function card(name: string, nose?: NoseAnswer, alert: Message | null = null): Promise<SlotState> {
-  const build = REPORTS[name];
-  if (build === undefined) {
-    throw new Error(`no report ${name}; choose from ${REPORT_NAMES.join(', ')}`);
+/** Saves reports into the storage through the store, each with its short name as its ID. */
+interface Seeder {
+  save(name: string, nose?: NoseAnswer): Promise<string>;
+  /** Rewrites a saved dog's stored entry, as an older page or a damaged storage would leave it. */
+  alter(id: string, change: (entry: Record<string, unknown>) => Record<string, unknown>): void;
+}
+
+function seeder(storage: NoteStorage): Seeder {
+  let nextId = '';
+  const store = openSavedDogs({ storage: () => storage, newId: () => nextId, locale: 'en' });
+  return {
+    async save(name, nose) {
+      const build = REPORTS[name];
+      if (build === undefined) {
+        throw new Error(`no report ${name}; choose from ${REPORT_NAMES.join(', ')}`);
+      }
+      // A report without a kit ID saved twice is two dogs, so the second takes another ID.
+      nextId = store.dog(name) === undefined ? name : `${name}-2`;
+      const { outcome } = store.add(await build());
+      if (nose !== undefined) {
+        store.setNose(outcome.id, nose);
+      }
+      return outcome.id;
+    },
+    alter(id, change) {
+      const stored = JSON.parse(storage.getItem(SAVED_DOGS_KEY) ?? '{"dogs":[]}') as { dogs: Record<string, unknown>[] };
+      stored.dogs = stored.dogs.map((entry) => (entry['id'] === id ? change(entry) : entry));
+      storage.setItem(SAVED_DOGS_KEY, JSON.stringify(stored));
+    },
+  };
+}
+
+/** Read by the reader version before this one: a stale dog. */
+const stale = (entry: Record<string, unknown>): Record<string, unknown> => ({ ...entry, readerVersion: READER_VERSION - 1 });
+/** A Short Tail count no report has: an unusable dog that still shows its name and sex. */
+const unusable = (entry: Record<string, unknown>): Record<string, unknown> => ({
+  ...entry,
+  report: { ...(entry['report'] as Record<string, unknown>), shortTail: 1.5 },
+});
+
+const slot = (chosen: string | null = null, changes: Partial<SlotState> = {}): SlotState => ({ ...EMPTY_SLOT, chosen, ...changes });
+const warning = (message: Message): Partial<SlotState> => ({ notice: { tone: 'warning', message } });
+const sameDog: Partial<SlotState> = { notice: { tone: 'info', message: sameDogNotice('Sample A', 'Parent 1') } };
+const start = (first: SlotState, second: SlotState, pageAlert: string | null = null): FixtureStart => ({
+  initial: { slots: [first, second], pageAlert },
+});
+
+/** Four dogs: two males (A, C) and two females (B, D). */
+async function four(seed: Seeder): Promise<void> {
+  for (const name of ['a', 'b', 'c', 'd']) {
+    await seed.save(name);
   }
-  return { kind: 'loaded', report: await build(), nose, replacing: false, alert };
 }
 
-async function slots(first: Promise<SlotState> | SlotState, second: Promise<SlotState> | SlotState, pageAlert: string | null = null): Promise<AppState> {
-  return { slots: [await first, await second], pageAlert };
+/** Every report: fourteen dogs, enough for the filter field. */
+async function every(seed: Seeder): Promise<void> {
+  for (const name of REPORT_NAMES) {
+    await seed.save(name);
+  }
 }
 
-/** The approved mockup's states, by its names. */
-const STATES: Readonly<Record<string, () => Promise<AppState>>> = {
-  'slot-empty': () => slots(empty(), empty()),
-  'results-hidden': () => slots(card('q', 'brown'), empty()),
-  'slot-reading': () => slots(card('q', 'brown'), { kind: 'reading', fileName: 'wisdom-report.pdf' }),
-  'slot-error': () => slots(card('q', 'brown'), empty(REJECTIONS['adobe-pdf-printer'])),
-  'slot-loaded': () => slots(card('q', 'brown'), card('b')),
-  'slot-questions': () => slots(card('q'), card('b')),
-  'slot-unanswerable': () => slots(card('x'), card('b')),
-  'slot-replace-error': () => slots(card('q', 'brown', replacementRejected(REJECTIONS['not-wisdom-dog'])), card('b')),
-  'page-drop-error': () => slots(card('q', 'brown'), card('b'), DROP_FULL),
-  'slot-missing': () => slots(card('q', 'brown'), card('m')),
-  'pair-duplicate': () => slots(card('a'), card('a')),
-  'results-populated': () => slots(card('q', 'brown'), card('b')),
-  'results-ranges': () => slots(card('q'), card('b')),
-  'results-warnings': () => slots(card('w'), card('v')),
-  'results-partial': () => slots(card('q', 'brown'), card('m')),
-  'results-health-unknown': () => slots(card('h'), card('k')),
+/** The approved mockups' states, by their names. */
+const STATES: Readonly<Record<string, (seed: Seeder) => Promise<FixtureStart>>> = {
+  'slot-empty': async () => start(slot(), slot()),
+  'results-hidden': async (seed) => start(slot(await seed.save('q', 'brown')), slot()),
+  'slot-reading': async (seed) => start(slot(await seed.save('q', 'brown')), slot(null, { reading: 'wisdom-report.pdf' })),
+  'slot-error': async (seed) => start(slot(await seed.save('q', 'brown')), slot(null, warning(REJECTIONS['adobe-pdf-printer']))),
+  'slot-loaded': async (seed) => start(slot(await seed.save('q', 'brown')), slot(await seed.save('b'))),
+  'slot-questions': async (seed) => start(slot(await seed.save('q')), slot(await seed.save('b'))),
+  'slot-unanswerable': async (seed) => start(slot(await seed.save('x')), slot(await seed.save('b'))),
+  'page-drop-error': async (seed) => start(slot(await seed.save('q', 'brown')), slot(await seed.save('b')), DROP_FULL),
+  'slot-missing': async (seed) => start(slot(await seed.save('q', 'brown')), slot(await seed.save('m'))),
+  'list-none-chosen': async (seed) => {
+    await four(seed);
+    return start(slot(), slot());
+  },
+  'list-chosen': async (seed) => {
+    await four(seed);
+    return start(slot('a'), slot());
+  },
+  'list-narrowed': async (seed) => {
+    await four(seed);
+    return start(slot(), slot('b'));
+  },
+  'list-all-shown': async (seed) => {
+    await four(seed);
+    return start(slot('a'), slot(null, { showAll: true }));
+  },
+  'list-no-match': async (seed) => {
+    await every(seed);
+    return start(slot('a'), slot(null, { filter: 'zz' }));
+  },
+  'list-many': async (seed) => {
+    await every(seed);
+    return start(slot('x'), slot());
+  },
+  'list-reading': async (seed) => {
+    await four(seed);
+    return start(slot('a', { reading: 'wisdom-report.pdf' }), slot());
+  },
+  'list-rejected': async (seed) => {
+    await four(seed);
+    return start(slot('a', warning(REJECTIONS['not-wisdom-dog'])), slot());
+  },
+  'list-same-dog': async (seed) => {
+    await four(seed);
+    return start(slot('a'), slot(null, sameDog));
+  },
+  'open-same-dog': async (seed) => start(slot(await seed.save('a')), slot(null, sameDog)),
+  'list-stale': async (seed) => {
+    await four(seed);
+    seed.alter('b', stale);
+    seed.alter('c', unusable);
+    return start(slot(), slot());
+  },
+  'stale-chosen': async (seed) => {
+    await four(seed);
+    seed.alter('b', stale);
+    return start(slot('a'), slot('b'));
+  },
+  'results-populated': async (seed) => start(slot(await seed.save('q', 'brown')), slot(await seed.save('b'))),
+  'results-ranges': async (seed) => start(slot(await seed.save('q')), slot(await seed.save('b'))),
+  'results-warnings': async (seed) => start(slot(await seed.save('w')), slot(await seed.save('v'))),
+  'results-partial': async (seed) => start(slot(await seed.save('q', 'brown')), slot(await seed.save('m'))),
+  'results-health-unknown': async (seed) => start(slot(await seed.save('h')), slot(await seed.save('k'))),
+  'results-failed': async (seed) => {
+    await four(seed);
+    return {
+      ...start(slot('a'), slot('b')),
+      // Stored data that passes the check never makes the genetics throw, so the failure is staged.
+      predictPuppies: () => {
+        throw new Error('the genetics reject this pair');
+      },
+    };
+  },
 };
 
 export const STATE_NAMES = Object.keys(STATES);
 
-export async function stateFromQuery(params: URLSearchParams): Promise<AppState> {
+/** Saves the state's dogs into the storage and returns what the page starts with. */
+export async function stateFromQuery(params: URLSearchParams, storage: NoteStorage): Promise<FixtureStart> {
+  const seed = seeder(storage);
   const state = params.get('state');
   if (state !== null) {
     const build = STATES[state];
     if (build === undefined) {
       throw new Error(`no state ${state}; choose from ${STATE_NAMES.join(', ')}`);
     }
-    return build();
+    return build(seed);
   }
   const [first = 'a', second = 'b'] = (params.get('fixtures') ?? '').split(',');
-  return slots(card(first), card(second));
+  const firstId = await seed.save(first);
+  const secondId = await seed.save(second);
+  // The same report twice is one saved dog, which only one slot can hold.
+  return start(slot(firstId), slot(secondId === firstId ? null : secondId));
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * The breeding note's storage for a fixture state: in memory, so a dismissal
- * on the dev origin never hides the note in other states, and dismissed from
- * the start with note=hidden.
+ * A fixture state's storage: in memory, so its dogs and a dismissal of the
+ * breeding note on the dev origin never reach other states, with the note
+ * dismissed from the start with note=hidden.
  */
 function storageFromQuery(params: URLSearchParams): NoteStorage {
   const items = new Map<string, string>();
@@ -193,7 +312,8 @@ function storageFromQuery(params: URLSearchParams): NoteStorage {
   };
 }
 
-/** What a fixture URL starts the app with: its slots and the note's storage. */
-export async function fixtureOptions(params: URLSearchParams): Promise<Pick<AppOptions, 'initial' | 'storage'>> {
-  return { initial: await stateFromQuery(params), storage: storageFromQuery(params) };
+/** What a fixture URL starts the app with: its slots, its storage and any staged failure. */
+export async function fixtureOptions(params: URLSearchParams): Promise<Pick<AppOptions, 'initial' | 'storage' | 'predictPuppies'>> {
+  const storage = storageFromQuery(params);
+  return { storage, ...(await stateFromQuery(params, storage)) };
 }

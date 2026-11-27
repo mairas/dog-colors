@@ -3,14 +3,21 @@ import { describe, expect, it } from 'vitest';
 import { resolveDog } from '../../src/genetics/dog.ts';
 import { predictPuppies } from '../../src/genetics/results.ts';
 import { analyseHealth, type HealthAnalysis } from '../../src/health/health.ts';
-import type { AppState, LoadedSlot } from '../../src/ui/app.ts';
+import type { Report } from '../../src/report/types.ts';
+import { openSavedDogs } from '../../src/saved/store.ts';
 import { STATE_NAMES, fixtureOptions, stateFromQuery } from '../../src/ui/dev.ts';
-import { openPage } from './app.ts';
+import { MemoryStorage } from '../saved/storage.ts';
+import { openPage, openState } from './app.ts';
 
-const state = (name: string): Promise<AppState> => stateFromQuery(new URLSearchParams({ state: name }));
-
-function loaded(app: AppState): LoadedSlot[] {
-  return app.slots.filter((slot): slot is LoadedSlot => slot.kind === 'loaded');
+/** The reports of the dogs a state or fixture pair chooses, in slot order. */
+async function chosen(query: Record<string, string>): Promise<Report[]> {
+  const storage = new MemoryStorage();
+  const { initial } = await stateFromQuery(new URLSearchParams(query), storage);
+  const store = openSavedDogs({ storage: () => storage });
+  return initial.slots.flatMap(({ chosen: id }) => {
+    const dog = id === null ? undefined : store.dog(id);
+    return dog === undefined || dog.status === 'unusable' ? [] : [dog.report];
+  });
 }
 
 /** What sets each state apart on the page: an element, and text it holds. */
@@ -22,23 +29,34 @@ const MARKERS: Readonly<Record<string, readonly [selector: string, text: string]
   'slot-loaded': ['.has-results [data-slot="1"] h2', 'Sample B'],
   'slot-questions': ['[data-slot="0"] legend', 'Nose and paw pads: black or brown?'],
   'slot-unanswerable': ['[data-slot="0"] .note', "The report can't tell which; results show both."],
-  'slot-replace-error': ['[data-slot="0"] .card-alert', 'Replacement not loaded'],
-  'page-drop-error': ['.drop-alert', 'Both slots are full. Use Replace on a card.'],
+  'page-drop-error': ['.drop-alert', 'Both slots are full. Drop the report on the slot you want it in.'],
   'slot-missing': ['[data-slot="1"] .flag', 'not in report'],
-  'pair-duplicate': ['main:not(.has-results) .pair', 'Both slots hold the same report.'],
+  'list-none-chosen': ['[data-slot="0"] h2', 'Choose a dog'],
+  'list-chosen': ['[data-slot="0"] button.dog[aria-pressed="true"]', 'Sample A'],
+  'list-narrowed': ['[data-slot="0"] .listnote', 'Males only'],
+  'list-all-shown': ['[data-slot="1"] .listnote', 'Showing all dogs'],
+  'list-no-match': ['[data-slot="1"] .listempty', 'No females match “zz”.'],
+  'list-many': ['[data-slot="1"] label.find', 'Find a dog for Parent 2'],
+  'list-reading': ['[data-slot="0"] .add[aria-busy="true"]', 'Reading wisdom-report.pdf…'],
+  'list-rejected': ['[data-slot="0"] .err', "This PDF isn't a Wisdom Panel dog report."],
+  'list-same-dog': ['[data-slot="1"] .err.info + label.find, [data-slot="1"] .err.info + .listing', 'Sample'],
+  'open-same-dog': ['[data-slot="1"] .err.info + .drop', 'Choose PDF'],
+  'list-stale': ['[data-slot="0"] .older', 'Older reading'],
+  'stale-chosen': ['[data-slot="1"] .stale-note', 'Read by an older version of this page.'],
   'results-populated': ['#results h2', 'Puppy colours: Sample Q × Sample B'],
   'results-ranges': ['#results .note', 'Answer the questions on the cards to narrow them.'],
   'results-warnings': ['#results .warnings', 'Double merle'],
   'results-partial': ['#results .note', "TYRP1 (chocolate) missing from Parent 2's report"],
   'results-health-unknown': ['.health tbody th', 'Both reports give the same sex, so the odds are unknown.'],
+  'results-failed': ['main:not(.has-results) .pair .results-error', 'Puppy colours can’t be worked out for this pair.'],
 };
 
 async function health(query: Record<string, string>): Promise<HealthAnalysis> {
-  const [first, second] = loaded(await stateFromQuery(new URLSearchParams(query)));
+  const [first, second] = await chosen(query);
   if (first === undefined || second === undefined) {
     throw new Error('two reports expected');
   }
-  return analyseHealth(first.report, second.report);
+  return analyseHealth(first, second);
 }
 
 const reasons = (analysis: HealthAnalysis): string[] => analysis.rows.flatMap((row) => (row.odds.kind === 'unknown' ? [row.odds.reason] : []));
@@ -49,25 +67,25 @@ describe('the dev-only fixture states', () => {
   });
 
   it.each(STATE_NAMES)('renders %s', async (name) => {
-    const { root } = openPage({}, { initial: await state(name) });
+    const { root } = await openState({ state: name });
     const [selector, text] = MARKERS[name] ?? ['', ''];
     const found = [...root.ownerDocument.querySelectorAll(selector)].map((element) => element.textContent ?? '');
     expect(found).toContainEqual(expect.stringContaining(text));
   });
 
   it('reaches the nose question with a synthetic bd 1 + bc 1 parent', async () => {
-    const [first] = loaded(await state('slot-questions'));
-    expect(first && resolveDog(first.report).questions).toHaveLength(1);
+    const [first] = await chosen({ state: 'slot-questions' });
+    expect(first && resolveDog(first).questions).toHaveLength(1);
   });
 
   it('reaches the ASIP ambiguity no question settles', async () => {
-    const [first] = loaded(await state('slot-unanswerable'));
-    expect(first && resolveDog(first.report).unsettled).toEqual(['ASIP']);
+    const [first] = await chosen({ state: 'slot-unanswerable' });
+    expect(first && resolveDog(first).unsettled).toEqual(['ASIP']);
   });
 
   it('reaches a colour warning', async () => {
-    const [first, second] = loaded(await state('results-warnings'));
-    expect(first && second && predictPuppies(resolveDog(first.report), resolveDog(second.report)).warnings).toHaveLength(1);
+    const [first, second] = await chosen({ state: 'results-warnings' });
+    expect(first && second && predictPuppies(resolveDog(first), resolveDog(second)).warnings).toHaveLength(1);
   });
 
   it('reaches unknown health odds for same-sex parents, and the unknown-inheritance warning', async () => {
@@ -89,9 +107,38 @@ describe('the dev-only fixture states', () => {
     expect(daughters?.kind === 'affected-puppies' && 'min' in daughters.chance).toBe(true);
   });
 
-  it('loads any two reports by name', async () => {
-    const app = await stateFromQuery(new URLSearchParams({ fixtures: 'c,m' }));
-    expect(loaded(app).map((slot) => slot.report.missingLoci)).toEqual([[], ['TYRP1']]);
+  it('saves any two reports by name and chooses them', async () => {
+    expect((await chosen({ fixtures: 'c,m' })).map((report) => report.missingLoci)).toEqual([[], ['TYRP1']]);
+    const { root } = await openState({ fixtures: 'c,m' });
+    expect(root.classList.contains('has-results')).toBe(true);
+  });
+
+  it('chooses one dog when both names are the same report', async () => {
+    expect(await chosen({ fixtures: 'a,a' })).toHaveLength(1);
+    expect((await chosen({ fixtures: 'u,u' })).map((report) => report.name)).toEqual(['Sample U', 'Sample U']);
+  });
+
+  it('lists a stale and an unusable dog', async () => {
+    const { root } = await openState({ state: 'list-stale' });
+    expect(root.querySelectorAll('[data-slot="0"] button.dog.unusable')).toHaveLength(1);
+    expect(root.querySelectorAll('[data-slot="0"] button.dog .older')).toHaveLength(1);
+  });
+
+  it('lists every report with the chosen one last, under a filter field', async () => {
+    const { root } = await openState({ state: 'list-many' });
+    const rows = [...root.querySelectorAll('[data-slot="0"] button.dog')];
+    expect(rows).toHaveLength(14);
+    expect(rows.at(-1)?.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('never writes to window.localStorage, even when a state is used', async () => {
+    window.localStorage.clear();
+    for (const name of STATE_NAMES) {
+      const { root } = openPage({}, await fixtureOptions(new URLSearchParams({ state: name })));
+      root.querySelector<HTMLButtonElement>('button.dog:not(.unusable)')?.click();
+      root.querySelector<HTMLInputElement>('[data-key="nose-0-brown"]')?.click();
+    }
+    expect(window.localStorage.length).toBe(0);
   });
 });
 

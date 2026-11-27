@@ -15,8 +15,8 @@ async function read(file: File): Promise<ReadResult> {
   return readReport(file);
 }
 
-/** A fixture state's starting slots and note storage, when the dev-only query asks for one. */
-async function devOptions(): Promise<Pick<AppOptions, 'initial' | 'storage'>> {
+/** A fixture state's starting slots, storage and any staged failure, when the dev-only query asks for one. */
+async function devOptions(): Promise<Pick<AppOptions, 'initial' | 'storage' | 'predictPuppies'>> {
   const params = new URLSearchParams(window.location.search);
   if (!__FIXTURES__ || (!params.has('state') && !params.has('fixtures'))) {
     return {};
