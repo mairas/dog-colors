@@ -3,6 +3,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Report } from '../../src/report/types.ts';
 import { openSavedDogs, SAVED_DOGS_KEY } from '../../src/saved/store.ts';
 import { EMPTY_SLOT, NOTE_HIDDEN_KEY, startApp } from '../../src/ui/app.ts';
+import { renderResults } from '../../src/ui/results.ts';
 import { hash, MemoryStorage, refusing, sequentialIds, withNoseQuestion } from '../saved/storage.ts';
 import {
   button,
@@ -18,6 +19,12 @@ import {
   spoken,
   type ReadResults,
 } from './app.ts';
+
+// The real rendering, so that a test can make it fail once.
+vi.mock('../../src/ui/results.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/ui/results.ts')>();
+  return { ...actual, renderResults: vi.fn(actual.renderResults) };
+});
 
 const RESULTS_FAILED =
   '⚠Puppy colours can’t be worked out for this pair. The saved data of one of these dogs can’t be used. Add its report again, or choose another dog.';
@@ -496,6 +503,14 @@ describe('stored data the page cannot use', () => {
     expect(heading(root, 1)).toBe('Parent 2Sample D');
     button(root, 'dog-1-dog-3').click();
     expect(root.querySelector('.results-error')).toBeNull();
+  });
+
+  it('lets a bug in rendering the results throw rather than blame the saved data', () => {
+    vi.mocked(renderResults).mockImplementationOnce(() => {
+      throw new Error('a rendering bug');
+    });
+    const initial = { slots: [{ ...EMPTY_SLOT, chosen: 'dog-1' }, { ...EMPTY_SLOT, chosen: 'dog-2' }] as const, pageAlert: null, undo: null, clearing: false };
+    expect(() => openPage(reads, { storage: savedStorage(a, b), initial })).toThrow('a rendering bug');
   });
 
   it('clears a slot whose chosen dog turns out unusable', async () => {

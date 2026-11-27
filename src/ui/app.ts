@@ -465,19 +465,21 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
 
   /** The results section's content, or null when the genetics reject the pair. */
   function results(dogs: readonly [UsableDog, UsableDog]): (Node | string)[] | null {
+    let computed: ReturnType<typeof pairResults>;
     try {
-      const { prediction, health } = pairResults(dogs);
-      return renderResults({
-        names: [savedName(dogs[0].name), savedName(dogs[1].name)],
-        prediction,
-        openQuestion: dogs.some((dog) => dog.nose === null && (resolveSaved(dog)?.questions.length ?? 0) > 0),
-        sameSex: sameSex(dogs[0].sex, dogs[1].sex),
-        healthWarnings: healthWarnings(health),
-        sections: [renderHealth(health)],
-      });
+      computed = pairResults(dogs);
     } catch {
       return null;
     }
+    const { prediction, health } = computed;
+    return renderResults({
+      names: [savedName(dogs[0].name), savedName(dogs[1].name)],
+      prediction,
+      openQuestion: dogs.some((dog) => dog.nose === null && (resolveSaved(dog)?.questions.length ?? 0) > 0),
+      sameSex: sameSex(dogs[0].sex, dogs[1].sex),
+      healthWarnings: healthWarnings(health),
+      sections: [renderHealth(health)],
+    });
   }
 
   /** The keyboard position, open disclosures and expanded caveats, by data-key. */
