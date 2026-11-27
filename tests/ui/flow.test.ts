@@ -448,6 +448,18 @@ describe('adding several reports', () => {
     expect(summary(root, 'page')).toBe('Added 1 dog and updated 1.');
   });
 
+  it('announces a placed batch’s start by slot and its slots’ outcomes, never its summary', async () => {
+    const [first, second] = [slowRead(ok(a)), slowRead(ok(a))];
+    const { app, root } = openPage({ '1.pdf': first.read, '2.pdf': second.read });
+    const adding = app.drop([pdf('1.pdf'), pdf('2.pdf')], null);
+    expect(spoken(root)).toBe('Reading the reports for Parent 1 and Parent 2…');
+    await first.release();
+    await second.release();
+    await adding;
+    expect(summary(root, 'page')).toBe('Added 1 dog and updated 1.');
+    expect(spoken(root)).toBe('This report is Sample A, already Parent 1; the saved dog was updated.');
+  });
+
   it('lets a row tapped in a reserved slot win over the file headed there, which is still saved', async () => {
     const [first, second] = [slowRead(ok(a)), slowRead(ok(b))];
     const storage = savedStorage(c, d);
