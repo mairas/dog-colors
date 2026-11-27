@@ -480,9 +480,13 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   function typed(slot: ParentIndex, text: string): void {
     setSlot(slot, { filter: text });
     redrawListings([slot], snapshot());
-    const input = listInput(slot);
     window.clearTimeout(typingTimers[slot]);
-    typingTimers[slot] = window.setTimeout(() => announcer.announce(listingStatus(listing(input))), TYPING_PAUSE_MS);
+    typingTimers[slot] = window.setTimeout(() => announcer.announce(listingStatus(listing(listInput(slot)))), TYPING_PAUSE_MS);
+  }
+
+  /** Drops the typing-pause counts, which would overwrite what the caller is about to announce. */
+  function cancelCounts(): void {
+    SLOTS.forEach((slot) => window.clearTimeout(typingTimers[slot]));
   }
 
   /** Redraws the slots' rows in place, keeping each list's scroll and its chosen row in view as render() does. */
@@ -701,13 +705,12 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
 
   /** What every update starts with: settles the slots and takes the snapshot to restore. */
   function beginUpdate(): ViewState {
-    // A count taken before this update would be out of date, or overwrite what the update announces.
-    SLOTS.forEach((slot) => window.clearTimeout(typingTimers[slot]));
     settle();
     return snapshot();
   }
 
   function render(): void {
+    cancelCounts();
     const view = beginUpdate();
     drawStorage();
     drawTools();
@@ -1021,6 +1024,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       queue.push(...files);
       const { current } = bulk.status;
       showProgress(bulk.at, current, queue);
+      cancelCounts();
       // As a single add does, the slot's new files replace its last message, which only a render removes.
       if (at !== null && state.slots[at].notice !== null) {
         setSlot(at, { notice: null });
