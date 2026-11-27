@@ -2,7 +2,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Report } from '../../src/report/types.ts';
 import { openSavedDogs, SAVED_DOGS_KEY } from '../../src/saved/store.ts';
-import { EMPTY_SLOT, startApp } from '../../src/ui/app.ts';
+import { EMPTY_SLOT, NOTE_HIDDEN_KEY, startApp } from '../../src/ui/app.ts';
 import { hash, MemoryStorage, sequentialIds, withNoseQuestion } from '../saved/storage.ts';
 import {
   button,
@@ -441,6 +441,7 @@ describe('stored data the page cannot use', () => {
         ],
         pageAlert: null,
         undo: null,
+        clearing: false,
       },
     });
     expect(heading(root, 0)).toBe('Parent 1Choose a dog');
@@ -571,7 +572,7 @@ describe('deleting a dog', () => {
     }
     const { root } = openPage(reads, {
       storage,
-      initial: { slots: [{ ...EMPTY_SLOT, chosen: 'dog-3' }, EMPTY_SLOT], pageAlert: null, undo: { deleted, slot: 0, chosen: true } },
+      initial: { slots: [{ ...EMPTY_SLOT, chosen: 'dog-3' }, EMPTY_SLOT], pageAlert: null, undo: { deleted, slot: 0, chosen: true }, clearing: false },
     });
     button(root, 'undo-0').click();
     expect(pressed(root, 0)).toEqual(['dog-0-dog-3']);
@@ -680,6 +681,73 @@ describe('deleting a dog', () => {
     expect(listed(storage).find((dog) => dog.id === 'tab-1')?.nose).toBe('brown');
     expect(spoken(root)).toBe('Luna Again restored.');
     expect(focused()).toBe('dog-0-tab-1');
+  });
+});
+
+describe('Clear saved dogs', () => {
+  const clearButton = (root: HTMLElement) => root.querySelector<HTMLButtonElement>('[data-key="clear-saved"]');
+
+  it('shows one button below both slots while any dog is saved', async () => {
+    const { app, root } = openPage(reads);
+    expect(clearButton(root)).toBeNull();
+    await app.load(0, pdf('a.pdf'));
+    const tools = clearButton(root)?.closest('.library-tools');
+    expect(clearButton(root)?.textContent).toBe('Clear saved dogs');
+    expect(clearButton(root)?.classList.contains('ghost')).toBe(true);
+    expect(tools?.previousElementSibling?.classList.contains('slots')).toBe(true);
+    expect(tools?.nextElementSibling?.classList.contains('pair')).toBe(true);
+  });
+
+  it('asks inline, with focus on Cancel, and Cancel returns focus to the button', () => {
+    const confirm = vi.fn(() => true);
+    vi.stubGlobal('confirm', confirm);
+    const { root } = openPage(reads, { storage: savedStorage(a, b, c, d) });
+    clearButton(root)?.click();
+    const group = root.querySelector('.library-tools [role="group"]');
+    expect(group?.getAttribute('aria-label')).toBe('Clear saved dogs');
+    expect(group?.textContent).toBe('Delete all 4 saved dogs?DeleteCancel');
+    expect(button(root, 'clear-delete').classList.contains('danger')).toBe(true);
+    expect(focused()).toBe('clear-cancel');
+    expect(clearButton(root)).toBeNull();
+    button(root, 'clear-cancel').click();
+    expect(root.querySelector('.library-tools [role="group"]')).toBeNull();
+    expect(focused()).toBe('clear-saved');
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('deletes every dog on Delete, empties both slots and the undo line, and keeps the breeding note’s dismissal', () => {
+    const storage = savedStorage(a, b, c, d);
+    storage.setItem(NOTE_HIDDEN_KEY, String(Date.now() + 1000));
+    const { root } = openPage(reads, { storage });
+    button(root, 'dog-0-dog-1').click();
+    button(root, 'dog-1-dog-2').click();
+    button(root, 'delete-0-dog-3').click();
+    clearButton(root)?.click();
+    button(root, 'clear-delete').click();
+    expect(storage.getItem(SAVED_DOGS_KEY)).toBeNull();
+    expect(storage.getItem(NOTE_HIDDEN_KEY)).not.toBeNull();
+    expect([heading(root, 0), heading(root, 1)]).toEqual(['Parent 1No report yet', 'Parent 2No report yet']);
+    expect(root.querySelector('.undo')).toBeNull();
+    expect(root.querySelector('.dogs-list')).toBeNull();
+    expect(results(root)?.hidden).toBe(true);
+    expect(clearButton(root)).toBeNull();
+    expect(spoken(root)).toBe('All saved dogs deleted.');
+    expect(focused()).toBe('pick-0');
+  });
+
+  it('discards a read in progress when Delete is confirmed', async () => {
+    const slow = slowRead(ok(c));
+    const storage = savedStorage(a, b);
+    const { app, root } = openPage({ 'slow.pdf': slow.read }, { storage });
+    const loading = app.load(1, pdf('slow.pdf'));
+    clearButton(root)?.click();
+    button(root, 'clear-delete').click();
+    expect(heading(root, 1)).toBe('Parent 2No report yet');
+    await slow.release();
+    await loading;
+    expect(storage.getItem(SAVED_DOGS_KEY)).toBeNull();
+    expect(heading(root, 1)).toBe('Parent 2No report yet');
+    expect(spoken(root)).toBe('All saved dogs deleted.');
   });
 });
 

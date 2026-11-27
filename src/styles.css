@@ -855,6 +855,36 @@ button.del:hover {
 .undo button {
   margin-left: auto;
 }
+.library-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 14px;
+}
+.library-tools:empty {
+  display: none;
+}
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  background: var(--warn-bg);
+  color: var(--warn);
+  border-radius: var(--radius);
+}
+/* Destructive: the warning colour, with its background as the text so it reads in both schemes. */
+button.danger {
+  background: var(--warn);
+  border-color: var(--warn);
+  color: var(--warn-bg);
+}
+.confirm button.ghost {
+  color: var(--warn);
+  border-color: var(--warn);
+}
 .add {
   display: flex;
   flex-wrap: wrap;
@@ -929,6 +959,7 @@ button.del:hover {
   .find,
   .listing,
   .undo,
+  .library-tools,
   .add,
   .stale-note,
   button,

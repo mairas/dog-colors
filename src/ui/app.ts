@@ -57,7 +57,7 @@ export interface SlotState {
   readonly showAll: boolean;
 }
 
-/** The last deleted dog, offered back until the next choose, clear, add or delete in either slot. */
+/** The last deleted dog, offered back until the next choose, clear, add, delete or Clear saved dogs in either slot. */
 export interface UndoLine {
   readonly deleted: StoredDog;
   /** The slot whose list it was deleted from. */
@@ -71,6 +71,8 @@ export interface AppState {
   /** A page-level drop message, until the next action. */
   readonly pageAlert: string | null;
   readonly undo: UndoLine | null;
+  /** Clear saved dogs is asking for its second tap. */
+  readonly clearing: boolean;
 }
 
 /** Where the saved dogs and the breeding note's dismissal are kept: localStorage in the browser. */
@@ -227,9 +229,11 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   // Even reading window.localStorage throws where storage is disabled.
   const storage = (): NoteStorage => options.storage ?? window.localStorage;
   const store = openSavedDogs({ storage, now, ...(options.newId === undefined ? {} : { newId: options.newId }) });
-  let state: AppState = options.initial ?? { slots: [EMPTY_SLOT, EMPTY_SLOT], pageAlert: null, undo: null };
+  let state: AppState = options.initial ?? { slots: [EMPTY_SLOT, EMPTY_SLOT], pageAlert: null, undo: null, clearing: false };
   /** Each slot's latest read: an earlier one still saves its dog, but does not place it. */
   const tokens: [number, number] = [0, 0];
+  /** How many times Clear saved dogs was confirmed: a read that began before the latest is discarded. */
+  let clears = 0;
   /** The dog Add the report again was pressed for, until the slot's picker gives a file or Add a dog opens it. */
   const readdTargets: [string | null, string | null] = [null, null];
   const typingTimers: [number | undefined, number | undefined] = [undefined, undefined];
@@ -245,6 +249,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   const announcer = createAnnouncer();
   const dropAlert = h('div', { class: 'drop-alert' });
   const slotsEl = h('div', { class: 'slots' });
+  const toolsEl = h('div', { class: 'library-tools' });
   const pairEl = h('div', { class: 'pair' });
   const resultsEl = h('section', { class: 'results', id: 'results', 'aria-labelledby': 'results-h', hidden: true });
   const fileInput = (slot: ParentIndex): HTMLInputElement => {
@@ -274,6 +279,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     h('a', { class: 'ready btn', href: '#results' }, 'Results ready', h('span', { 'aria-hidden': 'true' }, '↓')),
     dropAlert,
     slotsEl,
+    toolsEl,
     pairEl,
     resultsEl,
     announcer.region,
@@ -331,10 +337,31 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   /** " Parent 1 cleared." for each slot a store write emptied. */
   const clearedText = (cleared: readonly ParentIndex[]): string => cleared.map((slot) => ` ${parentLabel(slot)} cleared.`).join('');
 
-  /** Ends the undo line: any choose, clear, add or delete does. */
+  /** Ends the undo line: any choose, clear, add, delete or Clear saved dogs does. */
   const endUndo = (): void => {
     state = { ...state, undo: null };
   };
+
+  /** Opens or closes Clear saved dogs' inline confirmation, moving focus into it or back to the button. */
+  function askClear(asking: boolean): void {
+    state = { ...state, clearing: asking };
+    focusKeys = [asking ? 'clear-cancel' : 'clear-saved'];
+    render();
+  }
+
+  /** Deletes every saved dog and empties both slots; reads in progress are discarded, not saved. */
+  function clearSaved(): void {
+    clears++;
+    tokens[0]++;
+    tokens[1]++;
+    readdTargets[0] = null;
+    readdTargets[1] = null;
+    store.clear();
+    state = { slots: [EMPTY_SLOT, EMPTY_SLOT], pageAlert: null, undo: null, clearing: false };
+    focusKeys = ['pick-0'];
+    render();
+    announcer.announce('All saved dogs deleted.');
+  }
 
   const pick = (slot: ParentIndex): void => {
     readdTargets[slot] = null;
@@ -469,9 +496,36 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     }
   }
 
+  /** Clear saved dogs, or its inline confirmation, while any dog is saved and storage may be written. */
+  function drawTools(): void {
+    const count = store.dogs().length;
+    if (count === 0 || store.mode() === 'out-of-date') {
+      state = { ...state, clearing: false };
+      toolsEl.replaceChildren();
+      return;
+    }
+    const button = (key: string, className: string, text: string, click: () => void): HTMLButtonElement => {
+      const made = h('button', { type: 'button', class: className, 'data-key': key }, text);
+      made.addEventListener('click', click);
+      return made;
+    };
+    toolsEl.replaceChildren(
+      state.clearing
+        ? h(
+            'div',
+            { class: 'confirm', role: 'group', 'aria-label': 'Clear saved dogs' },
+            h('span', {}, `Delete all ${count} saved ${count === 1 ? 'dog' : 'dogs'}?`),
+            button('clear-delete', 'danger', 'Delete', clearSaved),
+            button('clear-cancel', 'ghost', 'Cancel', () => askClear(false)),
+          )
+        : button('clear-saved', 'ghost', 'Clear saved dogs', () => askClear(true)),
+    );
+  }
+
   function render(): void {
     settle();
     const view = snapshot();
+    drawTools();
 
     dropAlert.replaceChildren(...(state.pageAlert === null ? [] : [alertBox({ text: state.pageAlert })]));
 
@@ -527,6 +581,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
    */
   async function startLoad(slot: ParentIndex, file: File, target: string | null): Promise<void> {
     const token = ++tokens[slot];
+    const cleared = clears;
     setSlot(slot, { reading: file.name, notice: null });
     render();
     announcer.announce(`Reading the report for ${parentLabel(slot)}…`);
@@ -536,6 +591,10 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       result = await options.read(file);
     } catch {
       result = null;
+    }
+    if (cleared !== clears) {
+      // Clear saved dogs was confirmed during the read: Clear already emptied the slot.
+      return;
     }
     const placed = token === tokens[slot];
     if (placed) {
@@ -584,9 +643,9 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     } else {
       text = `${name} ${verb}.`;
     }
-    const cleared = settle();
+    const emptied = settle();
     render();
-    announcer.announce(`${text}${placed && outcome.id === state.slots[slot].chosen ? resultsStatus() : ''}${clearedText(cleared)}`);
+    announcer.announce(`${text}${placed && outcome.id === state.slots[slot].chosen ? resultsStatus() : ''}${clearedText(emptied)}`);
   }
 
   function pageMessage(text: string): void {
