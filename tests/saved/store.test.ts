@@ -173,6 +173,14 @@ describe('adding a report the store already holds', () => {
     expect(store.dog('id-2')).toBe(before2);
     expect(usable(store.dog('id-2')).report).toBe(usable(before2).report);
   });
+
+  it('keeps a dog’s report object when only its nose answer changes, so what was worked out from it can be kept', () => {
+    const store = open();
+    store.add(withNoseQuestion(a));
+    const before = usable(store.dog('id-1')).report;
+    store.setNose('id-1', 'brown');
+    expect(usable(store.dog('id-1')).report).toBe(before);
+  });
 });
 
 describe('stale and unusable entries', () => {

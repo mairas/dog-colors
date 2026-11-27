@@ -175,10 +175,15 @@ export function openSavedDogs(options: SavedDogsOptions): SavedDogs {
     return first.savedAt < second.savedAt ? -1 : first.savedAt > second.savedAt ? 1 : 0;
   };
 
+  /** The entries with this tab's own object for each unchanged one, so a patch builds on the reports the page already holds. */
+  function own(stored: readonly CheckedEntry[]): CheckedEntry[] {
+    const previous = new Map(entries.map((entry) => [entry.json, entry]));
+    return stored.map((entry) => previous.get(entry.json) ?? entry);
+  }
+
   /** Takes the entries as the tab's own, keeping the objects of unchanged ones, and returns the listed IDs that went. */
   function adopt(next: readonly CheckedEntry[]): string[] {
-    const previous = new Map(entries.map((entry) => [entry.json, entry]));
-    const kept = next.map((entry) => previous.get(entry.json) ?? entry);
+    const kept = own(next);
     const ids = new Set(listed(kept).map((dog) => dog.id));
     const gone = listed(entries)
       .map((dog) => dog.id)
@@ -254,7 +259,7 @@ export function openSavedDogs(options: SavedDogsOptions): SavedDogs {
       } else if (current.kind === 'newer') {
         mode = 'out-of-date';
       } else {
-        const { next, result } = patch(current.entries);
+        const { next, result } = patch(own(current.entries));
         if (!write(next)) {
           mode = memoryMode(current.entries);
         }
