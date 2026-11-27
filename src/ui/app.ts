@@ -222,7 +222,8 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   /** The dog Add the report again was pressed for, until the slot's picker gives a file or Add a dog opens it. */
   const readdTargets: [string | null, string | null] = [null, null];
   const typingTimers: [number | undefined, number | undefined] = [undefined, undefined];
-  let focusKey: string | null = null;
+  /** Where the next render puts focus: the first of these data-keys found, else where focus was. */
+  let focusKeys: readonly string[] = [];
   let renderedLayouts: readonly string[] = [];
   let revealed: readonly (string | null)[] = [null, null];
   let resultsShown = false;
@@ -332,6 +333,9 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     input.click();
   }
 
+  /** Whether the slot lists dogs, rather than today's empty slot. */
+  const listMode = (slot: ParentIndex): boolean => listsDogs(store.dogs(), chosenDog(otherSlot(slot)));
+
   const listInput = (slot: ParentIndex): ListSlotInput => {
     const current = state.slots[slot];
     return {
@@ -360,7 +364,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
 
   function renderSlot(slot: ParentIndex): { element: HTMLElement; layout: string } {
     const current = state.slots[slot];
-    if (listsDogs(store.dogs(), chosenDog(otherSlot(slot)))) {
+    if (listMode(slot)) {
       return { element: renderListSlot(listInput(slot), actions), layout: 'list' };
     }
     const warning = current.notice?.tone === 'warning' ? current.notice.message : null;
@@ -437,10 +441,11 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
         badge.click();
       }
     });
-    const target = focusKey ?? view.active;
-    focusKey = null;
+    const keyed = (key: string): HTMLElement | null => root.querySelector<HTMLElement>(`[data-key="${CSS.escape(key)}"]`);
+    const target = [...focusKeys, view.active].find((key) => key !== undefined && keyed(key) !== null);
+    focusKeys = [];
     if (target !== undefined) {
-      root.querySelector<HTMLElement>(`[data-key="${CSS.escape(target)}"]`)?.focus();
+      keyed(target)?.focus();
     }
   }
 
@@ -528,7 +533,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       }
       const message = result === null ? READER_FAILED : REJECTIONS[result.kind];
       setSlot(slot, { notice: { tone: 'warning', message } });
-      focusKey = `pick-${slot}`;
+      focusKeys = [`pick-${slot}`];
       render();
       announcer.announce(`${parentLabel(slot)}: ${message.text}`);
       return;
@@ -544,7 +549,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       if (placed) {
         const notice = sameDogNotice(name, parentLabel(other));
         setSlot(slot, { notice: { tone: 'info', message: notice } });
-        focusKey = `pick-${slot}`;
+        focusKeys = [`pick-${slot}`];
         text = notice.text;
       } else {
         text = `${name} updated.`;
@@ -552,7 +557,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     } else if (placed) {
       choose(slot, outcome.id);
       if (moveFocus) {
-        focusKey = target === null ? `name-${slot}` : `dog-${slot}-${outcome.id}`;
+        focusKeys = [target === null ? `name-${slot}` : `dog-${slot}-${outcome.id}`];
       }
       text = `${parentLabel(slot)}: ${name} ${verb}.`;
     } else {
@@ -586,6 +591,8 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       }
       clearTransient();
       choose(slot, clearing ? null : id);
+      // A cleared row that the filter or the sex narrowing hides leaves the list.
+      focusKeys = clearing ? [`dog-${slot}-${id}`, `find-${slot}`, `name-${slot}`] : [];
       render();
       announcer.announce(clearing ? `${parentLabel(slot)} cleared.` : `${parentLabel(slot)}: ${savedName(store.dog(id)?.name ?? null)} chosen.${resultsStatus()}`);
     },
@@ -597,7 +604,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       SLOTS.filter((other) => state.slots[other].chosen === id).forEach((other) => choose(other, null));
       store.remove(id);
       const cleared = settle();
-      focusKey = `pick-${slot}`;
+      focusKeys = [`pick-${slot}`];
       render();
       announcer.announce(`Deleted ${savedName(dog.name)}.${clearedText(cleared)}`);
     },
@@ -607,7 +614,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     },
     clearFilter(slot) {
       setSlot(slot, { filter: '' });
-      focusKey = `find-${slot}`;
+      focusKeys = [`find-${slot}`];
       render();
     },
     undo() {

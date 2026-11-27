@@ -35,6 +35,7 @@ beforeAll(async () => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 const results = (root: HTMLElement) => root.querySelector<HTMLElement>('#results');
@@ -44,6 +45,8 @@ const rows = (root: HTMLElement, slot: number): string[] =>
   [...root.querySelectorAll(`[data-slot="${slot}"] button.dog`)].map((row) => row.getAttribute('data-key') ?? '');
 const notice = (root: HTMLElement, slot: number) => root.querySelector(`[data-slot="${slot}"] .err`)?.textContent ?? null;
 const listed = (storage: MemoryStorage) => openSavedDogs({ storage: () => storage }).dogs();
+/** Seven females without kit IDs: enough for the filter field. */
+const sevenFemales = (): Report[] => ['Aino', 'Bruno', 'Canela', 'Duna', 'Eetu', 'Gaudí', 'Hilla'].map((name) => ({ ...b, name, kitIdHash: null }));
 
 describe('saving and choosing dogs', () => {
   it('shows today’s empty slots with nothing saved, and saves both reports a pair loads', async () => {
@@ -468,3 +471,45 @@ describe('the page’s storage', () => {
     window.localStorage.clear();
   });
 });
+
+describe('clearing a chosen row that the list would hide', () => {
+  it('moves focus to the slot heading when the row leaves the list', () => {
+    const { root } = openPage(reads, { storage: savedStorage(a, b, c, d) });
+    button(root, 'dog-0-dog-4').click();
+    button(root, 'show-all-1').click();
+    button(root, 'dog-1-dog-2').click();
+    expect(rows(root, 0)).toEqual(['dog-0-dog-1', 'dog-0-dog-3', 'dog-0-dog-4']);
+    const row = button(root, 'dog-0-dog-4');
+    row.focus();
+    row.click();
+    expect(rows(root, 0)).toEqual(['dog-0-dog-1', 'dog-0-dog-3']);
+    expect(focused()).toBe('name-0');
+  });
+
+  it('moves focus to the filter field when it shows', () => {
+    const { root } = openPage(reads, { storage: savedStorage(...sevenFemales()) });
+    const field = root.querySelector<HTMLInputElement>('[data-key="find-0"]');
+    if (field === null) {
+      throw new Error('no filter field');
+    }
+    button(root, 'dog-0-dog-1').click();
+    field.value = 'bru';
+    field.dispatchEvent(new Event('input'));
+    expect(rows(root, 0)).toEqual(['dog-0-dog-1', 'dog-0-dog-2']);
+    const row = button(root, 'dog-0-dog-1');
+    row.focus();
+    row.click();
+    expect(rows(root, 0)).toEqual(['dog-0-dog-2']);
+    expect(focused()).toBe('find-0');
+  });
+
+  it('keeps focus on the row when it stays listed', () => {
+    const { root } = openPage(reads, { storage: savedStorage(a, b, c, d) });
+    const row = button(root, 'dog-0-dog-1');
+    row.focus();
+    row.click();
+    button(root, 'dog-0-dog-1').click();
+    expect(focused()).toBe('dog-0-dog-1');
+  });
+});
+
