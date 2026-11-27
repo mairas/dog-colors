@@ -2,7 +2,7 @@
 #
 # usage: ./run command [argument ...]
 #
-# Commands for dog-colors development.
+# Commands for whatthepup development.
 #
 
 set -o nounset

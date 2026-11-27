@@ -16,7 +16,7 @@ Requires Node.js (the version in `.nvmrc`) and npm.
 
 ```sh
 ./run setup   # install dependencies
-./run dev     # start the dev server at http://localhost:5173/dog-colors/
+./run dev     # start the dev server at http://localhost:5173/whatthepup/
 ./run test    # run the tests
 ./run         # list every command
 ```

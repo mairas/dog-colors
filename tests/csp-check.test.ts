@@ -13,7 +13,7 @@ function page(head: string): string {
 
 const meta = (policy: string): string =>
   `<meta http-equiv="Content-Security-Policy" content="${policy}">`;
-const script = '<script type="module" crossorigin src="/dog-colors/assets/index.js"></script>';
+const script = '<script type="module" crossorigin src="/whatthepup/assets/index.js"></script>';
 
 describe('findCspProblems', () => {
   it('accepts the policy placed before the first script', () => {

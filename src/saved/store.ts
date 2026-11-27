@@ -11,6 +11,7 @@ import type { Report } from '../report/types.ts';
 import { READER_VERSION } from '../report/version.ts';
 import { checkStored, STORED_VERSION, type CheckedEntry, type SavedDog, type StoredValue, type UsableDog } from './check.ts';
 
+/** Under the site's first name, dog-colors: a new key would lose every visitor's saved dogs, since the origin is the same. */
 export const SAVED_DOGS_KEY = 'dog-colors:saved-dogs';
 
 /** localStorage in the browser. */

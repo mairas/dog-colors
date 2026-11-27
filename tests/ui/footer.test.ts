@@ -64,7 +64,7 @@ describe('the footer', () => {
   it('names the author with a mail link, and the dogs with a button that opens their photo', () => {
     const author = footer.querySelector('.author');
     expect(author?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Made by Matti Airas <mairas@iki.fi>, human daddy of Haru and Allu · Source code on GitHub');
-    expect(author?.querySelector('a[href="https://github.com/mairas/dog-colors"]')?.textContent).toBe('Source code on GitHub');
+    expect(author?.querySelector('a[href="https://github.com/mairas/whatthepup"]')?.textContent).toBe('Source code on GitHub');
     expect(author?.querySelector('a[href="mailto:mairas@iki.fi"]')?.textContent).toBe('mairas@iki.fi');
     const opener = author?.querySelector('button');
     expect(opener?.getAttribute('aria-controls')).toBe('dogs');

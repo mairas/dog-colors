@@ -155,7 +155,7 @@ const SLOTS = [0, 1] as const;
 const NARROW_QUERY = '(max-width: 700px)';
 /** How long typing in a filter pauses before the number of listed dogs is announced. */
 const TYPING_PAUSE_MS = 600;
-/** Holds the epoch milliseconds until which the breeding note stays hidden. */
+/** Holds the epoch milliseconds until which the breeding note stays hidden; named like SAVED_DOGS_KEY. */
 export const NOTE_HIDDEN_KEY = 'dog-colors:breeding-note-hidden-until';
 const NOTE_HIDDEN_MS = 30 * 24 * 60 * 60 * 1000;
 

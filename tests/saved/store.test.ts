@@ -183,6 +183,13 @@ describe('adding a report the store already holds', () => {
   });
 });
 
+describe('the storage key', () => {
+  it('reads dogs saved under dog-colors:saved-dogs, where every visitor’s dogs already are', () => {
+    storage.setItem('dog-colors:saved-dogs', JSON.stringify({ version: 1, dogs: [entry('kept', a)] }));
+    expect(open().dogs().map((dog) => dog.id)).toEqual(['kept']);
+  });
+});
+
 describe('stale and unusable entries', () => {
   it('lists an entry read by an older reader version as stale and choosable, and replaces it in place on an ordinary add', () => {
     seed([entry('old', withNoseQuestion(a), { readerVersion: READER_VERSION - 1, nose: 'brown', savedAt: NOW - 5 })]);
