@@ -10,7 +10,7 @@ import type { SavedDog, UsableDog } from '../saved/check.ts';
 import { ownColourText, ownPicture, renderCardBody, type CardActions } from './card.ts';
 import { h, svg } from './dom.ts';
 import { lowerFirst, parentLabel, savedName, SEX_PLURALS, SEX_SYMBOLS, SEX_WORDS } from './names.ts';
-import { alertBox, bulkProgress, bulkSummary, fileIcon, slotHeading, slotHeadingId, undoLine, type BulkStatus, type DogLabel, type SlotNotice } from './slots.ts';
+import { alertBox, bulkProgress, bulkSummary, fileIcon, noticeLinkKey, slotHeading, slotHeadingId, undoLine, type BulkStatus, type DogLabel, type SlotNotice } from './slots.ts';
 
 /** More saved dogs than this and each slot gets a filter field. */
 export const FILTER_FROM = 6;
@@ -377,11 +377,11 @@ export function renderListSlot(input: ListSlotInput, actions: ListActions): HTML
     'section',
     { class: 'slot', 'aria-labelledby': headingId, 'data-slot': String(slot) },
     slotHeading(slot, chosen === null ? 'Choose a dog' : savedName(chosen.dog.name)),
-    input.notice === null ? null : alertBox(input.notice.message, '', input.notice.tone),
+    input.notice === null ? null : alertBox(input.notice.message, '', input.notice.tone, noticeLinkKey(slot)),
     showsFilter(input.dogs) ? h('label', { class: 'find' }, h('span', { class: 'vh' }, `Find a dog for ${parentLabel(slot)}`), field) : null,
     renderListing(input, actions),
     input.deleted === null ? null : undoLine(slot, input.deleted, actions.undo),
-    input.bulk?.kind === 'summary' ? bulkSummary(input.bulk) : null,
+    input.bulk?.kind === 'summary' ? bulkSummary(input.bulk, slot) : null,
     // A bulk add's progress stands in place of Add a dog, or under the slot's own reading line.
     add,
     progress,

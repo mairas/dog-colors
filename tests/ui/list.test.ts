@@ -645,7 +645,7 @@ describe('an empty slot', () => {
 
 describe('a bulk add’s summary', () => {
   const lead = (summary: Omit<BulkSummary, 'kind' | 'rejected'>): string =>
-    text(bulkSummary({ kind: 'summary', rejected: [], ...summary }).querySelector('b'));
+    text(bulkSummary({ kind: 'summary', rejected: [], ...summary }, 0).querySelector('b'));
 
   it('counts the dogs added and updated, or names the one dog saved', () => {
     expect(lead({ added: ['A', 'B', 'C', 'D', 'E', 'F'], updated: ['G'] })).toBe('Added 6 dogs and updated 1.');
@@ -666,7 +666,7 @@ describe('a bulk add’s summary', () => {
         { name: '<b>x</b>.pdf', message: { text: 'This PDF contains no text.' } },
         { name: 'odd.pdf', message: { text: 'This layout is new.', link: { href: 'https://example.org/issues', label: 'Report it' } } },
       ],
-    });
+    }, 0);
     expect(element.querySelector('img')).toBeNull();
     expect([...element.querySelectorAll('.err')].map(text)).toEqual(['⚠<b>x</b>.pdf: This PDF contains no text.', '⚠odd.pdf: This layout is new. Report it']);
     expect(element.querySelector('.err a')?.getAttribute('href')).toBe('https://example.org/issues');

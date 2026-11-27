@@ -576,15 +576,51 @@ describe('adding several reports', () => {
     }
   });
 
-  it('moves focus to a slot’s picker only off a keyed element a render removed, not off a notice’s link', async () => {
+  it('keeps focus on a notice’s link through a bulk add', async () => {
     const { app, root } = openPage({ ...reads, 'odd.pdf': { ok: false, kind: 'unrecognised-layout' } }, { storage: savedStorage(a, b) });
     await app.load(1, pdf('odd.pdf'));
     root.querySelector<HTMLElement>('[data-slot="1"] .err a')?.focus();
-    expect(document.activeElement?.tagName).toBe('A');
+    expect(focused()).toBe('notice-link-1');
     const adding = app.drop([pdf('c.pdf'), pdf('d.pdf'), pdf('other.pdf')], 0);
-    expect(document.activeElement?.getAttribute('data-key')).not.toBe('pick-1');
+    expect(focused()).toBe('notice-link-1');
     await adding;
-    expect(document.activeElement?.getAttribute('data-key')).not.toBe('pick-1');
+    expect(focused()).toBe('notice-link-1');
+  });
+
+  it('keeps focus on a summary’s link across a render', async () => {
+    for (const target of [0, null] as const) {
+      const { app, root } = openPage({ ...reads, 'odd.pdf': { ok: false, kind: 'unrecognised-layout' } }, { storage: savedStorage(a, b) });
+      await app.drop([pdf('c.pdf'), pdf('odd.pdf'), pdf('d.pdf')], target);
+      const where = target === null ? '.page-bulk' : '[data-slot="0"]';
+      root.querySelector<HTMLElement>(`${where} .bulk-summary a`)?.focus();
+      const key = `summary-link-${target ?? 'page'}-0`;
+      expect(focused()).toBe(key);
+      button(root, 'dog-1-dog-2').click();
+      expect(heading(root, 1)).toBe('Parent 2Sample B');
+      expect(focused()).toBe(key);
+    }
+  });
+
+  it('moves focus from a slot’s element a bulk save removes to the slot’s picker', async () => {
+    const { slow, files, results: dogReads } = slowDogs(3);
+    const names = ['Aino', 'Bruno', 'Canela', 'Duna', 'Eetu', 'Gaudí', 'Hilla'];
+    const { app, root } = openPage(dogReads, { storage: savedStorage(...names.map((name) => ({ ...b, name, kitIdHash: null }))) });
+    const field = root.querySelector<HTMLInputElement>('[data-key="find-0"]');
+    if (field === null) {
+      throw new Error('no filter field');
+    }
+    field.value = 'dog';
+    field.dispatchEvent(new Event('input'));
+    button(root, 'clear-filter-0').focus();
+    const adding = app.drop(files, null);
+    await slow[0]?.release();
+    await vi.waitFor(() => expect(progress(root, 'page')).toBe('Reading 2 of 3 reports…'));
+    expect(root.querySelector('[data-key="clear-filter-0"]')).toBeNull();
+    expect(focused()).toBe('pick-0');
+    for (const read of slow.slice(1)) {
+      await read.release();
+    }
+    await adding;
   });
 
   it('shows the progress and summary of several files dropped on a slot that is reading one', async () => {

@@ -23,8 +23,16 @@ export interface SlotNotice {
   readonly message: Message;
 }
 
+/** A message's link; a key lets focus on it survive a render. */
+function messageLink(link: Message['link'], key: string | undefined): (HTMLElement | string)[] {
+  return link === undefined ? [] : [' ', h('a', { href: link.href, rel: 'noopener', ...(key === undefined ? {} : { 'data-key': key }) }, link.label)];
+}
+
+/** The key of the link in a slot's notice. */
+export const noticeLinkKey = (slot: ParentIndex): string => `notice-link-${slot}`;
+
 /** An error, alert or info paragraph: icon and text. Not a live region; the announcer speaks it. */
-export function alertBox(message: Message, className = '', tone: Tone = 'warning'): HTMLElement {
+export function alertBox(message: Message, className = '', tone: Tone = 'warning', linkKey?: string): HTMLElement {
   return h(
     'p',
     { class: ['err', tone === 'info' ? 'info' : '', className].filter((part) => part !== '').join(' ') },
@@ -35,8 +43,7 @@ export function alertBox(message: Message, className = '', tone: Tone = 'warning
       message.title === undefined ? null : h('b', {}, `${message.title}.`),
       message.title === undefined ? null : ' ',
       message.text,
-      message.link === undefined ? null : ' ',
-      message.link === undefined ? null : h('a', { href: message.link.href, rel: 'noopener' }, message.link.label),
+      ...messageLink(message.link, linkKey),
     ),
   );
 }
@@ -97,13 +104,13 @@ export const bulkSummaryText = (summary: BulkSummary): string =>
     ...summary.rejected.map(({ name, message }) => `${name}${REJECTED_FILE_JOIN}${message.text}`),
   ].join(' ');
 
-/** The counts, then each rejected file by name with its reason. Not a live region; the announcer speaks it. */
-export function bulkSummary(summary: BulkSummary): HTMLElement {
+/** The counts, then each rejected file by name with its reason, in a slot or above the slots for null. Not a live region; the announcer speaks it. */
+export function bulkSummary(summary: BulkSummary, slot: ParentIndex | null): HTMLElement {
   return h(
     'div',
     { class: 'bulk-summary' },
     h('p', {}, h('b', {}, bulkSummaryLead(summary.added, summary.updated))),
-    ...summary.rejected.map(({ name, message }) =>
+    ...summary.rejected.map(({ name, message }, index) =>
       h(
         'p',
         { class: 'err' },
@@ -114,8 +121,7 @@ export function bulkSummary(summary: BulkSummary): HTMLElement {
           h('b', {}, name),
           REJECTED_FILE_JOIN,
           message.text,
-          message.link === undefined ? null : ' ',
-          message.link === undefined ? null : h('a', { href: message.link.href, rel: 'noopener' }, message.link.label),
+          ...messageLink(message.link, `summary-link-${slot ?? 'page'}-${index}`),
         ),
       ),
     ),
@@ -179,15 +185,15 @@ export function renderOpenSlot(
   const undo = extras === undefined || extras.deleted === null ? null : undoLine(slot, extras.deleted, extras.undo);
   // A rejection, or the note that a report was the other slot's dog: above the picker, or above the spinner while a later file reads.
   const notices = [
-    state.error === null ? null : alertBox(state.error),
-    extras === undefined || extras.notice === null ? null : alertBox(extras.notice, '', 'info'),
+    state.error === null ? null : alertBox(state.error, '', 'warning', noticeLinkKey(slot)),
+    extras === undefined || extras.notice === null ? null : alertBox(extras.notice, '', 'info', noticeLinkKey(slot)),
   ];
 
   const bulk = extras?.bulk ?? null;
   if (state.kind === 'reading') {
     let below: HTMLElement | null = null;
     if (bulk !== null) {
-      below = bulk.kind === 'reading' ? bulkProgress(bulk, 'bulk', slot) : bulkSummary(bulk);
+      below = bulk.kind === 'reading' ? bulkProgress(bulk, 'bulk', slot) : bulkSummary(bulk, slot);
     }
     return h(
       'section',
@@ -224,7 +230,7 @@ export function renderOpenSlot(
     heading(state.error === null ? 'No report yet' : 'Report can’t be read'),
     ...notices,
     undo,
-    bulk?.kind === 'summary' ? bulkSummary(bulk) : null,
+    bulk?.kind === 'summary' ? bulkSummary(bulk, slot) : null,
     drop,
   );
 }

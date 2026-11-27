@@ -121,8 +121,10 @@ export interface AppOptions {
 }
 
 interface ViewState {
+  /** The focused element, and its data-key. */
+  readonly focused: HTMLElement | null;
   readonly active: string | undefined;
-  /** The slot holding focus: when its focused keyed element is gone, focus goes to the slot's picker or the bulk progress in its place. */
+  /** The slot holding focus: when its focused element is gone, focus goes to the slot's picker or the bulk progress in its place. */
   readonly activeSlot: ParentIndex | null;
   readonly open: ReadonlyMap<string, boolean>;
   readonly expanded: ReadonlySet<string>;
@@ -568,7 +570,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     const focusedEl = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const slot = focusedEl?.closest<HTMLElement>('[data-slot]')?.dataset['slot'];
     const activeSlot = slot === '0' ? 0 : slot === '1' ? 1 : null;
-    return { active: focusedEl?.dataset['key'], activeSlot, open, expanded, scrolled, chosenShown };
+    return { focused: focusedEl, active: focusedEl?.dataset['key'], activeSlot, open, expanded, scrolled, chosenShown };
   }
 
   /**
@@ -596,13 +598,32 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
         badge.click();
       }
     });
+    refocus(view);
+  }
+
+  /**
+   * Puts focus where an update leaves it: on the first of `focusKeys` found.
+   * Otherwise, when the update took focus off its element, back on that
+   * element if it is still in the page, else on the element now holding its
+   * key, else, in a slot, on the slot's picker or the progress in its place.
+   */
+  function refocus(view: ViewState): void {
     const keyed = (key: string): HTMLElement | null => root.querySelector<HTMLElement>(`[data-key="${CSS.escape(key)}"]`);
-    // Only a keyed element the render removed sends focus to the slot's picker or progress.
-    const replaced = view.activeSlot === null || view.active === undefined ? [] : [`pick-${view.activeSlot}`, `progress-${view.activeSlot}`];
-    const target = [...focusKeys, view.active, ...replaced].find((key) => key !== undefined && keyed(key) !== null);
+    const asked = focusKeys.find((key) => keyed(key) !== null);
     focusKeys = [];
-    if (target !== undefined) {
-      keyed(target)?.focus();
+    const { focused, activeSlot } = view;
+    if (asked !== undefined) {
+      keyed(asked)?.focus();
+    } else if (focused === null || (focused.isConnected && document.activeElement === focused)) {
+      return;
+    } else if (focused.isConnected) {
+      focused.focus();
+    } else {
+      const slotted = activeSlot === null ? [] : [`pick-${activeSlot}`, `progress-${activeSlot}`];
+      const target = [view.active, ...slotted].find((key) => key !== undefined && keyed(key) !== null);
+      if (target !== undefined) {
+        keyed(target)?.focus();
+      }
     }
   }
 
@@ -667,7 +688,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
 
     const page = bulkAt(null);
     pageBulk.replaceChildren(
-      ...(page === null ? [] : [page.kind === 'reading' ? bulkProgress(page, 'bulk', null) : bulkSummary(page)]),
+      ...(page === null ? [] : [page.kind === 'reading' ? bulkProgress(page, 'bulk', null) : bulkSummary(page, null)]),
     );
 
     const slots = SLOTS.map(renderSlot);
@@ -734,10 +755,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
         revealChosen(element);
       }
     });
-    const active = document.activeElement;
-    if (view.active !== undefined && (active === null || active === document.body)) {
-      root.querySelector<HTMLElement>(`[data-key="${CSS.escape(view.active)}"]`)?.focus();
-    }
+    refocus(view);
   }
 
   const resultsStatus = (): string => {
