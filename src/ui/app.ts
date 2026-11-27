@@ -479,17 +479,24 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   /** Re-renders only the slot's rows while its filter is typed in, and says how many are listed once typing pauses. */
   function typed(slot: ParentIndex, text: string): void {
     setSlot(slot, { filter: text });
+    redrawListings([slot], snapshot());
     const input = listInput(slot);
-    // As render() keeps the list's scroll and its chosen row in view.
-    const view = snapshot();
-    slotsEl.querySelector(`[data-slot="${slot}"] .listing`)?.replaceWith(renderListing(input, actions));
-    restoreScroll(view);
-    const element = slotsEl.querySelector<HTMLElement>(`[data-slot="${slot}"]`);
-    if (element !== null && view.chosenShown[slot] === true) {
-      revealChosen(element);
-    }
     window.clearTimeout(typingTimers[slot]);
     typingTimers[slot] = window.setTimeout(() => announcer.announce(listingStatus(listing(input))), TYPING_PAUSE_MS);
+  }
+
+  /** Redraws the slots' rows in place, keeping each list's scroll and its chosen row in view as render() does. */
+  function redrawListings(slots: readonly ParentIndex[], view: ViewState): void {
+    slots.forEach((slot) => {
+      slotsEl.querySelector(`[data-slot="${slot}"] .listing`)?.replaceWith(renderListing(listInput(slot), actions));
+    });
+    restoreScroll(view);
+    slots.forEach((slot) => {
+      const element = slotsEl.querySelector<HTMLElement>(`[data-slot="${slot}"]`);
+      if (element !== null && view.chosenShown[slot] === true) {
+        revealChosen(element);
+      }
+    });
   }
 
   /** The slot as `renderOpenSlot` draws it, empty or reading, or null while it lists dogs. */
@@ -758,9 +765,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     const view = beginUpdate();
     drawStorage();
     drawTools();
-    SLOTS.forEach((slot) => {
-      slotsEl.querySelector(`[data-slot="${slot}"] .listing`)?.replaceWith(renderListing(listInput(slot), actions));
-    });
+    redrawListings(SLOTS, view);
     const bulk = state.bulk;
     if (bulk?.status.kind === 'reading') {
       const line = bulk.at === null ? pageBulk.firstElementChild : slotsEl.querySelector(`[data-key="progress-${bulk.at}"]`);
@@ -768,13 +773,6 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
         setBulkProgress(line, bulk.status);
       }
     }
-    restoreScroll(view);
-    SLOTS.forEach((slot) => {
-      const element = slotsEl.querySelector<HTMLElement>(`[data-slot="${slot}"]`);
-      if (element !== null && view.chosenShown[slot] === true) {
-        revealChosen(element);
-      }
-    });
     refocus(view);
   }
 
