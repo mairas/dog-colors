@@ -200,6 +200,21 @@ describe('the filter field', () => {
   });
 });
 
+describe('a long list', () => {
+  it('keeps where each list was scrolled across a render for the other slot', () => {
+    const { root } = openPage(reads, { storage: savedStorage(a, ...sevenFemales()) });
+    const list = (slot: number) => root.querySelector<HTMLElement>(`[data-slot="${slot}"] .dogs-list`);
+    const scrolled = list(0);
+    if (scrolled === null) {
+      throw new Error('no list');
+    }
+    scrolled.scrollTop = 120;
+    button(root, 'dog-1-dog-1').click();
+    expect(list(0)).not.toBe(scrolled);
+    expect(list(0)?.scrollTop).toBe(120);
+  });
+});
+
 describe('adding one report to a slot', () => {
   it('saves and places it, replacing the chosen dog, with focus on the heading', async () => {
     const { app, root } = openPage(reads, { storage: savedStorage(a, b) });

@@ -102,6 +102,8 @@ interface ViewState {
   readonly active: string | undefined;
   readonly open: ReadonlyMap<string, boolean>;
   readonly expanded: ReadonlySet<string>;
+  /** Each saved-dog list's scroll position. */
+  readonly scrolled: ReadonlyMap<string, number>;
 }
 
 export interface App {
@@ -488,11 +490,22 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     root.querySelectorAll<HTMLElement>('.cav[aria-expanded="true"][data-key]').forEach((badge) => {
       expanded.add(badge.dataset['key'] ?? '');
     });
+    const scrolled = new Map<string, number>();
+    root.querySelectorAll<HTMLElement>('.dogs-list[data-key]').forEach((list) => {
+      scrolled.set(list.dataset['key'] ?? '', list.scrollTop);
+    });
     const active = document.activeElement instanceof HTMLElement ? document.activeElement.dataset['key'] : undefined;
-    return { active, open, expanded };
+    return { active, open, expanded, scrolled };
   }
 
-  /** Puts a snapshot back on the new elements; `collapse` closes the genotype tables. */
+  /** Scrolls the new lists back to where the old ones were, so a render never moves a list the user scrolled. */
+  function restoreScroll(view: ViewState): void {
+    root.querySelectorAll<HTMLElement>('.dogs-list[data-key]').forEach((list) => {
+      list.scrollTop = view.scrolled.get(list.dataset['key'] ?? '') ?? 0;
+    });
+  }
+
+  /** Puts a snapshot's disclosures, caveats and focus back on the new elements; `collapse` closes the genotype tables. */
   function restore(view: ViewState, collapse: boolean): void {
     root.querySelectorAll<HTMLDetailsElement>('details[data-key]').forEach((details) => {
       const key = details.dataset['key'] ?? '';
@@ -571,6 +584,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     renderedLayouts = slots.map(({ layout }) => layout);
     slotsEl.replaceChildren(...slots.map(({ element }) => element));
     // Once in the page, so that the capped lists can be scrolled.
+    restoreScroll(view);
     SLOTS.forEach((slot) => {
       if (state.slots[slot].chosen !== revealed[slot]) {
         revealChosen(slots[slot]?.element ?? slotsEl);
