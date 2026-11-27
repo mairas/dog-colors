@@ -534,19 +534,34 @@ describe('adding one report to a slot', () => {
       expect(root.querySelector('[data-slot="0"] .err a')?.textContent).toBe('Report the layout on the issue tracker');
     });
 
-    it.each([
-      ['choosing another row', async (root: HTMLElement) => button(root, 'dog-0-dog-2').click()],
-      ['a new add in that slot', async (_: HTMLElement, load: (file: File) => Promise<void>) => load(pdf('d.pdf'))],
-    ])('clears its rejection on %s', async (_, act) => {
+    it('clears its rejection on choosing another row', async () => {
       const slow = slowRead({ ok: false, kind: 'not-wisdom-dog' });
-      const { app, root } = openPage({ ...reads, 'slow.pdf': slow.read }, { storage: savedStorage(a, b, c) });
+      const { app, root } = openPage({ 'slow.pdf': slow.read }, { storage: savedStorage(a, b, c) });
       const loading = app.load(0, pdf('slow.pdf'));
       button(root, 'dog-0-dog-1').click();
       await slow.release();
       await loading;
       expect(notice(root, 0)).toBe(rejected('slow.pdf'));
-      await act(root, (file) => app.load(0, file));
+      button(root, 'dog-0-dog-2').click();
       expect(notice(root, 0)).toBeNull();
+    });
+
+    it('clears its rejection as soon as a new add in that slot starts reading', async () => {
+      const slow = slowRead({ ok: false, kind: 'not-wisdom-dog' });
+      const later = slowRead(ok(d));
+      const { app, root } = openPage({ 'slow.pdf': slow.read, 'later.pdf': later.read }, { storage: savedStorage(a, b, c) });
+      const loading = app.load(0, pdf('slow.pdf'));
+      button(root, 'dog-0-dog-1').click();
+      await slow.release();
+      await loading;
+      expect(notice(root, 0)).toBe(rejected('slow.pdf'));
+      const loadingLater = app.load(0, pdf('later.pdf'));
+      expect(root.querySelector('[data-slot="0"] .add[aria-busy="true"]')?.textContent).toBe('Reading later.pdf…');
+      expect(notice(root, 0)).toBeNull();
+      await later.release();
+      await loadingLater;
+      expect(notice(root, 0)).toBeNull();
+      expect(heading(root, 0)).toBe('Parent 1Sample D');
     });
 
     it.each([
