@@ -86,7 +86,7 @@ export interface UndoLine {
   readonly chosen: boolean;
 }
 
-/** Several files picked or dropped at once: their progress, then their summary until the next add or delete. */
+/** Several files picked or dropped at once: their progress, then their summary until the next add, delete or row tap. */
 export interface BulkAdd {
   /** The slot the files were picked or dropped in; null for a drop outside both slots. */
   readonly at: ParentIndex | null;
@@ -355,7 +355,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     state = { ...state, slots };
   };
 
-  /** Ends a bulk add's summary: the next add or delete does. */
+  /** Ends a bulk add's summary: the next add, delete or row tap does. */
   const endSummary = (): void => {
     if (state.bulk?.status.kind === 'summary') {
       state = { ...state, bulk: null };
@@ -436,6 +436,8 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
 
   const pick = (slot: ParentIndex): void => {
     readdTargets[slot] = null;
+    // Where a click does not focus the button, the read's outcome would otherwise find focus on the last row chosen.
+    focusKeys = [`pick-${slot}`];
     openPicker(slot);
   };
 
@@ -1050,9 +1052,10 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       const clearing = state.slots[slot].chosen === id;
       supersede(slot);
       endUndo();
+      endSummary();
       choose(slot, clearing ? null : id);
-      // A cleared row that the filter or the sex narrowing hides leaves the list.
-      focusKeys = clearing ? [`dog-${slot}-${id}`, `find-${slot}`, `name-${slot}`] : [];
+      // Focus stays on the row, even where a click does not move it there; a cleared row that the filter or the sex narrowing hides leaves the list.
+      focusKeys = clearing ? [`dog-${slot}-${id}`, `find-${slot}`, `name-${slot}`] : [`dog-${slot}-${id}`];
       render();
       say(clearing ? `${parentLabel(slot)} cleared.` : `${parentLabel(slot)}: ${savedName(store.dog(id)?.name ?? null)} chosen.${resultsStatus()}`);
     },

@@ -593,14 +593,27 @@ describe('adding several reports', () => {
   it('keeps focus on a summary’s link across a render', async () => {
     for (const target of [0, null] as const) {
       const { app, root } = openPage({ ...reads, 'odd.pdf': { ok: false, kind: 'unrecognised-layout' } }, { storage: savedStorage(a, b) });
+      button(root, 'dog-1-dog-2').click();
       await app.drop([pdf('c.pdf'), pdf('odd.pdf'), pdf('d.pdf')], target);
       const where = target === null ? '.page-bulk' : '[data-slot="0"]';
       root.querySelector<HTMLElement>(`${where} .bulk-summary a`)?.focus();
       const key = `summary-link-${target ?? 'page'}-0`;
       expect(focused()).toBe(key);
-      button(root, 'dog-1-dog-2').click();
-      expect(heading(root, 1)).toBe('Parent 2Sample B');
+      button(root, 'show-all-0').click();
+      expect(button(root, 'show-all-0').textContent).toMatch(/^Only /);
       expect(focused()).toBe(key);
+    }
+  });
+
+  it('moves focus from a summary’s link to the row whose tap ends the summary', async () => {
+    for (const target of [0, 1, null] as const) {
+      const { app, root } = openPage({ ...reads, 'odd.pdf': { ok: false, kind: 'unrecognised-layout' } }, { storage: savedStorage(a, b) });
+      await app.drop([pdf('c.pdf'), pdf('odd.pdf'), pdf('d.pdf')], target);
+      root.querySelector<HTMLElement>('.bulk-summary a')?.focus();
+      expect(focused()).toBe(`summary-link-${target ?? 'page'}-0`);
+      button(root, 'dog-0-dog-1').click();
+      expect(root.querySelector('.bulk-summary')).toBeNull();
+      expect(focused()).toBe('dog-0-dog-1');
     }
   });
 
@@ -812,18 +825,60 @@ describe('adding several reports', () => {
     expect(document.activeElement?.getAttribute('data-key')).toBe('pick-0');
   });
 
-  it('keeps the summary until the next add or delete, not a choose', async () => {
+  it('keeps the summary until the next add, delete or choice in either slot', async () => {
     const { app, root } = openPage(reads);
     await app.load(0, pdf('a.pdf'));
     await app.drop([pdf('b.pdf'), pdf('c.pdf')], 1);
-    button(root, 'dog-1-new-2').click();
+    button(root, 'show-all-1').click();
     expect(summary(root, 1)).toBe('Added 2 dogs.');
+    button(root, 'dog-1-new-2').click();
+    expect(summary(root, 1)).toBeNull();
+
+    await app.drop([pdf('b.pdf'), pdf('c.pdf')], 1);
+    expect(summary(root, 1)).toBe('Updated 2 dogs.');
+    button(root, 'dog-1-new-2').click();
+    expect(summary(root, 1)).toBeNull();
+
+    await app.drop([pdf('b.pdf'), pdf('c.pdf')], 1);
+    expect(summary(root, 1)).toBe('Updated 2 dogs.');
+    button(root, 'dog-0-new-1').click();
+    expect(summary(root, 1)).toBeNull();
+    button(root, 'dog-0-new-1').click();
+
+    await app.drop([pdf('b.pdf'), pdf('c.pdf')], 1);
+    expect(summary(root, 1)).toBe('Updated 2 dogs.');
     button(root, 'delete-1-new-2').click();
     expect(summary(root, 1)).toBeNull();
     await app.drop([pdf('b.pdf'), pdf('d.pdf')], 1);
     expect(summary(root, 1)).toBe('Added 2 dogs.');
     await app.load(1, pdf('other.pdf'));
     expect(summary(root, 1)).toBeNull();
+  });
+
+  it('ends a page-level summary when a row is tapped', async () => {
+    const { app, root } = openPage(reads);
+    await app.load(0, pdf('a.pdf'));
+    await app.load(1, pdf('b.pdf'));
+    await app.drop([pdf('c.pdf'), pdf('d.pdf')], null);
+    expect(summary(root, 'page')).toBe('Added 2 dogs.');
+    button(root, 'dog-1-new-2').click();
+    expect(summary(root, 'page')).toBeNull();
+  });
+
+  it('keeps a bulk add’s progress through a choice, and its summary after', async () => {
+    const { slow, files, results: dogReads } = slowDogs(3);
+    const { app, root } = openPage({ ...reads, ...dogReads });
+    await app.load(0, pdf('a.pdf'));
+    const adding = app.drop(files, 1);
+    await slow[0]?.release();
+    await vi.waitFor(() => expect(progress(root, 1)).toBe('Reading 2 of 3 reports…'));
+    button(root, 'dog-1-new-2').click();
+    expect(heading(root, 1)).toBe('Parent 2Dog 1');
+    expect(progress(root, 1)).toBe('Reading 2 of 3 reports…');
+    await slow[1]?.release();
+    await slow[2]?.release();
+    await adding;
+    expect(summary(root, 1)).toBe('Added 3 dogs.');
   });
 
   it('ends the undo line when a bulk read saves', async () => {

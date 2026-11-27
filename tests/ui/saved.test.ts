@@ -562,6 +562,16 @@ describe('adding one report to a slot', () => {
     expect(spoken(root)).toBe('Parent 1: Sample C saved.');
   });
 
+  it('moves focus to the heading of the slot whose Add a dog was tapped, wherever a click leaves focus', async () => {
+    const { app, root } = openPage(reads, { storage: savedStorage(a, b) });
+    button(root, 'dog-0-dog-1').click();
+    button(root, 'pick-1').click();
+    expect(focused()).toBe('pick-1');
+    await app.load(1, pdf('c.pdf'));
+    expect(heading(root, 1)).toBe('Parent 2Sample C');
+    expect(focused()).toBe('name-1');
+  });
+
   it('updates the chosen dog in place when the report is its own', async () => {
     const storage = savedStorage(a, b);
     const { app, root } = openPage({ 'a2.pdf': ok({ ...a, name: 'Sample A Two' }) }, { storage });
@@ -815,6 +825,7 @@ describe('a report that is the other slot’s dog', () => {
     const storage = savedStorage(a, b);
     const { app, root } = openPage({ 'a2.pdf': ok({ ...a, breed: 'Updated breed' }) }, { storage });
     button(root, 'dog-0-dog-1').click();
+    button(root, 'pick-1').click();
     await app.load(1, pdf('a2.pdf'));
     expect(pressed(root, 0)).toEqual(['dog-0-dog-1']);
     expect(pressed(root, 1)).toEqual([]);
