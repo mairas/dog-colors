@@ -68,7 +68,7 @@ export interface ListSlotInput extends ListingInput {
   readonly deleted: DogLabel | null;
   /** The name of a file being read for this slot. */
   readonly reading: string | null;
-  /** A bulk add's progress, in place of Add a dog, or its summary above it. */
+  /** A bulk add's progress, in place of Add a dog or under the slot's reading line, or its summary above them. */
   readonly bulk: BulkStatus | null;
 }
 
@@ -358,20 +358,19 @@ export function renderListSlot(input: ListSlotInput, actions: ListActions): HTML
     field.value = input.filterText;
   }
 
-  let add: HTMLElement;
-  if (input.reading === null && input.bulk?.kind === 'reading') {
-    add = bulkProgress(input.bulk, 'add', slot);
-  } else if (input.reading === null) {
-    const picker = h('button', { type: 'button', class: 'ghost', 'data-key': `pick-${slot}`, 'aria-describedby': headingId }, 'Add a dog');
-    picker.addEventListener('click', () => actions.pick(slot));
-    add = h('div', { class: 'add' }, picker, ' ', h('span', { class: 'sec' }, 'or drop reports here'));
-  } else {
+  const progress = input.bulk?.kind === 'reading' ? bulkProgress(input.bulk, 'add', slot) : null;
+  let add: HTMLElement | null = null;
+  if (input.reading !== null) {
     add = h(
       'div',
       { class: 'add', 'aria-busy': 'true' },
       h('span', { class: 'spin', 'aria-hidden': 'true' }),
       h('span', { class: 'file' }, `Reading ${input.reading}…`),
     );
+  } else if (progress === null) {
+    const picker = h('button', { type: 'button', class: 'ghost', 'data-key': `pick-${slot}`, 'aria-describedby': headingId }, 'Add a dog');
+    picker.addEventListener('click', () => actions.pick(slot));
+    add = h('div', { class: 'add' }, picker, ' ', h('span', { class: 'sec' }, 'or drop reports here'));
   }
 
   return h(
@@ -383,7 +382,9 @@ export function renderListSlot(input: ListSlotInput, actions: ListActions): HTML
     renderListing(input, actions),
     input.deleted === null ? null : undoLine(slot, input.deleted, actions.undo),
     input.bulk?.kind === 'summary' ? bulkSummary(input.bulk) : null,
+    // A bulk add's progress stands in place of Add a dog, or under the slot's own reading line.
     add,
+    progress,
     chosen === null
       ? null
       : renderCardBody(

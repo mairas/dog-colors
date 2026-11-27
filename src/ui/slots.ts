@@ -67,7 +67,8 @@ export type BulkStatus = BulkReading | BulkSummary;
 
 /**
  * "Reading 3 of 8 reports…" with a spinner. In a slot it stands where the
- * slot's picker was, and can hold focus while the picker is gone.
+ * slot's picker was, or under the slot's own read, and can hold focus while
+ * the picker is gone.
  */
 export function bulkProgress(status: BulkReading, className: string, slot: ParentIndex | null): HTMLElement {
   return h(
@@ -155,7 +156,7 @@ export interface OpenSlotExtras {
   readonly notice: Message | null;
   readonly deleted: DogLabel | null;
   undo(slot: ParentIndex): void;
-  /** A bulk add's progress, in place of Choose PDF, or its summary above it. */
+  /** A bulk add's progress in place of Choose PDF, or its summary above it; both below the spinner while the slot reads a file. */
   readonly bulk: BulkStatus | null;
 }
 
@@ -174,7 +175,12 @@ export function renderOpenSlot(
     extras === undefined || extras.notice === null ? null : alertBox(extras.notice, '', 'info'),
   ];
 
+  const bulk = extras?.bulk ?? null;
   if (state.kind === 'reading') {
+    let below: HTMLElement | null = null;
+    if (bulk !== null) {
+      below = bulk.kind === 'reading' ? bulkProgress(bulk, 'bulk', slot) : bulkSummary(bulk);
+    }
     return h(
       'section',
       { class: 'slot', 'aria-labelledby': headingId, 'aria-busy': 'true', 'data-slot': String(slot) },
@@ -182,10 +188,10 @@ export function renderOpenSlot(
       ...notices,
       undo,
       h('div', { class: 'drop' }, h('div', { class: 'spin', 'aria-hidden': 'true' }), h('span', { class: 'file' }, state.fileName)),
+      below,
     );
   }
 
-  const bulk = extras?.bulk ?? null;
   let drop: HTMLElement;
   if (bulk?.kind === 'reading') {
     drop = bulkProgress(bulk, 'drop', slot);

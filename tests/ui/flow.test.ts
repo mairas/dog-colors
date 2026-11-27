@@ -586,6 +586,21 @@ describe('adding several reports', () => {
     expect(document.activeElement?.getAttribute('data-key')).not.toBe('pick-1');
   });
 
+  it('shows the progress and summary of several files dropped on a slot that is reading one', async () => {
+    for (const storage of [new MemoryStorage(), savedStorage(d)]) {
+      const slow = slowRead(ok(c));
+      const { app, root } = openPage({ ...reads, 'c.pdf': slow.read }, { storage });
+      const single = app.load(1, pdf('c.pdf'));
+      const adding = app.drop([pdf('a.pdf'), pdf('b.pdf'), pdf('other.pdf')], 1);
+      expect(progress(root, 1)).toBe('Reading 1 of 3 reports…');
+      await adding;
+      expect(summary(root, 1)).toContain('Added 2 dogs.');
+      await slow.release();
+      await single;
+      expect(heading(root, 1)).toBe('Parent 2Sample C');
+    }
+  });
+
   it('clears the receiving slot’s earlier rejection when a bulk add starts there', async () => {
     for (const storage of [new MemoryStorage(), savedStorage(d)]) {
       const { app, root } = openPage(reads, { storage });

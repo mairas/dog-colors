@@ -562,9 +562,10 @@ describe('a list-mode slot’s messages and add control', () => {
     expect(done.querySelector('.bulk-summary + .add [data-key="pick-1"]')).not.toBeNull();
   });
 
-  it('keeps the slot’s own reading indicator in place of Add a dog while a bulk add reads', () => {
+  it('shows a bulk add’s progress under the slot’s own reading line', () => {
     const element = render({ dogs: saved(dog('Aino', 'female')), reading: 'kuura.pdf', bulk: READING });
-    expect(text(element.querySelector('.add'))).toBe('Reading kuura.pdf…');
+    expect([...element.querySelectorAll('.add')].map(text)).toEqual(['Reading kuura.pdf…', 'Reading 3 of 8 reports…']);
+    expect(element.querySelector('.add + .add[data-key="progress-1"]')).not.toBeNull();
   });
 
   it('asks the nose question on the chosen dog’s card, with its saved answer', () => {
@@ -625,6 +626,15 @@ describe('an empty slot', () => {
     const element = renderOpenSlot(0, { kind: 'empty', error: null }, pick, { ...NO_EXTRAS, bulk: SUMMARY });
     expect([...element.children].map((child) => child.className || child.tagName.toLowerCase())).toEqual(['h2', 'bulk-summary', 'drop']);
     expect(text(byKey(element, 'pick-0'))).toBe('Choose PDF');
+  });
+
+  it('shows a bulk add’s progress, or its summary, below the spinner while the slot reads a file', () => {
+    const reading = { kind: 'reading', fileName: 'kuura.pdf', error: null } as const;
+    const progress = renderOpenSlot(0, reading, pick, { ...NO_EXTRAS, bulk: READING });
+    expect([...progress.children].map((child) => child.className || child.tagName.toLowerCase())).toEqual(['h2', 'drop', 'bulk']);
+    expect(text(byKey(progress, 'progress-0'))).toBe('Reading 3 of 8 reports…');
+    const summary = renderOpenSlot(0, reading, pick, { ...NO_EXTRAS, bulk: SUMMARY });
+    expect([...summary.children].map((child) => child.className || child.tagName.toLowerCase())).toEqual(['h2', 'drop', 'bulk-summary']);
   });
 
   it('is today’s slot without extras', () => {
