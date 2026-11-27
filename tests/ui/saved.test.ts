@@ -600,6 +600,41 @@ describe('adding one report to a slot', () => {
       expect(spoken(root)).toBe('Parent 1: Sample D saved.');
     });
 
+    it('leaves alone, unannounced, the rejection of a second file on an empty slot that was read first', async () => {
+      const NOT_PDF = "This file isn't a PDF. Choose the report PDF from Wisdom Panel.";
+      const first = slowRead({ ok: false, kind: 'not-wisdom-dog' });
+      const second = slowRead({ ok: false, kind: 'not-pdf' });
+      const { app, root } = openPage({ 'first.pdf': first.read, 'second.pdf': second.read }, { storage: new MemoryStorage() });
+      const loadingFirst = app.load(0, pdf('first.pdf'));
+      const loadingSecond = app.load(0, pdf('second.pdf'));
+      await second.release();
+      await loadingSecond;
+      expect(heading(root, 0)).toBe('Parent 1Report can’t be read');
+      expect(notice(root, 0)).toBe(`⚠${NOT_PDF}`);
+      await first.release();
+      await loadingFirst;
+      expect(notice(root, 0)).toBe(`⚠${NOT_PDF}`);
+      expect(spoken(root)).toBe(`Parent 1: ${NOT_PDF}`);
+    });
+
+    it('leaves the newest file’s outcome when three reads on the slot finish newest, oldest, then middle', async () => {
+      const oldest = slowRead({ ok: false, kind: 'not-wisdom-dog' });
+      const middle = slowRead({ ok: false, kind: 'not-wisdom-dog' });
+      const newest = slowRead(ok(d));
+      const { app, root } = openPage(
+        { 'oldest.pdf': oldest.read, 'middle.pdf': middle.read, 'newest.pdf': newest.read },
+        { storage: new MemoryStorage() },
+      );
+      const loading = [app.load(0, pdf('oldest.pdf')), app.load(0, pdf('middle.pdf')), app.load(0, pdf('newest.pdf'))];
+      await newest.release();
+      await oldest.release();
+      await middle.release();
+      await Promise.all(loading);
+      expect(heading(root, 0)).toBe('Parent 1Sample D');
+      expect(notice(root, 0)).toBeNull();
+      expect(spoken(root)).toBe('Parent 1: Sample D saved.');
+    });
+
     it('keeps the notice of a second file on the slot that finished first as the other slot’s dog, unannounced', async () => {
       const SAME = 'This report is Sample A, already Parent 1; the saved dog was updated.';
       const slow = slowRead({ ok: false, kind: 'not-wisdom-dog' });
