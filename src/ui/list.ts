@@ -10,7 +10,7 @@ import type { SavedDog, UsableDog } from '../saved/check.ts';
 import { ownColourText, ownPicture, renderCardBody, type CardActions } from './card.ts';
 import { h, svg } from './dom.ts';
 import { lowerFirst, parentLabel, savedName, SEX_PLURALS, SEX_SYMBOLS, SEX_WORDS } from './names.ts';
-import { alertBox, slotHeading, slotHeadingId, undoLine, type DogLabel, type SlotNotice } from './slots.ts';
+import { alertBox, fileIcon, slotHeading, slotHeadingId, undoLine, type DogLabel, type SlotNotice } from './slots.ts';
 
 /** More saved dogs than this and each slot gets a filter field. */
 export const FILTER_FROM = 6;
@@ -198,7 +198,6 @@ const tickIcon = (): SVGSVGElement => {
   return tick;
 };
 const trashIcon = (): SVGSVGElement => icon('20', 'M4 7h16M10 7V4h4v3M6 7l1 13h10l1-13M10 11v6M14 11v6');
-const fileIcon = (): SVGSVGElement => icon('20', 'M14 3H6v18h12V7z', 'M14 3v4h4');
 
 const sexSymbol = (sex: Sex | null): HTMLElement | null =>
   sex === null ? null : h('span', { class: 'sx', 'aria-hidden': 'true' }, SEX_SYMBOLS[sex]);
@@ -217,7 +216,7 @@ function row(input: ListSlotInput, dog: SavedDog, actions: ListActions): HTMLLIE
       'button',
       { type: 'button', class: 'dog unusable', 'data-key': key, 'aria-label': [label.name, ...sex, 'add the report again'].join(', ') },
       h('span', { class: 'tick' }),
-      h('span', { class: 'unusable-icon' }, fileIcon()),
+      h('span', { class: 'unusable-icon' }, fileIcon(20)),
       h('span', { class: 'nm' }, label.name, h('span', { class: 'again' }, 'Add the report again')),
       sexSymbol(dog.sex),
     );

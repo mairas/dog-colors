@@ -47,10 +47,11 @@ export function slotHeading(slot: ParentIndex, text: string): HTMLElement {
   return h('h2', { id: slotHeadingId(slot), tabindex: '-1', 'data-key': `name-${slot}` }, h('small', {}, parentLabel(slot)), text);
 }
 
-function fileIcon(): SVGSVGElement {
+/** A sheet of paper, `size` pixels square: the empty slot's drop target and an unusable row's mark. */
+export function fileIcon(size: number): SVGSVGElement {
   return svg(
     'svg',
-    { width: '32', height: '32', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'aria-hidden': 'true' },
+    { width: String(size), height: String(size), viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'aria-hidden': 'true' },
     svg('path', { d: 'M14 3H6v18h12V7z' }),
     svg('path', { d: 'M14 3v4h4' }),
   );
@@ -119,7 +120,7 @@ export function renderOpenSlot(
     h(
       'div',
       { class: 'drop' },
-      state.error === null ? fileIcon() : null,
+      state.error === null ? fileIcon(32) : null,
       picker,
       h('span', { class: 'sec' }, 'or drop the report here'),
     ),
