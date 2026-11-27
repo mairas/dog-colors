@@ -30,24 +30,23 @@ import {
 } from './list.ts';
 import {
   bulkStartText,
-  bulkSummaryLead,
   PRIVACY_DOWNLOAD,
   PRIVACY_KEPT,
   PRIVACY_READ,
   READER_FAILED,
   REJECTIONS,
-  REJECTED_FILE_JOIN,
   RESULTS_FAILED,
   sameDogNotice,
   STORAGE_WARNINGS,
   type Message,
 } from './messages.ts';
-import { lowerFirst, parentLabel, savedName } from './names.ts';
+import { parentLabel, savedName } from './names.ts';
 import { ETHICS_LINK_KEY, renderResults, sameSexLead } from './results.ts';
 import {
   alertBox,
   bulkProgress,
   bulkSummary,
+  bulkSummaryText,
   renderOpenSlot,
   slotHeadingId,
   type BulkStatus,
@@ -794,12 +793,6 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   /** A slot that has nothing chosen and is not reading. */
   const free = (slot: ParentIndex): boolean => state.slots[slot].chosen === null && state.slots[slot].reading === null;
 
-  const summaryText = (summary: BulkSummary): string =>
-    [
-      bulkSummaryLead(summary.added, summary.updated),
-      ...summary.rejected.map(({ name, message }) => `${name}${REJECTED_FILE_JOIN}${lowerFirst(message.text)}`),
-    ].join(' ');
-
   /**
    * Reads several files one at a time and saves each. When they fit the slots
    * free as they arrive, each is placed in its slot, in drop order, as a
@@ -865,7 +858,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     state = { ...state, bulk: { at, status: done } };
     render();
     if (!placing) {
-      announcer.announce(summaryText(done));
+      announcer.announce(bulkSummaryText(done));
     }
   }
 

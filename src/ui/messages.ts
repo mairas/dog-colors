@@ -55,9 +55,6 @@ export function bulkSummaryLead(added: readonly string[], updated: readonly stri
   return added.length === 0 ? `Updated ${dogCount(updated.length)}.` : `Added ${dogCount(added.length)} and updated ${updated.length}.`;
 }
 
-/** Joins a rejected file's name to its reason: "photo.pdf couldn’t be read: " and the rejection text. */
-export const REJECTED_FILE_JOIN = ' couldn’t be read: ';
-
 /** The results area's message when the genetics reject a pair's stored data. */
 export const RESULTS_FAILED: Message = {
   title: 'Puppy colours can’t be worked out for this pair',

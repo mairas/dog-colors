@@ -5,7 +5,7 @@
 
 import type { ParentIndex } from '../health/health.ts';
 import { h, svg } from './dom.ts';
-import { bulkProgressText, bulkSummaryLead, REJECTED_FILE_JOIN, type Message } from './messages.ts';
+import { bulkProgressText, bulkSummaryLead, type Message } from './messages.ts';
 import { lowerFirst, parentLabel } from './names.ts';
 
 export type OpenSlot =
@@ -77,6 +77,16 @@ export function bulkProgress(status: BulkReading, className: string, slot: Paren
     h('span', {}, bulkProgressText(status.current, status.total)),
   );
 }
+
+/** Joins a rejected file's name to its reason: "photo.pdf couldn’t be read: " and the rejection text. */
+const REJECTED_FILE_JOIN = ' couldn’t be read: ';
+
+/** The summary as the announcer speaks it: the counts, then each rejected file by name with its reason. */
+export const bulkSummaryText = (summary: BulkSummary): string =>
+  [
+    bulkSummaryLead(summary.added, summary.updated),
+    ...summary.rejected.map(({ name, message }) => `${name}${REJECTED_FILE_JOIN}${lowerFirst(message.text)}`),
+  ].join(' ');
 
 /** The counts, then each rejected file by name with its reason. Not a live region; the announcer speaks it. */
 export function bulkSummary(summary: BulkSummary): HTMLElement {
