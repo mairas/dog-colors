@@ -329,6 +329,40 @@ describe('adding one report to a slot', () => {
     expect(notice(root, 0)).toBeNull();
   });
 
+  describe('a rejected read that was superseded', () => {
+    const REJECTED = "⚠This PDF isn't a Wisdom Panel dog report. Choose the genetics report you got from Wisdom Panel or MyDogDNA.";
+
+    it('shows its rejection when a row tapped during the read won, leaving the choice and focus, until the next choose there', async () => {
+      const slow = slowRead({ ok: false, kind: 'not-wisdom-dog' });
+      const { app, root } = openPage({ 'slow.pdf': slow.read }, { storage: savedStorage(a, b, d) });
+      const loading = app.load(0, pdf('slow.pdf'));
+      const row = button(root, 'dog-0-dog-1');
+      row.focus();
+      row.click();
+      await slow.release();
+      await loading;
+      expect(notice(root, 0)).toBe(REJECTED);
+      expect(pressed(root, 0)).toEqual(['dog-0-dog-1']);
+      expect(spoken(root)).toBe(`Parent 1: ${REJECTED.slice(1)}`);
+      expect(focused()).toBe('dog-0-dog-1');
+      button(root, 'dog-0-dog-1').click();
+      expect(notice(root, 0)).toBeNull();
+    });
+
+    it('shows its rejection when a second file on the slot was placed first', async () => {
+      const slow = slowRead({ ok: false, kind: 'not-wisdom-dog' });
+      const { app, root } = openPage({ ...reads, 'slow.pdf': slow.read }, { storage: savedStorage(a, b) });
+      const loading = app.load(0, pdf('slow.pdf'));
+      await app.drop([pdf('d.pdf')], 0);
+      expect(heading(root, 0)).toBe('Parent 1Sample D');
+      await slow.release();
+      await loading;
+      expect(notice(root, 0)).toBe(REJECTED);
+      expect(heading(root, 0)).toBe('Parent 1Sample D');
+      expect(spoken(root)).toBe(`Parent 1: ${REJECTED.slice(1)}`);
+    });
+  });
+
   it('shows a rejection above Choose PDF in a slot with nothing choosable', async () => {
     const { app, root } = openPage(reads);
     await app.load(1, pdf('other.pdf'));

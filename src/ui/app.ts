@@ -659,13 +659,12 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     }
 
     if (result?.ok !== true) {
-      if (!placed) {
-        render();
-        return;
-      }
+      // A superseded read shows its rejection too, but focus stays where the user has acted since.
       const message = result === null ? READER_FAILED : REJECTIONS[result.kind];
       setSlot(slot, { notice: { tone: 'warning', message } });
-      focusKeys = [`pick-${slot}`];
+      if (placed) {
+        focusKeys = [`pick-${slot}`];
+      }
       render();
       announcer.announce(`${parentLabel(slot)}: ${message.text}`);
       return;
