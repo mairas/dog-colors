@@ -9,7 +9,7 @@ import { predictPuppies, type PuppyPrediction } from '../genetics/results.ts';
 import { analyseHealth, type HealthAnalysis, type ParentIndex } from '../health/health.ts';
 import type { ReadResult, Report, Sex } from '../report/types.ts';
 import type { SavedDog, UsableDog } from '../saved/check.ts';
-import { openSavedDogs, type StoreMode, type StoredDog } from '../saved/store.ts';
+import { openSavedDogs, type SavedDogs, type StoreMode, type StoredDog } from '../saved/store.ts';
 import { createAnnouncer } from './announce.ts';
 import { h, svg } from './dom.ts';
 import { healthWarnings, renderHealth } from './health.ts';
@@ -94,6 +94,8 @@ export interface AppOptions {
   readonly newId?: () => string;
   /** The colour prediction; replaceable so that a pair the genetics reject can be shown. */
   readonly predictPuppies?: typeof predictPuppies;
+  /** The saved dogs, opened over `storage` by default; a fixture state passes a store whose storage refuses. */
+  readonly savedDogs?: SavedDogs;
 }
 
 interface ViewState {
@@ -232,7 +234,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   const predict = options.predictPuppies ?? predictPuppies;
   // Even reading window.localStorage throws where storage is disabled.
   const storage = (): NoteStorage => options.storage ?? window.localStorage;
-  const store = openSavedDogs({ storage, now, ...(options.newId === undefined ? {} : { newId: options.newId }) });
+  const store = options.savedDogs ?? openSavedDogs({ storage, now, ...(options.newId === undefined ? {} : { newId: options.newId }) });
   let state: AppState = options.initial ?? { slots: [EMPTY_SLOT, EMPTY_SLOT], pageAlert: null, undo: null, clearing: false };
   /** Each slot's latest read: an earlier one still saves its dog, but does not place it. */
   const tokens: [number, number] = [0, 0];

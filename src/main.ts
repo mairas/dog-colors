@@ -16,7 +16,7 @@ async function read(file: File): Promise<ReadResult> {
 }
 
 /** A fixture state's starting slots, storage and any staged failure, when the dev-only query asks for one. */
-async function devOptions(): Promise<Pick<AppOptions, 'initial' | 'storage' | 'predictPuppies'>> {
+async function devOptions(): Promise<Pick<AppOptions, 'initial' | 'storage' | 'predictPuppies' | 'savedDogs'>> {
   const params = new URLSearchParams(window.location.search);
   if (!__FIXTURES__ || (!params.has('state') && !params.has('fixtures'))) {
     return {};

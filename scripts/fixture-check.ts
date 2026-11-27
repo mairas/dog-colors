@@ -36,6 +36,12 @@ const STATE_NAMES = [
   'results-partial',
   'results-health-unknown',
   'results-failed',
+  'list-undo',
+  'open-undo',
+  'clear-asking',
+  'storage-refused',
+  'storage-full',
+  'page-outdated',
 ];
 
 const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

@@ -49,6 +49,12 @@ const MARKERS: Readonly<Record<string, readonly [selector: string, text: string]
   'results-partial': ['#results .note', "TYRP1 (chocolate) missing from Parent 2's report"],
   'results-health-unknown': ['.health tbody th', 'Both reports give the same sex, so the odds are unknown.'],
   'results-failed': ['main:not(.has-results) .pair .results-error', 'Puppy colours can’t be worked out for this pair.'],
+  'list-undo': ['[data-slot="1"] .listing + .undo', 'Deleted Sample D.'],
+  'open-undo': ['[data-slot="1"] h2 + .undo + .drop', 'Choose PDF'],
+  'clear-asking': ['.slots + .library-tools [role="group"]', 'Delete all 4 saved dogs?'],
+  'storage-refused': ['.storage-alert [role="alert"]', 'Dogs can’t be saved in this browser.'],
+  'storage-full': ['.storage-alert [role="alert"]', 'New dogs can’t be saved in this browser.'],
+  'page-outdated': ['.storage-alert [role="alert"]', 'This page is out of date.'],
 };
 
 async function health(query: Record<string, string>): Promise<HealthAnalysis> {
@@ -129,6 +135,32 @@ describe('the dev-only fixture states', () => {
     const rows = [...root.querySelectorAll('[data-slot="0"] button.dog')];
     expect(rows).toHaveLength(14);
     expect(rows.at(-1)?.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('restores the deleted dog from an undo state', async () => {
+    const { root } = await openState({ state: 'list-undo' });
+    root.querySelector<HTMLButtonElement>('[data-key="undo-1"]')?.click();
+    expect([...root.querySelectorAll('[data-slot="1"] button.dog')].map((row) => row.getAttribute('data-key'))).toEqual([
+      'dog-1-b',
+      'dog-1-d',
+    ]);
+  });
+
+  it('keeps the refused states’ dogs in the page, not in storage', async () => {
+    const refused = await openState({ state: 'storage-refused' });
+    expect(refused.root.querySelectorAll('[data-slot="0"] button.dog')).toHaveLength(4);
+    expect(refused.root.querySelector('.privacy')?.textContent).not.toContain('kept in this browser');
+    expect(openSavedDogs({ storage: () => refused.storage }).dogs()).toHaveLength(0);
+
+    const full = await openState({ state: 'storage-full' });
+    expect(full.root.querySelectorAll('[data-slot="0"] button.dog')).toHaveLength(5);
+    expect(full.root.querySelector('.privacy')?.textContent).toContain('kept in this browser');
+    expect(openSavedDogs({ storage: () => full.storage }).dogs()).toHaveLength(4);
+  });
+
+  it('shows no Clear saved dogs button when the page is out of date', async () => {
+    const { root } = await openState({ state: 'page-outdated' });
+    expect(root.querySelector('[data-key="clear-saved"]')).toBeNull();
   });
 
   it('never writes to window.localStorage, even when a state is used', async () => {

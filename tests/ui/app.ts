@@ -67,6 +67,7 @@ export interface PageOptions {
   /** IDs for dogs the page saves; new-1, new-2, … by default. */
   readonly newId?: () => string;
   readonly predictPuppies?: AppOptions['predictPuppies'];
+  readonly savedDogs?: AppOptions['savedDogs'];
 }
 
 export function openPage(reads: ReadResults, options: PageOptions = {}): Page {
@@ -87,6 +88,7 @@ export function openPage(reads: ReadResults, options: PageOptions = {}): Page {
     newId: options.newId ?? sequentialIds('new'),
     ...(options.initial === undefined ? {} : { initial: options.initial }),
     ...(options.predictPuppies === undefined ? {} : { predictPuppies: options.predictPuppies }),
+    ...(options.savedDogs === undefined ? {} : { savedDogs: options.savedDogs }),
   });
   return { app, root, text: () => root.textContent ?? '' };
 }

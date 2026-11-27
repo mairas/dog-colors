@@ -20,7 +20,8 @@ import { parseReport } from '../report/parse.ts';
 import type { Line } from '../report/pdfText.ts';
 import type { Report, Sex } from '../report/types.ts';
 import { READER_VERSION } from '../report/version.ts';
-import { openSavedDogs, SAVED_DOGS_KEY } from '../saved/store.ts';
+import { STORED_VERSION } from '../saved/check.ts';
+import { openSavedDogs, SAVED_DOGS_KEY, type SavedDogs, type StoredDog } from '../saved/store.ts';
 import { EMPTY_SLOT, NOTE_HIDDEN_KEY, type AppOptions, type AppState, type NoteStorage, type SlotState } from './app.ts';
 import { DROP_FULL, REJECTIONS, sameDogNotice, type Message } from './messages.ts';
 
@@ -130,19 +131,43 @@ export const REPORT_NAMES = Object.keys(REPORTS);
 export interface FixtureStart {
   readonly initial: AppState;
   readonly predictPuppies?: NonNullable<AppOptions['predictPuppies']>;
+  /** The seeding store, for a state whose dogs storage refused: the page keeps them as that store does. */
+  readonly savedDogs?: SavedDogs;
 }
 
 /** Saves reports into the storage through the store, each with its short name as its ID. */
 interface Seeder {
+  readonly store: SavedDogs;
   save(name: string, nose?: NoseAnswer): Promise<string>;
   /** Rewrites a saved dog's stored entry, as an older page or a damaged storage would leave it. */
   alter(id: string, change: (entry: Record<string, unknown>) => Record<string, unknown>): void;
+  /** Deletes a saved dog as the page's delete does, for an undo line. */
+  remove(id: string): StoredDog;
+  /** From now on the store's storage refuses every call, as disabled storage does, or only writes, as full storage does. */
+  refuse(calls: 'all' | 'writes'): void;
+  /** Leaves the saved dogs as a newer version of the page would write them. */
+  newer(): void;
 }
 
 function seeder(storage: NoteStorage): Seeder {
-  let nextId = '';
-  const store = openSavedDogs({ storage: () => storage, newId: () => nextId, locale: 'en' });
+  let nextId: string | null = null;
+  // Dogs the page itself adds to the seeding store get IDs of their own.
+  let added = 0;
+  let refused: 'all' | 'writes' | null = null;
+  const refuse = (): never => {
+    throw new DOMException('refused', 'QuotaExceededError');
+  };
+  const access = (): NoteStorage =>
+    refused === null
+      ? storage
+      : {
+          getItem: refused === 'all' ? refuse : (key) => storage.getItem(key),
+          setItem: refuse,
+          removeItem: refused === 'all' ? refuse : (key) => storage.removeItem(key),
+        };
+  const store = openSavedDogs({ storage: access, newId: () => nextId ?? `added-${++added}`, locale: 'en' });
   return {
+    store,
     async save(name, nose) {
       const build = REPORTS[name];
       if (build === undefined) {
@@ -151,10 +176,24 @@ function seeder(storage: NoteStorage): Seeder {
       // A report without a kit ID saved twice is two dogs, so the second takes another ID.
       nextId = store.dog(name) === undefined ? name : `${name}-2`;
       const { outcome } = store.add(await build());
+      nextId = null;
       if (nose !== undefined) {
         store.setNose(outcome.id, nose);
       }
       return outcome.id;
+    },
+    remove(id) {
+      const { deleted } = store.remove(id);
+      if (deleted === null) {
+        throw new Error(`no saved dog ${id}`);
+      }
+      return deleted;
+    },
+    refuse(calls) {
+      refused = calls;
+    },
+    newer() {
+      storage.setItem(SAVED_DOGS_KEY, JSON.stringify({ version: STORED_VERSION + 1, dogs: [] }));
     },
     alter(id, change) {
       const stored = JSON.parse(storage.getItem(SAVED_DOGS_KEY) ?? '{"dogs":[]}') as { dogs: Record<string, unknown>[] };
@@ -175,8 +214,8 @@ const unusable = (entry: Record<string, unknown>): Record<string, unknown> => ({
 const slot = (chosen: string | null = null, changes: Partial<SlotState> = {}): SlotState => ({ ...EMPTY_SLOT, chosen, ...changes });
 const warning = (message: Message): Partial<SlotState> => ({ notice: { tone: 'warning', message } });
 const sameDog: Partial<SlotState> = { notice: { tone: 'info', message: sameDogNotice('Sample A', 'Parent 1') } };
-const start = (first: SlotState, second: SlotState, pageAlert: string | null = null): FixtureStart => ({
-  initial: { slots: [first, second], pageAlert, undo: null, clearing: false },
+const start = (first: SlotState, second: SlotState, page: Partial<Omit<AppState, 'slots'>> = {}): FixtureStart => ({
+  initial: { slots: [first, second], pageAlert: null, undo: null, clearing: false, ...page },
 });
 
 /** Four dogs: two males (A, C) and two females (B, D). */
@@ -202,7 +241,7 @@ const STATES: Readonly<Record<string, (seed: Seeder) => Promise<FixtureStart>>> 
   'slot-loaded': async (seed) => start(slot(await seed.save('q', 'brown')), slot(await seed.save('b'))),
   'slot-questions': async (seed) => start(slot(await seed.save('q')), slot(await seed.save('b'))),
   'slot-unanswerable': async (seed) => start(slot(await seed.save('x')), slot(await seed.save('b'))),
-  'page-drop-error': async (seed) => start(slot(await seed.save('q', 'brown')), slot(await seed.save('b')), DROP_FULL),
+  'page-drop-error': async (seed) => start(slot(await seed.save('q', 'brown')), slot(await seed.save('b')), { pageAlert: DROP_FULL }),
   'slot-missing': async (seed) => start(slot(await seed.save('q', 'brown')), slot(await seed.save('m'))),
   'list-none-chosen': async (seed) => {
     await four(seed);
@@ -267,6 +306,34 @@ const STATES: Readonly<Record<string, (seed: Seeder) => Promise<FixtureStart>>> 
       },
     };
   },
+  'list-undo': async (seed) => {
+    await four(seed);
+    return start(slot('a'), slot(), { undo: { deleted: seed.remove('d'), slot: 1, chosen: false } });
+  },
+  'open-undo': async (seed) => {
+    await seed.save('a');
+    await seed.save('b');
+    return start(slot('a'), slot(), { undo: { deleted: seed.remove('b'), slot: 1, chosen: false } });
+  },
+  'clear-asking': async (seed) => {
+    await four(seed);
+    return start(slot('a'), slot(), { clearing: true });
+  },
+  'storage-refused': async (seed) => {
+    seed.refuse('all');
+    await four(seed);
+    return { ...start(slot('a'), slot()), savedDogs: seed.store };
+  },
+  'storage-full': async (seed) => {
+    await four(seed);
+    seed.refuse('writes');
+    await seed.save('e');
+    return { ...start(slot('a'), slot()), savedDogs: seed.store };
+  },
+  'page-outdated': async (seed) => {
+    seed.newer();
+    return start(slot(), slot());
+  },
 };
 
 export const STATE_NAMES = Object.keys(STATES);
@@ -313,7 +380,7 @@ function storageFromQuery(params: URLSearchParams): NoteStorage {
 }
 
 /** What a fixture URL starts the app with: its slots, its storage and any staged failure. */
-export async function fixtureOptions(params: URLSearchParams): Promise<Pick<AppOptions, 'initial' | 'storage' | 'predictPuppies'>> {
+export async function fixtureOptions(params: URLSearchParams): Promise<Pick<AppOptions, 'initial' | 'storage' | 'predictPuppies' | 'savedDogs'>> {
   const storage = storageFromQuery(params);
   return { storage, ...(await stateFromQuery(params, storage)) };
 }

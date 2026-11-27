@@ -61,7 +61,7 @@ Run `./run setup` once, then `./run dev` and open <http://localhost:5173/dog-col
 
 The breeding note's close cross hides it for 30 days by storing the expiry, in epoch milliseconds, under the localStorage key `dog-colors:breeding-note-hidden-until`; on the plain page, remove that key to see the note again. Every report read is saved under the localStorage key `dog-colors:saved-dogs`; remove that key to see the first-visit page. The fixture states below keep both in memory instead, so their dogs and a dismissal last until the next load and never reach localStorage; add `&note=hidden` to start one with the note dismissed.
 
-Every state of the page can be rendered without real reports through a dev-only query parameter, handled by `src/ui/dev.ts` from the committed fixtures and synthetic reports built from them. A state saves its dogs through the store into its in-memory storage, with the reports' short names (below) as their IDs. The module is loaded only when the build-time constant `__FIXTURES__` is true: in the dev server and in `./run preview-fixtures`, never in `./run build`, so the production bundle carries none of it; `./run check-fixtures` checks this, in CI and before every Pages deploy. Use `./run preview-fixtures` (<http://localhost:4173/dog-colors/>) to see a state with the policy in force, or `./run dev` (port 5173).
+Every state of the page can be rendered without real reports through a dev-only query parameter, handled by `src/ui/dev.ts` from the committed fixtures and synthetic reports built from them. A state saves its dogs through the store into its in-memory storage, with the reports' short names (below) as their IDs. The two states whose storage refuses hand the page the store that seeded them, whose storage turns refusing partway, so their unstored dogs live in that store only. The module is loaded only when the build-time constant `__FIXTURES__` is true: in the dev server and in `./run preview-fixtures`, never in `./run build`, so the production bundle carries none of it; `./run check-fixtures` checks this, in CI and before every Pages deploy. Use `./run preview-fixtures` (<http://localhost:4173/dog-colors/>) to see a state with the policy in force, or `./run dev` (port 5173).
 
 `?state=<name>` gives one of the approved mockups' states:
 
@@ -97,6 +97,12 @@ Every state of the page can be rendered without real reports through a dev-only 
 | Same-sex pair (two males) | `?fixtures=a,c` |
 | Health odds unknown: same-sex parents, unknown inheritance | `?state=results-health-unknown` |
 | Pair the genetics reject: results error (the failure is staged) | `?state=results-failed` |
+| A dog deleted from a list, Undo under it | `?state=list-undo` |
+| The last choosable dog deleted, Undo above Choose PDF | `?state=open-undo` |
+| Clear saved dogs asking for the second tap | `?state=clear-asking` |
+| Storage refused: dogs kept only for the visit | `?state=storage-refused` |
+| Storage full: a dog added after earlier saves is not stored | `?state=storage-full` |
+| Saved dogs written by a newer page: out of date | `?state=page-outdated` |
 
 `?fixtures=<first>,<second>` saves any two reports and chooses them, unanswered: the samples `a` to `e`, or the synthetic `q` (nose question), `x` (ASIP ambiguity), `m` (TYRP1 missing), `w` and `v` (merle and dilute carriers with a bobtail, both carrying a recessive condition, with an X-linked condition and one tested in Parent 1 only), `h` and `k` (two females sharing an X-linked, a mitochondrial and an unknown-inheritance condition; `k` is clear of the mitochondrial one), and `u` and `n` (the same health as `h` and `k`, with the sex unread). Their names are placeholders such as "Sample Q". These health pairings have no state of their own:
 
