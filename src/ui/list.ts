@@ -307,13 +307,30 @@ export function renderListing(input: ListSlotInput, actions: ListActions): HTMLE
   );
 }
 
-/** Scrolls the slot's capped list, and only the list, to show its chosen row. Call once the slot is in the page. */
-export function revealChosen(slot: HTMLElement): void {
+/** The slot's capped list and its chosen row, when the list shows that row. */
+function chosenRow(slot: HTMLElement): { readonly list: HTMLElement; readonly item: HTMLElement } | null {
   const list = slot.querySelector<HTMLElement>('.dogs-list');
   const item = list?.querySelector('[aria-pressed="true"]')?.closest('li');
-  if (list === null || list === undefined || item === null || item === undefined) {
+  return list === null || list === undefined || item === null || item === undefined ? null : { list, item };
+}
+
+/** Whether the slot's chosen row lies wholly within its list's visible scroll area. */
+export function chosenInView(slot: HTMLElement): boolean {
+  const shown = chosenRow(slot);
+  if (shown === null) {
+    return false;
+  }
+  const { list, item } = shown;
+  return item.offsetTop >= list.scrollTop && item.offsetTop + item.offsetHeight <= list.scrollTop + list.clientHeight;
+}
+
+/** Scrolls the slot's capped list, and only the list, to show its chosen row. Call once the slot is in the page. */
+export function revealChosen(slot: HTMLElement): void {
+  const shown = chosenRow(slot);
+  if (shown === null) {
     return;
   }
+  const { list, item } = shown;
   if (item.offsetTop < list.scrollTop) {
     list.scrollTop = item.offsetTop;
   } else if (item.offsetTop + item.offsetHeight > list.scrollTop + list.clientHeight) {

@@ -14,6 +14,7 @@ import { createAnnouncer } from './announce.ts';
 import { h, svg } from './dom.ts';
 import { healthWarnings, renderHealth } from './health.ts';
 import {
+  chosenInView,
   dogLabel,
   filterField,
   listing,
@@ -104,6 +105,8 @@ interface ViewState {
   readonly expanded: ReadonlySet<string>;
   /** Each saved-dog list's scroll position. */
   readonly scrolled: ReadonlyMap<string, number>;
+  /** Per slot, whether its list showed its chosen row in full. */
+  readonly chosenShown: readonly boolean[];
 }
 
 export interface App {
@@ -495,11 +498,18 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     root.querySelectorAll<HTMLElement>('.dogs-list[data-key]').forEach((list) => {
       scrolled.set(list.dataset['key'] ?? '', list.scrollTop);
     });
+    const chosenShown = SLOTS.map((slot) => {
+      const element = slotsEl.querySelector<HTMLElement>(`[data-slot="${slot}"]`);
+      return element !== null && chosenInView(element);
+    });
     const active = document.activeElement instanceof HTMLElement ? document.activeElement.dataset['key'] : undefined;
-    return { active, open, expanded, scrolled };
+    return { active, open, expanded, scrolled, chosenShown };
   }
 
-  /** Scrolls the new lists back to where the old ones were, so a render never moves a list the user scrolled. */
+  /**
+   * Scrolls the new lists back to where the old ones were. Runs before the
+   * chosen rows are revealed, which may then move a list from that offset.
+   */
   function restoreScroll(view: ViewState): void {
     root.querySelectorAll<HTMLElement>('.dogs-list[data-key]').forEach((list) => {
       list.scrollTop = view.scrolled.get(list.dataset['key'] ?? '') ?? 0;
@@ -586,10 +596,13 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     slots.forEach(({ element, layout }, slot) => element.classList.toggle('enter', renderedLayouts[slot] !== layout));
     renderedLayouts = slots.map(({ layout }) => layout);
     slotsEl.replaceChildren(...slots.map(({ element }) => element));
-    // Once in the page, so that the capped lists can be scrolled.
+    // Once in the page, so that the capped lists can be scrolled. The reveal
+    // comes after the restore, which would otherwise undo it: a new choice is
+    // scrolled to, and a list showing its chosen row keeps showing it as rows
+    // come and go above it. A list scrolled away from its chosen row stays put.
     restoreScroll(view);
     SLOTS.forEach((slot) => {
-      if (state.slots[slot].chosen !== revealed[slot]) {
+      if (state.slots[slot].chosen !== revealed[slot] || view.chosenShown[slot] === true) {
         revealChosen(slots[slot]?.element ?? slotsEl);
       }
     });

@@ -251,6 +251,116 @@ describe('a long list', () => {
     expect(list(0)).not.toBe(scrolled);
     expect(list(0)?.scrollTop).toBe(120);
   });
+
+  describe('its chosen row', () => {
+    const ROW = 50;
+    /** Two rows show at a time. */
+    const VISIBLE = 2 * ROW;
+    const stubbed: { readonly target: object; readonly name: string; readonly original: PropertyDescriptor }[] = [];
+
+    function stub(target: object, name: string, accessors: PropertyDescriptor): void {
+      const original = Object.getOwnPropertyDescriptor(target, name);
+      if (original === undefined) {
+        throw new Error(`no ${name} to stub`);
+      }
+      stubbed.push({ target, name, original });
+      Object.defineProperty(target, name, { ...accessors, configurable: true });
+    }
+
+    /**
+     * The layout happy-dom does not compute: each list row ROW tall, stacked
+     * from the list's top, the list VISIBLE tall, and its scrollTop held
+     * within its rows as a browser holds it.
+     */
+    function stubLayout(): void {
+      const isList = (element: Element): boolean => element.classList.contains('dogs-list');
+      const inList = (element: Element): boolean => element.tagName === 'LI' && element.parentElement !== null && isList(element.parentElement);
+      const scrolls = new WeakMap<Element, number>();
+      stub(HTMLElement.prototype, 'offsetTop', {
+        get(this: HTMLElement) {
+          return inList(this) ? [...(this.parentElement?.children ?? [])].indexOf(this) * ROW : 0;
+        },
+      });
+      stub(HTMLElement.prototype, 'offsetHeight', {
+        get(this: HTMLElement) {
+          return inList(this) ? ROW : 0;
+        },
+      });
+      stub(HTMLElement.prototype, 'clientHeight', {
+        get(this: HTMLElement) {
+          return isList(this) ? VISIBLE : 0;
+        },
+      });
+      stub(Element.prototype, 'scrollTop', {
+        get(this: Element) {
+          return scrolls.get(this) ?? 0;
+        },
+        set(this: Element, value: number) {
+          const most = isList(this) ? Math.max(0, this.children.length * ROW - VISIBLE) : value;
+          scrolls.set(this, Math.min(Math.max(0, value), most));
+        },
+      });
+    }
+
+    afterEach(() => {
+      stubbed.splice(0).forEach(({ target, name, original }) => Object.defineProperty(target, name, original));
+    });
+
+    const list = (root: HTMLElement, slot: number): HTMLElement => {
+      const found = root.querySelector<HTMLElement>(`[data-slot="${slot}"] .dogs-list`);
+      if (found === null) {
+        throw new Error('no list');
+      }
+      return found;
+    };
+
+    /** Whether the slot's chosen row lies wholly within its list's visible area. */
+    function inView(root: HTMLElement, slot: number): boolean {
+      const shown = list(root, slot);
+      const item = shown.querySelector('[aria-pressed="true"]')?.closest('li');
+      if (item === null || item === undefined) {
+        throw new Error('no chosen row');
+      }
+      return item.offsetTop >= shown.scrollTop && item.offsetTop + item.offsetHeight <= shown.scrollTop + shown.clientHeight;
+    }
+
+    /** Four males before three females: Zelda (dog-7), a female, sorts last. */
+    const mixed = (): MemoryStorage =>
+      savedStorage(
+        ...['Aapo', 'Akseli', 'Ari', 'Arvo'].map((name) => ({ ...a, name, kitIdHash: null })),
+        ...['Bea', 'Cilla', 'Zelda'].map((name) => ({ ...b, name, kitIdHash: null })),
+      );
+
+    it('stays in view when rows are added above it', () => {
+      stubLayout();
+      const { root } = openPage(reads, { storage: mixed() });
+      button(root, 'dog-0-dog-7').click();
+      expect(inView(root, 0)).toBe(true);
+      // Parent 1 narrows to the three females, then widens to all seven again.
+      button(root, 'dog-1-dog-1').click();
+      button(root, 'dog-1-dog-1').click();
+      expect(rows(root, 0)).toHaveLength(7);
+      expect(inView(root, 0)).toBe(true);
+    });
+
+    it('is scrolled to when a read places a new dog in a scrolled list', async () => {
+      stubLayout();
+      const { app, root } = openPage({ 'zoe.pdf': ok({ ...b, name: 'Zoe', kitIdHash: null }) }, { storage: mixed() });
+      expect(list(root, 0).scrollTop).toBe(0);
+      await app.load(0, pdf('zoe.pdf'));
+      expect(pressed(root, 0)).toEqual(['dog-0-new-1']);
+      expect(inView(root, 0)).toBe(true);
+    });
+
+    it('leaves a list the user scrolled away from it where it was', () => {
+      stubLayout();
+      const { root } = openPage(reads, { storage: mixed() });
+      button(root, 'dog-0-dog-7').click();
+      list(root, 0).scrollTop = 0;
+      button(root, 'dog-1-dog-1').click();
+      expect(list(root, 0).scrollTop).toBe(0);
+    });
+  });
 });
 
 describe('adding one report to a slot', () => {
