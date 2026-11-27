@@ -423,7 +423,6 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   /** Deletes every saved dog and empties both slots; reads in progress are discarded, not saved. */
   function clearSaved(): void {
     clears++;
-    gathering = null;
     tokens[0]++;
     tokens[1]++;
     readdTargets[0] = null;
