@@ -16,7 +16,6 @@ const STATE_NAMES = [
   'slot-loaded',
   'slot-questions',
   'slot-unanswerable',
-  'page-drop-error',
   'slot-missing',
   'list-none-chosen',
   'list-chosen',
@@ -42,6 +41,12 @@ const STATE_NAMES = [
   'storage-refused',
   'storage-full',
   'page-outdated',
+  'bulk-open-reading',
+  'bulk-list-reading',
+  'bulk-open-summary',
+  'bulk-list-summary',
+  'bulk-page-reading',
+  'bulk-page-summary',
 ];
 
 const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

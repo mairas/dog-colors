@@ -23,7 +23,7 @@ import { READER_VERSION } from '../report/version.ts';
 import { STORED_VERSION } from '../saved/check.ts';
 import { openSavedDogs, SAVED_DOGS_KEY, type SavedDogs, type StoredDog } from '../saved/store.ts';
 import { EMPTY_SLOT, NOTE_HIDDEN_KEY, type AppOptions, type AppState, type PageStorage, type SlotState } from './app.ts';
-import { DROP_FULL, REJECTIONS, sameDogNotice, type Message } from './messages.ts';
+import { REJECTIONS, sameDogNotice, type Message } from './messages.ts';
 
 const FIXTURES: Readonly<Record<string, { readonly lines: readonly Line[] }>> = {
   a: fixtureA,
@@ -215,7 +215,7 @@ const slot = (chosen: string | null = null, changes: Partial<SlotState> = {}): S
 const warning = (message: Message): Partial<SlotState> => ({ notice: { tone: 'warning', message } });
 const sameDog: Partial<SlotState> = { notice: { tone: 'info', message: sameDogNotice('Sample A', 'Parent 1') } };
 const start = (first: SlotState, second: SlotState, page: Partial<Omit<AppState, 'slots'>> = {}): FixtureStart => ({
-  initial: { slots: [first, second], pageAlert: null, undo: null, clearing: false, ...page },
+  initial: { slots: [first, second], bulk: null, undo: null, clearing: false, ...page },
 });
 
 /** Four dogs: two males (A, C) and two females (B, D). */
@@ -241,7 +241,6 @@ const STATES: Readonly<Record<string, (seed: Seeder) => Promise<FixtureStart>>> 
   'slot-loaded': async (seed) => start(slot(await seed.save('q', 'brown')), slot(await seed.save('b'))),
   'slot-questions': async (seed) => start(slot(await seed.save('q')), slot(await seed.save('b'))),
   'slot-unanswerable': async (seed) => start(slot(await seed.save('x')), slot(await seed.save('b'))),
-  'page-drop-error': async (seed) => start(slot(await seed.save('q', 'brown')), slot(await seed.save('b')), { pageAlert: DROP_FULL }),
   'slot-missing': async (seed) => start(slot(await seed.save('q', 'brown')), slot(await seed.save('m'))),
   'list-none-chosen': async (seed) => {
     await four(seed);
@@ -333,6 +332,52 @@ const STATES: Readonly<Record<string, (seed: Seeder) => Promise<FixtureStart>>> 
   'page-outdated': async (seed) => {
     seed.newer();
     return start(slot(), slot());
+  },
+  'bulk-open-reading': async () => start(slot(), slot(), { bulk: { at: 0, status: { kind: 'reading', current: 3, total: 8 } } }),
+  'bulk-list-reading': async (seed) => {
+    await four(seed);
+    return start(slot('a'), slot(), { bulk: { at: 1, status: { kind: 'reading', current: 3, total: 8 } } });
+  },
+  'bulk-open-summary': async () =>
+    start(slot(), slot(), {
+      bulk: {
+        at: 0,
+        status: {
+          kind: 'summary',
+          added: [],
+          updated: [],
+          rejected: [
+            { name: 'litter-photo.pdf', message: REJECTIONS['no-text'] },
+            { name: 'invoice.pdf', message: REJECTIONS['not-wisdom-dog'] },
+          ],
+        },
+      },
+    }),
+  'bulk-list-summary': async (seed) => {
+    await four(seed);
+    return start(slot('a'), slot(), {
+      bulk: {
+        at: 1,
+        status: {
+          kind: 'summary',
+          added: ['Sample A', 'Sample B', 'Sample C'],
+          updated: ['Sample D'],
+          rejected: [{ name: 'litter-photo.pdf', message: REJECTIONS['no-text'] }],
+        },
+      },
+    });
+  },
+  'bulk-page-reading': async (seed) =>
+    start(slot(await seed.save('q', 'brown')), slot(await seed.save('b')), { bulk: { at: null, status: { kind: 'reading', current: 2, total: 5 } } }),
+  'bulk-page-summary': async (seed) => {
+    const chosen = [await seed.save('q', 'brown'), await seed.save('b')] as const;
+    await seed.save('c');
+    return start(slot(chosen[0]), slot(chosen[1]), {
+      bulk: {
+        at: null,
+        status: { kind: 'summary', added: ['Sample C'], updated: [], rejected: [{ name: 'scan.pdf', message: REJECTIONS['unreadable-text'] }] },
+      },
+    });
   },
 };
 

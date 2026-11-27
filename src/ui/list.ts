@@ -10,7 +10,7 @@ import type { SavedDog, UsableDog } from '../saved/check.ts';
 import { ownColourText, ownPicture, renderCardBody, type CardActions } from './card.ts';
 import { h, svg } from './dom.ts';
 import { lowerFirst, parentLabel, savedName, SEX_PLURALS, SEX_SYMBOLS, SEX_WORDS } from './names.ts';
-import { alertBox, fileIcon, slotHeading, slotHeadingId, undoLine, type DogLabel, type SlotNotice } from './slots.ts';
+import { alertBox, bulkProgress, bulkSummary, fileIcon, noticeLinkKey, slotHeading, slotHeadingId, undoLine, type BulkStatus, type DogLabel, type SlotNotice } from './slots.ts';
 
 /** More saved dogs than this and each slot gets a filter field. */
 export const FILTER_FROM = 6;
@@ -68,6 +68,8 @@ export interface ListSlotInput extends ListingInput {
   readonly deleted: DogLabel | null;
   /** The name of a file being read for this slot. */
   readonly reading: string | null;
+  /** A bulk add's progress, in place of Add a dog or under the slot's reading line, or its summary above them. */
+  readonly bulk: BulkStatus | null;
 }
 
 /** Whether a slot lists dogs: any saved dog but the other slot's, stale and unusable ones included. */
@@ -344,6 +346,11 @@ export function revealChosen(slot: HTMLElement): void {
   }
 }
 
+/**
+ * A slot listing saved dogs. A bulk add's save redraws only `.listing`, so
+ * anything else drawn here from the saved dogs must be listed in the page's
+ * `reshaped` check, which then asks for a full render.
+ */
 export function renderListSlot(input: ListSlotInput, actions: ListActions): HTMLElement {
   const { slot, field } = input;
   const headingId = slotHeadingId(slot);
@@ -356,29 +363,33 @@ export function renderListSlot(input: ListSlotInput, actions: ListActions): HTML
     field.value = input.filterText;
   }
 
-  let add: HTMLElement;
-  if (input.reading === null) {
-    const picker = h('button', { type: 'button', class: 'ghost', 'data-key': `pick-${slot}`, 'aria-describedby': headingId }, 'Add a dog');
-    picker.addEventListener('click', () => actions.pick(slot));
-    add = h('div', { class: 'add' }, picker, ' ', h('span', { class: 'sec' }, 'or drop reports here'));
-  } else {
+  const progress = input.bulk?.kind === 'reading' ? bulkProgress(input.bulk, 'add', slot) : null;
+  let add: HTMLElement | null = null;
+  if (input.reading !== null) {
     add = h(
       'div',
       { class: 'add', 'aria-busy': 'true' },
       h('span', { class: 'spin', 'aria-hidden': 'true' }),
       h('span', { class: 'file' }, `Reading ${input.reading}…`),
     );
+  } else if (progress === null) {
+    const picker = h('button', { type: 'button', class: 'ghost', 'data-key': `pick-${slot}`, 'aria-describedby': headingId }, 'Add a dog');
+    picker.addEventListener('click', () => actions.pick(slot));
+    add = h('div', { class: 'add' }, picker, ' ', h('span', { class: 'sec' }, 'or drop reports here'));
   }
 
   return h(
     'section',
     { class: 'slot', 'aria-labelledby': headingId, 'data-slot': String(slot) },
     slotHeading(slot, chosen === null ? 'Choose a dog' : savedName(chosen.dog.name)),
-    input.notice === null ? null : alertBox(input.notice.message, '', input.notice.tone),
+    input.notice === null ? null : alertBox(input.notice.message, '', input.notice.tone, noticeLinkKey(slot)),
     showsFilter(input.dogs) ? h('label', { class: 'find' }, h('span', { class: 'vh' }, `Find a dog for ${parentLabel(slot)}`), field) : null,
     renderListing(input, actions),
     input.deleted === null ? null : undoLine(slot, input.deleted, actions.undo),
+    input.bulk?.kind === 'summary' ? bulkSummary(input.bulk, slot) : null,
+    // A bulk add's progress stands in place of Add a dog, or under the slot's own reading line.
     add,
+    progress,
     chosen === null
       ? null
       : renderCardBody(

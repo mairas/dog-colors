@@ -1,9 +1,28 @@
 // @vitest-environment happy-dom
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Report } from '../../src/report/types.ts';
-import { hash } from '../saved/storage.ts';
+import { hash, MemoryStorage, sequentialIds } from '../saved/storage.ts';
 import { syntheticReport } from '../genetics/synthetic.ts';
-import { button, fixtureText, ok, openPage, openState, parsed, pdf, sampleReport, slowRead, tableRows, variant, type ReadResults } from './app.ts';
+import { openSavedDogs, SAVED_DOGS_KEY } from '../../src/saved/store.ts';
+import { REJECTIONS } from '../../src/ui/messages.ts';
+import {
+  button,
+  fixtureText,
+  focused,
+  heading,
+  ok,
+  openPage,
+  openState,
+  parsed,
+  pdf,
+  rewriteSaved,
+  sampleReport,
+  savedStorage,
+  slowRead,
+  tableRows,
+  variant,
+  type ReadResults,
+} from './app.ts';
 
 const ANSWER_NOTE = "Some figures are ranges because a parent's genotype is uncertain. Answer the questions on the cards to narrow them.";
 const SETTLE_NOTE = "Some figures are ranges because the report can't settle a parent's genotype.";
@@ -270,17 +289,34 @@ describe('the colour page', () => {
   });
 });
 
-describe('the drop rules', () => {
-  const drop = async (files: string[], target: 0 | 1 | null, filled: string[] = []) => {
-    const page = openPage(reads);
-    for (const [slot, name] of filled.entries()) {
-      await page.app.load(slot === 0 ? 0 : 1, pdf(name));
-    }
-    await page.app.drop(files.map(pdf), target);
-    const names = [0, 1].map((slot) => page.root.querySelector(`[data-slot="${slot}"] h2`)?.textContent ?? '');
-    const alert = page.root.querySelector('.drop-alert')?.textContent ?? '';
-    return { names, alert };
-  };
+describe('adding several reports', () => {
+  type Where = 0 | 1 | 'page';
+  const progress = (root: HTMLElement, where: Where): string | null =>
+    root.querySelector(where === 'page' ? '.page-bulk .bulk' : `[data-key="progress-${where}"]`)?.textContent ?? null;
+  const summary = (root: HTMLElement, where: Where): string | null =>
+    root.querySelector(where === 'page' ? '.page-bulk .bulk-summary' : `[data-slot="${where}"] .bulk-summary`)?.textContent ?? null;
+  const headings = (root: HTMLElement) => [0, 1].map((slot) => root.querySelector(`[data-slot="${slot}"] h2`)?.textContent ?? '');
+  const spoken = (root: HTMLElement) => root.querySelector('[aria-live]')?.textContent ?? '';
+  const pressed = (root: HTMLElement) => [...root.querySelectorAll('button.dog[aria-pressed="true"]')].map((row) => row.getAttribute('data-key'));
+  const saved = (root: HTMLElement) => [...root.querySelectorAll('[data-slot="0"] button.dog')].map((row) => row.getAttribute('data-key'));
+  const NO_TEXT_REASON = 'This PDF contains no text, perhaps a scan or a photo. Download the report from Wisdom Panel instead.';
+
+  /** Reports Dog 1 … Dog n, without kit IDs, each read slowly from dog-<i>.pdf. */
+  function slowDogs(count: number) {
+    const slow = Array.from({ length: count }, (_, index) => slowRead(ok({ ...b, name: `Dog ${index + 1}`, kitIdHash: null })));
+    const files = slow.map((_, index) => `dog-${index + 1}.pdf`);
+    const results: ReadResults = Object.fromEntries(files.map((file, index) => [file, slow[index]?.read ?? (() => Promise.reject())]));
+    return { slow, files: files.map(pdf), results };
+  }
+
+  /** Picks files in a slot's file input, as the picker does. */
+  function pickFiles(root: HTMLElement, slot: 0 | 1, files: readonly File[]): void {
+    const input = root.querySelector<HTMLInputElement>(`[data-testid="file-${slot}"]`);
+    const transfer = new DataTransfer();
+    files.forEach((file) => transfer.items.add(file));
+    Object.defineProperty(input, 'files', { value: transfer.files, configurable: true });
+    input?.dispatchEvent(new Event('change'));
+  }
 
   it('prevents the browser from opening a dropped file', () => {
     openPage(reads);
@@ -289,60 +325,733 @@ describe('the drop rules', () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
-  it('rejects more than two files, whatever the slots hold', async () => {
-    expect(await drop(['a.pdf', 'b.pdf', 'c.pdf'], null)).toEqual({
-      names: ['Parent 1No report yet', 'Parent 2No report yet'],
-      alert: '⚠Drop at most two reports.',
-    });
-    expect(await drop(['a.pdf', 'b.pdf', 'c.pdf'], 1, ['a.pdf'])).toEqual({
-      names: ['Parent 1Sample A', 'Parent 2No report yet'],
-      alert: '⚠Drop at most two reports.',
-    });
-    expect(await drop(['c.pdf', 'b.pdf', 'a.pdf'], 0, ['a.pdf', 'b.pdf'])).toEqual({
-      names: ['Parent 1Sample A', 'Parent 2Sample B'],
-      alert: '⚠Drop at most two reports.',
-    });
+  it('fills both empty slots in drop order from two files, as today, with no progress or summary', async () => {
+    for (const target of [null, 1] as const) {
+      const { app, root } = openPage(reads);
+      await app.drop([pdf('b.pdf'), pdf('a.pdf')], target);
+      expect(headings(root)).toEqual(['Parent 1Sample B', 'Parent 2Sample A']);
+      expect(results(root)?.hidden).toBe(false);
+      expect(root.querySelector('.bulk, .bulk-summary')).toBeNull();
+    }
   });
 
-  it('places one file dropped on a filled slot there', async () => {
-    expect((await drop(['c.pdf'], 1, ['a.pdf', 'b.pdf'])).names).toEqual(['Parent 1Sample A', 'Parent 2Sample C']);
+  it('shows a placed file’s rejection in its slot, with no summary', async () => {
+    const { app, root } = openPage(reads);
+    await app.drop([pdf('a.pdf'), pdf('other.pdf')], null);
+    expect(headings(root)).toEqual(['Parent 1Sample A', 'Parent 2Report can’t be read']);
+    expect(root.querySelector('[data-slot="1"] .err')?.textContent).toBe("⚠This PDF isn't a Wisdom Panel dog report. Choose the genetics report you got from Wisdom Panel or MyDogDNA.");
+    expect(root.querySelector('.bulk-summary')).toBeNull();
   });
 
-  it('loads one file into the slot it was dropped on, or the first free slot', async () => {
-    expect((await drop(['c.pdf'], 1)).names).toEqual(['Parent 1No report yet', 'Parent 2Sample C']);
-    expect((await drop(['c.pdf'], null, ['a.pdf'])).names).toEqual(['Parent 1Sample A', 'Parent 2Sample C']);
+  it('fills both empty slots from two files picked at once in Parent 1’s Choose PDF', async () => {
+    const { root } = openPage(reads);
+    button(root, 'pick-0').click();
+    expect(root.querySelector<HTMLInputElement>('[data-testid="file-0"]')?.multiple).toBe(true);
+    pickFiles(root, 0, [pdf('a.pdf'), pdf('b.pdf')]);
+    await vi.waitFor(() => expect(headings(root)).toEqual(['Parent 1Sample A', 'Parent 2Sample B']));
   });
 
-  it('fills both empty slots in order from two files dropped anywhere', async () => {
-    expect((await drop(['b.pdf', 'a.pdf'], null)).names).toEqual(['Parent 1Sample B', 'Parent 2Sample A']);
-    expect((await drop(['b.pdf', 'a.pdf'], 1)).names).toEqual(['Parent 1Sample B', 'Parent 2Sample A']);
+  it('reads eight files picked on a first visit one by one, saving all and placing none, with progress and then a summary in the slot', async () => {
+    const { slow, files, results: dogReads } = slowDogs(8);
+    const { app, root } = openPage(dogReads);
+    const adding = app.drop(files, 0);
+    expect(progress(root, 0)).toBe('Reading 1 of 8 reports…');
+    expect(headings(root)).toEqual(['Parent 1No report yet', 'Parent 2No report yet']);
+    expect(root.querySelector('[data-key="pick-0"]')).toBeNull();
+    expect(spoken(root)).toBe('Reading 8 reports…');
+    await slow[0]?.release();
+    await vi.waitFor(() => expect(progress(root, 0)).toBe('Reading 2 of 8 reports…'));
+    expect(root.querySelector('[data-slot="0"] .listing + .add[data-key="progress-0"]')).not.toBeNull();
+    expect(saved(root)).toEqual(['dog-0-new-1']);
+    expect(spoken(root)).toBe('Reading 8 reports…');
+    for (const read of slow.slice(1)) {
+      await read.release();
+    }
+    await adding;
+    expect(progress(root, 0)).toBeNull();
+    expect(summary(root, 0)).toBe('Added 8 dogs.');
+    expect(root.querySelector('[data-slot="0"] .bulk-summary + .add [data-key="pick-0"]')?.textContent).toBe('Add a dog');
+    expect(saved(root)).toHaveLength(8);
+    expect(pressed(root)).toEqual([]);
+    expect(spoken(root)).toBe('Added 8 dogs.');
   });
 
-  it('fills the one free slot from two files and rejects the second', async () => {
-    expect(await drop(['b.pdf', 'c.pdf'], null, ['a.pdf'])).toEqual({
-      names: ['Parent 1Sample A', 'Parent 2Sample B'],
-      alert: "⚠Only one slot was free, so the second report wasn't loaded.",
-    });
+  it('reads eight files picked in Parent 2 while Parent 1 holds a dog, with progress and summary in Parent 2', async () => {
+    const { slow, files, results: dogReads } = slowDogs(8);
+    const { app, root } = openPage({ ...reads, ...dogReads });
+    await app.load(0, pdf('a.pdf'));
+    const adding = app.drop(files, 1);
+    expect(progress(root, 1)).toBe('Reading 1 of 8 reports…');
+    expect(progress(root, 0)).toBeNull();
+    for (const read of slow) {
+      await read.release();
+    }
+    await adding;
+    expect(summary(root, 1)).toBe('Added 8 dogs.');
+    expect(summary(root, 0)).toBeNull();
+    expect(headings(root)).toEqual(['Parent 1Sample A', 'Parent 2Choose a dog']);
   });
 
-  it('rejects a drop outside the slots when both are full', async () => {
-    expect(await drop(['c.pdf'], null, ['a.pdf', 'b.pdf'])).toEqual({
-      names: ['Parent 1Sample A', 'Parent 2Sample B'],
-      alert: '⚠Both slots are full. Drop the report on the slot you want it in.',
-    });
-    expect((await drop(['c.pdf', 'a.pdf'], 0, ['a.pdf', 'b.pdf'])).alert).toBe('⚠Both slots are full. Drop the report on the slot you want it in.');
+  it('places none of three files when one slot is free, and shows the progress where they were dropped', async () => {
+    const { app, root } = openPage(reads);
+    await app.load(0, pdf('a.pdf'));
+    await app.drop([pdf('b.pdf'), pdf('c.pdf'), pdf('d.pdf')], null);
+    expect(headings(root)).toEqual(['Parent 1Sample A', 'Parent 2Choose a dog']);
+    expect(summary(root, 'page')).toBe('Added 3 dogs.');
+    expect(saved(root)).toHaveLength(4);
   });
 
-  it('clears the drop message at the next action', async () => {
+  it('places none of several files dropped on a slot that no longer fit, with progress in that slot', async () => {
+    const { app, root } = openPage(reads);
+    await app.load(0, pdf('a.pdf'));
+    await app.drop([pdf('b.pdf'), pdf('c.pdf')], 0);
+    expect(headings(root)).toEqual(['Parent 1Sample A', 'Parent 2Choose a dog']);
+    expect(summary(root, 0)).toBe('Added 2 dogs.');
+  });
+
+  it('saves one file dropped outside the slots while both hold dogs, and names it in a page-level summary', async () => {
+    const slow = slowRead(ok(c));
+    const { app, root } = openPage({ ...reads, 'c.pdf': slow.read });
+    await app.load(0, pdf('a.pdf'));
+    await app.load(1, pdf('b.pdf'));
+    const adding = app.drop([pdf('c.pdf')], null);
+    expect(progress(root, 'page')).toBe('Reading 1 report…');
+    await slow.release();
+    await adding;
+    expect(headings(root)).toEqual(['Parent 1Sample A', 'Parent 2Sample B']);
+    expect(summary(root, 'page')).toBe('Added Sample C.');
+  });
+
+  it('places one file dropped on a slot there, or outside in the first free slot', async () => {
     const page = openPage(reads);
-    await page.app.drop(['a.pdf', 'b.pdf', 'c.pdf'].map(pdf), null);
     await page.app.load(0, pdf('a.pdf'));
-    expect(page.root.querySelector('.drop-alert')?.textContent).toBe('');
+    await page.app.load(1, pdf('b.pdf'));
+    await page.app.drop([pdf('c.pdf')], 1);
+    expect(headings(page.root)).toEqual(['Parent 1Sample A', 'Parent 2Sample C']);
+    const other = openPage(reads);
+    await other.app.load(0, pdf('a.pdf'));
+    await other.app.drop([pdf('c.pdf')], null);
+    expect(headings(other.root)).toEqual(['Parent 1Sample A', 'Parent 2Sample C']);
+    expect(other.root.querySelector('.bulk-summary')).toBeNull();
+  });
+
+  it('applies placed outcomes in drop order: two copies of one report give one dog in Parent 1, the notice in Parent 2 and a summary', async () => {
+    const [first, second] = [slowRead(ok(a)), slowRead(ok(a))];
+    const { app, root } = openPage({ '1.pdf': first.read, '2.pdf': second.read });
+    const adding = app.drop([pdf('1.pdf'), pdf('2.pdf')], null);
+    expect(headings(root)).toEqual(['Parent 1Reading report…', 'Parent 2Reading report…']);
+    await second.release();
+    await first.release();
+    await adding;
+    expect(heading(root, 0)).toBe('Parent 1Sample A');
+    expect(root.querySelector('[data-slot="1"] .err.info')?.textContent).toBe('ⓘThis report is Sample A, already Parent 1; the saved dog was updated.');
+    expect(saved(root)).toEqual(['dog-0-new-1']);
+    expect(root.querySelectorAll('[data-slot="1"] button.dog')).toHaveLength(0);
+    expect(summary(root, 'page')).toBe('Added 1 dog and updated 1.');
+  });
+
+  it('announces a placed batch’s start by slot and its slots’ outcomes, never its summary', async () => {
+    const [first, second] = [slowRead(ok(a)), slowRead(ok(a))];
+    const { app, root } = openPage({ '1.pdf': first.read, '2.pdf': second.read });
+    const adding = app.drop([pdf('1.pdf'), pdf('2.pdf')], null);
+    expect(spoken(root)).toBe('Reading the reports for Parent 1 and Parent 2…');
+    await first.release();
+    await second.release();
+    await adding;
+    expect(summary(root, 'page')).toBe('Added 1 dog and updated 1.');
+    expect(spoken(root)).toBe('This report is Sample A, already Parent 1; the saved dog was updated.');
+  });
+
+  it('leaves focus in Parent 1 when the second file of a placed batch is rejected or is the same dog', async () => {
+    for (const second of [{ ok: false, kind: 'not-wisdom-dog' } as const, ok(a)]) {
+      const [first, later] = [slowRead(ok(a)), slowRead(second)];
+      const { app, root } = openPage({ '1.pdf': first.read, '2.pdf': later.read });
+      const adding = app.drop([pdf('1.pdf'), pdf('2.pdf')], null);
+      await first.release();
+      await vi.waitFor(() => expect(heading(root, 0)).toBe('Parent 1Sample A'));
+      button(root, 'dog-0-new-1').focus();
+      await later.release();
+      await adding;
+      expect(root.querySelector('[data-slot="1"] .err')).not.toBeNull();
+      expect(document.activeElement?.getAttribute('data-key')).toBe('dog-0-new-1');
+    }
+  });
+
+  it('lets a row tapped in a reserved slot win over the file headed there, which is still saved', async () => {
+    const [first, second] = [slowRead(ok(a)), slowRead(ok(b))];
+    const storage = savedStorage(c, d);
+    const { app, root } = openPage({ '1.pdf': first.read, '2.pdf': second.read }, { storage });
+    const adding = app.drop([pdf('1.pdf'), pdf('2.pdf')], null);
+    button(root, 'dog-1-dog-2').click();
+    await first.release();
+    await second.release();
+    await adding;
+    expect(headings(root)).toEqual(['Parent 1Sample A', 'Parent 2Sample D']);
+    expect(openSavedDogs({ storage: () => storage }).dogs()).toHaveLength(4);
+  });
+
+  it('shows the rejection of a file whose reserved slot a tapped row took, leaving focus on the row', async () => {
+    const [first, second] = [slowRead(ok(a)), slowRead({ ok: false, kind: 'not-wisdom-dog' })];
+    const { app, root } = openPage({ '1.pdf': first.read, '2.pdf': second.read }, { storage: savedStorage(c, d) });
+    const adding = app.drop([pdf('1.pdf'), pdf('2.pdf')], null);
+    button(root, 'dog-1-dog-2').focus();
+    button(root, 'dog-1-dog-2').click();
+    await first.release();
+    await second.release();
+    await adding;
+    const rejected = "This PDF isn't a Wisdom Panel dog report. Choose the genetics report you got from Wisdom Panel or MyDogDNA.";
+    expect(headings(root)).toEqual(['Parent 1Sample A', 'Parent 2Sample D']);
+    expect(root.querySelector('[data-slot="1"] .err')?.textContent).toBe(`⚠2.pdf: ${rejected}`);
+    expect(document.activeElement?.getAttribute('data-key')).toBe('dog-1-dog-2');
+    expect(spoken(root)).toBe(`Parent 2: 2.pdf: ${rejected}`);
+    expect(root.querySelector('.bulk-summary')).toBeNull();
+  });
+
+  it('renews every stale dog in place when their reports are dropped again', async () => {
+    const storage = savedStorage(a, b, c);
+    rewriteSaved(storage, ['dog-1', 'dog-2', 'dog-3'], (entry) => ({ ...entry, readerVersion: 0 }));
+    const { app, root } = openPage(reads, { storage });
+    expect(root.querySelectorAll('[data-slot="0"] .older')).toHaveLength(3);
+    await app.drop([pdf('a.pdf'), pdf('b.pdf'), pdf('c.pdf')], null);
+    expect(saved(root)).toEqual(['dog-0-dog-1', 'dog-0-dog-2', 'dog-0-dog-3']);
+    expect(root.querySelectorAll('.older')).toHaveLength(0);
+    expect(summary(root, 'page')).toBe('Updated 3 dogs.');
+  });
+
+  it('names each rejected file with its reason in the summary', async () => {
+    const { app, root } = openPage({ ...reads, 'litter.pdf': { ok: false, kind: 'no-text' } });
+    await app.drop(['a.pdf', 'litter.pdf', 'b.pdf', 'c.pdf'].map(pdf), null);
+    expect(summary(root, 'page')).toBe(`Added 3 dogs.⚠litter.pdf: ${NO_TEXT_REASON}`);
+    expect(root.querySelector('.page-bulk .bulk-summary .err b')?.textContent).toBe('litter.pdf');
+    expect(spoken(root)).toBe(`Added 3 dogs. litter.pdf: ${NO_TEXT_REASON}`);
+    expect(root.querySelectorAll('[data-slot] .err')).toHaveLength(0);
+  });
+
+  it('shows the summary above Choose PDF when every file was rejected in a slot with nothing choosable', async () => {
+    const { app, root } = openPage({ '1.pdf': { ok: false, kind: 'no-text' }, '2.pdf': { ok: false, kind: 'not-pdf' }, '3.pdf': { ok: false, kind: 'no-text' } });
+    await app.drop(['1.pdf', '2.pdf', '3.pdf'].map(pdf), 0);
+    expect(summary(root, 0)).toContain('No dogs added.');
+    expect(summary(root, 0)).toContain("2.pdf: This file isn't a PDF.");
+    expect(root.querySelector('[data-slot="0"] .bulk-summary + .drop [data-key="pick-0"]')?.textContent).toBe('Choose PDF');
+  });
+
+  it('keeps the slots usable during a bulk add, and moves focus only off an element it replaces', async () => {
+    const { slow, files, results: dogReads } = slowDogs(3);
+    const { app, root } = openPage({ ...reads, ...dogReads }, { storage: savedStorage(a, b) });
+    button(root, 'pick-0').focus();
+    const adding = app.drop(files, 0);
+    expect(document.activeElement?.getAttribute('data-key')).toBe('progress-0');
+    button(root, 'dog-1-dog-2').focus();
+    await slow[0]?.release();
+    await vi.waitFor(() => expect(progress(root, 0)).toBe('Reading 2 of 3 reports…'));
+    expect(document.activeElement?.getAttribute('data-key')).toBe('dog-1-dog-2');
+    button(root, 'dog-1-dog-2').click();
+    expect(heading(root, 1)).toBe('Parent 2Sample B');
+    button(root, 'pick-1').focus();
+    await slow[1]?.release();
+    await vi.waitFor(() => expect(progress(root, 0)).toBe('Reading 3 of 3 reports…'));
+    expect(document.activeElement?.getAttribute('data-key')).toBe('pick-1');
+    button(root, 'dog-0-dog-1').focus();
+    await slow[2]?.release();
+    await adding;
+    expect(document.activeElement?.getAttribute('data-key')).toBe('dog-0-dog-1');
+    expect(heading(root, 1)).toBe('Parent 2Sample B');
+  });
+
+  it('keeps focus on a card’s disclosure while a bulk add renders the slots', async () => {
+    for (const key of ['geno-summary-0', 'why-summary-0']) {
+      const { slow, files, results: dogReads } = slowDogs(3);
+      const { app, root } = openPage(dogReads, { storage: savedStorage(a, b) });
+      button(root, 'dog-0-dog-1').click();
+      root.querySelector<HTMLElement>(`summary[data-key="${key}"]`)?.focus();
+      expect(document.activeElement?.getAttribute('data-key')).toBe(key);
+      const adding = app.drop(files, 1);
+      expect(progress(root, 1)).toBe('Reading 1 of 3 reports…');
+      for (const read of slow) {
+        await read.release();
+        expect(document.activeElement?.getAttribute('data-key')).toBe(key);
+      }
+      await adding;
+      expect(document.activeElement?.getAttribute('data-key')).toBe(key);
+    }
+  });
+
+  it.each([
+    ['the open layout', () => new MemoryStorage()],
+    ['the list layout', () => savedStorage(a, b)],
+  ])('keeps focus on a notice’s link through a bulk add, in %s', async (_, storage) => {
+    const { app, root } = openPage({ ...reads, 'odd.pdf': { ok: false, kind: 'unrecognised-layout' } }, { storage: storage() });
+    await app.load(1, pdf('odd.pdf'));
+    root.querySelector<HTMLElement>('[data-slot="1"] .err a')?.focus();
+    expect(focused()).toBe('notice-link-1');
+    const adding = app.drop([pdf('c.pdf'), pdf('d.pdf'), pdf('other.pdf')], 0);
+    expect(focused()).toBe('notice-link-1');
+    await adding;
+    expect(focused()).toBe('notice-link-1');
+  });
+
+  it('keeps focus on a summary’s link across a render', async () => {
+    for (const target of [0, null] as const) {
+      const { app, root } = openPage({ ...reads, 'odd.pdf': { ok: false, kind: 'unrecognised-layout' } }, { storage: savedStorage(a, b) });
+      button(root, 'dog-1-dog-2').click();
+      await app.drop([pdf('c.pdf'), pdf('odd.pdf'), pdf('d.pdf')], target);
+      const where = target === null ? '.page-bulk' : '[data-slot="0"]';
+      root.querySelector<HTMLElement>(`${where} .bulk-summary a`)?.focus();
+      const key = `summary-link-${target ?? 'page'}-0`;
+      expect(focused()).toBe(key);
+      button(root, 'show-all-0').click();
+      expect(button(root, 'show-all-0').textContent).toMatch(/^Only /);
+      expect(focused()).toBe(key);
+    }
+  });
+
+  it('moves focus from a summary’s link to the row whose tap ends the summary', async () => {
+    for (const target of [0, 1, null] as const) {
+      const { app, root } = openPage({ ...reads, 'odd.pdf': { ok: false, kind: 'unrecognised-layout' } }, { storage: savedStorage(a, b) });
+      await app.drop([pdf('c.pdf'), pdf('odd.pdf'), pdf('d.pdf')], target);
+      root.querySelector<HTMLElement>('.bulk-summary a')?.focus();
+      expect(focused()).toBe(`summary-link-${target ?? 'page'}-0`);
+      button(root, 'dog-0-dog-1').click();
+      expect(root.querySelector('.bulk-summary')).toBeNull();
+      expect(focused()).toBe('dog-0-dog-1');
+    }
+  });
+
+  it('moves focus from a slot’s element a bulk save removes to the slot’s picker', async () => {
+    const { slow, files, results: dogReads } = slowDogs(3);
+    const names = ['Aino', 'Bruno', 'Canela', 'Duna', 'Eetu', 'Gaudí', 'Hilla'];
+    const { app, root } = openPage(dogReads, { storage: savedStorage(...names.map((name) => ({ ...b, name, kitIdHash: null }))) });
+    const field = root.querySelector<HTMLInputElement>('[data-key="find-0"]');
+    if (field === null) {
+      throw new Error('no filter field');
+    }
+    field.value = 'dog';
+    field.dispatchEvent(new Event('input'));
+    button(root, 'clear-filter-0').focus();
+    const adding = app.drop(files, null);
+    await slow[0]?.release();
+    await vi.waitFor(() => expect(progress(root, 'page')).toBe('Reading 2 of 3 reports…'));
+    expect(root.querySelector('[data-key="clear-filter-0"]')).toBeNull();
+    expect(focused()).toBe('pick-0');
+    for (const read of slow.slice(1)) {
+      await read.release();
+    }
+    await adding;
+  });
+
+  it('shows the progress and summary of several files dropped on a slot that is reading one', async () => {
+    for (const storage of [new MemoryStorage(), savedStorage(d)]) {
+      const slow = slowRead(ok(c));
+      const { app, root } = openPage({ ...reads, 'c.pdf': slow.read }, { storage });
+      const single = app.load(1, pdf('c.pdf'));
+      const adding = app.drop([pdf('a.pdf'), pdf('b.pdf'), pdf('other.pdf')], 1);
+      expect(progress(root, 1)).toBe('Reading 1 of 3 reports…');
+      await adding;
+      expect(summary(root, 1)).toContain('Added 2 dogs.');
+      await slow.release();
+      await single;
+      expect(heading(root, 1)).toBe('Parent 2Sample C');
+    }
+  });
+
+  it('clears the receiving slot’s earlier rejection when a bulk add starts there', async () => {
+    for (const storage of [new MemoryStorage(), savedStorage(d)]) {
+      const { app, root } = openPage(reads, { storage });
+      await app.load(0, pdf('other.pdf'));
+      expect(root.querySelector('[data-slot="0"] .err')).not.toBeNull();
+      const adding = app.drop([pdf('a.pdf'), pdf('b.pdf'), pdf('c.pdf')], 0);
+      expect(root.querySelector('[data-slot="0"] .err')).toBeNull();
+      expect(heading(root, 0)).not.toBe('Parent 1Report can’t be read');
+      await adding;
+      expect(root.querySelector('[data-slot="0"] .err')).toBeNull();
+    }
+  });
+
+  it('clears the slot’s earlier rejection when files dropped there join a bulk add reading in the other slot', async () => {
+    for (const storage of [new MemoryStorage(), savedStorage(d)]) {
+      const { slow, files, results: dogReads } = slowDogs(3);
+      const { app, root } = openPage({ ...reads, ...dogReads }, { storage });
+      await app.load(1, pdf('other.pdf'));
+      expect(root.querySelector('[data-slot="1"] .err')).not.toBeNull();
+      const first = app.drop(files, 0);
+      const later = app.drop([pdf('a.pdf'), pdf('b.pdf')], 1);
+      expect(progress(root, 0)).toBe('Reading 1 of 5 reports…');
+      expect(root.querySelector('[data-slot="1"] .err')).toBeNull();
+      for (const read of slow) {
+        await read.release();
+      }
+      await Promise.all([first, later]);
+      expect(root.querySelector('[data-slot="1"] .err')).toBeNull();
+    }
+  });
+
+  /** Counts focusin events on the page from now on. */
+  function focusins(root: HTMLElement): { readonly keys: (string | null)[] } {
+    const keys: (string | null)[] = [];
+    root.addEventListener('focusin', (event) => keys.push(event.target instanceof Element ? event.target.getAttribute('data-key') : null));
+    return { keys };
+  }
+
+  it('moves no focus while a bulk add’s reads change no layout and no chosen dog', async () => {
+    for (const start of ['pick-1', 'geno-summary-0', 'clear-saved', 'clear-cancel']) {
+      const { slow, files, results: dogReads } = slowDogs(4);
+      const { app, root } = openPage(dogReads, { storage: savedStorage(a, b) });
+      button(root, 'dog-0-dog-1').click();
+      if (start === 'clear-cancel') {
+        button(root, 'clear-saved').click();
+      }
+      root.querySelector<HTMLElement>(`[data-key="${start}"]`)?.focus();
+      const adding = app.drop(files, 1);
+      const focus = focusins(root);
+      for (const [index, read] of slow.slice(0, 3).entries()) {
+        await read.release();
+        await vi.waitFor(() => expect(progress(root, 1)).toBe(`Reading ${index + 2} of 4 reports…`));
+        if (start === 'clear-cancel') {
+          expect(root.querySelector('.confirm span')?.textContent).toBe(`Delete all ${index + 3} saved dogs?`);
+        }
+      }
+      const rows = [...root.querySelectorAll('[data-slot="1"] button.dog')].map((row) => row.getAttribute('data-key'));
+      expect(rows.sort()).toEqual(['dog-1-dog-2', 'dog-1-new-1', 'dog-1-new-2', 'dog-1-new-3']);
+      expect(focus.keys).toEqual([]);
+      expect(focused()).toBe(start === 'pick-1' ? 'progress-1' : start);
+      await slow[3]?.release();
+      await adding;
+      expect(focused()).toBe(start);
+    }
+  });
+
+  it('redraws the slots when a bulk add’s save changes a chosen dog, the filter field or the undo line', async () => {
+    const renamed = slowRead(ok({ ...a, name: 'Sample A2' }));
+    const { slow, files, results: dogReads } = slowDogs(6);
+    const { app, root } = openPage({ ...dogReads, 'renamed.pdf': renamed.read }, { storage: savedStorage(a, c, d) });
+    button(root, 'dog-0-dog-1').click();
+    const adding = app.drop([pdf('renamed.pdf'), ...files], 1);
+    await renamed.release();
+    await vi.waitFor(() => expect(heading(root, 0)).toBe('Parent 1Sample A2'));
+    button(root, 'delete-0-dog-3').click();
+    expect(root.querySelector('.undo')).not.toBeNull();
+    await slow[0]?.release();
+    await vi.waitFor(() => expect(progress(root, 1)).toBe('Reading 3 of 7 reports…'));
+    expect(root.querySelector('.undo')).toBeNull();
+    for (const read of slow.slice(1, 4)) {
+      await read.release();
+    }
+    await vi.waitFor(() => expect(progress(root, 1)).toBe('Reading 6 of 7 reports…'));
+    expect(root.querySelector('.find')).toBeNull();
+    await slow[4]?.release();
+    await vi.waitFor(() => expect(progress(root, 1)).toBe('Reading 7 of 7 reports…'));
+    expect(root.querySelector('.find')).not.toBeNull();
+    await slow[5]?.release();
+    await adding;
+  });
+
+  it('shows the storage warning when storage refuses partway through a bulk add, and keeps the rest for the visit', async () => {
+    const { slow, files, results: dogReads } = slowDogs(3);
+    const storage = new MemoryStorage();
+    const { app, root } = openPage(dogReads, { storage });
+    const adding = app.drop(files, 0);
+    await slow[0]?.release();
+    await vi.waitFor(() => expect(progress(root, 0)).toBe('Reading 2 of 3 reports…'));
+    storage.failWrites = true;
+    await slow[1]?.release();
+    await vi.waitFor(() => expect(progress(root, 0)).toBe('Reading 3 of 3 reports…'));
+    expect(root.querySelector('.storage-alert [role="alert"]')?.textContent).toContain('New dogs can’t be saved in this browser');
+    await slow[2]?.release();
+    await adding;
+    expect(summary(root, 0)).toBe('Added 3 dogs.');
+    expect(saved(root)).toHaveLength(3);
+    const stored = JSON.parse(storage.getItem(SAVED_DOGS_KEY) ?? '{}') as { dogs: unknown[] };
+    expect(stored.dogs).toHaveLength(1);
+  });
+
+  it('names a file the reader failed on in the summary, and reads the rest', async () => {
+    const { app, root } = openPage({ ...reads, 'broken.pdf': () => Promise.reject(new Error('worker failed')) });
+    await app.drop([pdf('a.pdf'), pdf('broken.pdf'), pdf('b.pdf')], 0);
+    expect(summary(root, 0)).toBe("Added 2 dogs.⚠broken.pdf: Couldn't start the PDF reader. Reload the page and try again.");
+  });
+
+  it('discards a placed batch’s remaining read when Clear saved dogs is confirmed during it', async () => {
+    const [first, second] = [slowRead(ok(a)), slowRead(ok(b))];
+    const storage = new MemoryStorage();
+    const { app, root } = openPage({ '1.pdf': first.read, '2.pdf': second.read }, { storage });
+    const adding = app.drop([pdf('1.pdf'), pdf('2.pdf')], null);
+    await first.release();
+    await vi.waitFor(() => expect(heading(root, 0)).toBe('Parent 1Sample A'));
+    button(root, 'clear-saved').click();
+    button(root, 'clear-delete').click();
+    await second.release();
+    await adding;
+    expect(headings(root)).toEqual(['Parent 1No report yet', 'Parent 2No report yet']);
+    expect(root.querySelector('.err, .bulk, .bulk-summary')).toBeNull();
+    expect(storage.getItem(SAVED_DOGS_KEY)).toBeNull();
+    expect(spoken(root)).toBe('All saved dogs deleted.');
+  });
+
+  it('reads one file dropped outside the slots while both read, with page-level progress and summary', async () => {
+    const [first, second] = [slowRead(ok(a)), slowRead(ok(b))];
+    const { app, root } = openPage({ ...reads, '1.pdf': first.read, '2.pdf': second.read });
+    const loads = [app.load(0, pdf('1.pdf')), app.load(1, pdf('2.pdf'))];
+    const adding = app.drop([pdf('c.pdf')], null);
+    expect(progress(root, 'page')).toBe('Reading 1 report…');
+    await adding;
+    expect(summary(root, 'page')).toBe('Added Sample C.');
+    expect([...root.querySelectorAll('[data-slot] .add .file')].map((line) => line.textContent)).toEqual(['Reading 1.pdf…', 'Reading 2.pdf…']);
+    await first.release();
+    await second.release();
+    await Promise.all(loads);
+    expect(headings(root)).toEqual(['Parent 1Sample A', 'Parent 2Sample B']);
+  });
+
+  it('keeps a bulk add’s progress through a delete and a single add in the other slot', async () => {
+    const { slow, files, results: dogReads } = slowDogs(3);
+    const { app, root } = openPage({ ...reads, ...dogReads }, { storage: savedStorage(a, b) });
+    const adding = app.drop(files, 0);
+    button(root, 'delete-1-dog-2').click();
+    expect(progress(root, 0)).toBe('Reading 1 of 3 reports…');
+    await app.load(1, pdf('c.pdf'));
+    expect(heading(root, 1)).toBe('Parent 2Sample C');
+    expect(progress(root, 0)).toBe('Reading 1 of 3 reports…');
+    for (const read of slow) {
+      await read.release();
+    }
+    await adding;
+    expect(summary(root, 0)).toBe('Added 3 dogs.');
+  });
+
+  it('returns focus from the progress to Add a dog when the summary replaces it', async () => {
+    const { app, root } = openPage(reads, { storage: savedStorage(d) });
+    button(root, 'pick-0').focus();
+    await app.drop([pdf('a.pdf'), pdf('b.pdf'), pdf('c.pdf')], 0);
+    expect(document.activeElement?.getAttribute('data-key')).toBe('pick-0');
+  });
+
+  it('keeps the summary until the next add, delete or choice in either slot', async () => {
+    const { app, root } = openPage(reads);
+    await app.load(0, pdf('a.pdf'));
+    await app.drop([pdf('b.pdf'), pdf('c.pdf')], 1);
+    button(root, 'show-all-1').click();
+    expect(summary(root, 1)).toBe('Added 2 dogs.');
+    button(root, 'dog-1-new-2').click();
+    expect(summary(root, 1)).toBeNull();
+
+    await app.drop([pdf('b.pdf'), pdf('c.pdf')], 1);
+    expect(summary(root, 1)).toBe('Updated 2 dogs.');
+    button(root, 'dog-1-new-2').click();
+    expect(summary(root, 1)).toBeNull();
+
+    await app.drop([pdf('b.pdf'), pdf('c.pdf')], 1);
+    expect(summary(root, 1)).toBe('Updated 2 dogs.');
+    button(root, 'dog-0-new-1').click();
+    expect(summary(root, 1)).toBeNull();
+    button(root, 'dog-0-new-1').click();
+
+    await app.drop([pdf('b.pdf'), pdf('c.pdf')], 1);
+    expect(summary(root, 1)).toBe('Updated 2 dogs.');
+    button(root, 'delete-1-new-2').click();
+    expect(summary(root, 1)).toBeNull();
+    await app.drop([pdf('b.pdf'), pdf('d.pdf')], 1);
+    expect(summary(root, 1)).toBe('Added 2 dogs.');
+    await app.load(1, pdf('other.pdf'));
+    expect(summary(root, 1)).toBeNull();
+  });
+
+  it('ends a page-level summary when a row is tapped', async () => {
+    const { app, root } = openPage(reads);
+    await app.load(0, pdf('a.pdf'));
+    await app.load(1, pdf('b.pdf'));
+    await app.drop([pdf('c.pdf'), pdf('d.pdf')], null);
+    expect(summary(root, 'page')).toBe('Added 2 dogs.');
+    button(root, 'dog-1-new-2').click();
+    expect(summary(root, 'page')).toBeNull();
+  });
+
+  it('keeps a bulk add’s progress through a choice, and its summary after', async () => {
+    const { slow, files, results: dogReads } = slowDogs(3);
+    const { app, root } = openPage({ ...reads, ...dogReads });
+    await app.load(0, pdf('a.pdf'));
+    const adding = app.drop(files, 1);
+    await slow[0]?.release();
+    await vi.waitFor(() => expect(progress(root, 1)).toBe('Reading 2 of 3 reports…'));
+    button(root, 'dog-1-new-2').click();
+    expect(heading(root, 1)).toBe('Parent 2Dog 1');
+    expect(progress(root, 1)).toBe('Reading 2 of 3 reports…');
+    await slow[1]?.release();
+    await slow[2]?.release();
+    await adding;
+    expect(summary(root, 1)).toBe('Added 3 dogs.');
+  });
+
+  it('ends the undo line when a bulk read saves', async () => {
+    const { app, root } = openPage(reads, { storage: savedStorage(a, b, c) });
+    button(root, 'delete-0-dog-3').click();
+    expect(root.querySelector('.undo')).not.toBeNull();
+    await app.drop([pdf('d.pdf'), pdf('other.pdf'), pdf('c.pdf')], null);
+    expect(root.querySelector('.undo')).toBeNull();
+  });
+
+  it('discards the remaining reads when Clear saved dogs is confirmed during a bulk add', async () => {
+    const { slow, files, results: dogReads } = slowDogs(3);
+    const storage = new MemoryStorage();
+    const { app, root } = openPage(dogReads, { storage });
+    const adding = app.drop(files, null);
+    await slow[0]?.release();
+    await vi.waitFor(() => expect(progress(root, 'page')).toBe('Reading 2 of 3 reports…'));
+    button(root, 'clear-saved').click();
+    button(root, 'clear-delete').click();
+    expect(progress(root, 'page')).toBeNull();
+    await slow[1]?.release();
+    await slow[2]?.release();
+    await adding;
+    expect(storage.getItem(SAVED_DOGS_KEY)).toBeNull();
+    expect(root.querySelector('.bulk, .bulk-summary')).toBeNull();
+    expect(spoken(root)).toBe('All saved dogs deleted.');
+  });
+
+  it('reads several files added after Clear saved dogs ended a bulk add whose read is still pending', async () => {
+    const { slow, files, results: dogReads } = slowDogs(3);
+    const { app, root } = openPage({ ...reads, ...dogReads });
+    const first = app.drop(files, null);
+    await slow[0]?.release();
+    await vi.waitFor(() => expect(progress(root, 'page')).toBe('Reading 2 of 3 reports…'));
+    button(root, 'clear-saved').click();
+    button(root, 'clear-delete').click();
+    const later = app.drop([pdf('a.pdf'), pdf('b.pdf'), pdf('c.pdf')], null);
+    await slow[1]?.release();
+    await slow[2]?.release();
+    await Promise.all([first, later]);
+    expect(summary(root, 'page')).toBe('Added 3 dogs.');
+  });
+
+  it('keeps the bulk add that started after a Clear when the cleared one’s pending read finishes', async () => {
+    const { slow, files, results: dogReads } = slowDogs(6);
+    const { app, root } = openPage({ ...reads, ...dogReads });
+    const first = app.drop(files.slice(0, 3), null);
+    await slow[0]?.release();
+    await vi.waitFor(() => expect(progress(root, 'page')).toBe('Reading 2 of 3 reports…'));
+    button(root, 'clear-saved').click();
+    button(root, 'clear-delete').click();
+    const second = app.drop(files.slice(3), null);
+    await slow[1]?.release();
+    await first;
+    const joined = app.drop([pdf('a.pdf'), pdf('c.pdf')], null);
+    expect(progress(root, 'page')).toBe('Reading 1 of 5 reports…');
+    for (const read of slow.slice(2)) {
+      await read.release();
+    }
+    await Promise.all([second, joined]);
+    expect(summary(root, 'page')).toBe('Added 5 dogs.');
+  });
+
+  it('frees the queue when a bulk add throws, so the next several files read', async () => {
+    const storage = new MemoryStorage();
+    const store = openSavedDogs({ storage: () => storage, newId: sequentialIds('new') });
+    let broken = true;
+    const savedDogs = {
+      ...store,
+      add: (...args: Parameters<typeof store.add>) => {
+        if (broken) {
+          broken = false;
+          throw new Error('the store broke');
+        }
+        return store.add(...args);
+      },
+    };
+    const { app, root } = openPage(reads, { storage, savedDogs });
+    await expect(app.drop([pdf('a.pdf'), pdf('b.pdf'), pdf('c.pdf')], null)).rejects.toThrow('the store broke');
+    await app.drop([pdf('b.pdf'), pdf('c.pdf'), pdf('d.pdf')], null);
+    expect(summary(root, 'page')).toBe('Added 3 dogs.');
+  });
+
+  it('takes one file in the picker Add the report again opens', () => {
+    const storage = savedStorage(a);
+    rewriteSaved(storage, ['dog-1'], (entry) => ({ ...entry, report: { ...(entry['report'] as object), shortTail: 1.5 } }));
+    const { root } = openPage(reads, { storage });
+    const input = root.querySelector<HTMLInputElement>('[data-testid="file-0"]');
+    vi.spyOn(input ?? new HTMLInputElement(), 'click').mockImplementation(() => undefined);
+    button(root, 'dog-0-dog-1').click();
+    expect(input?.multiple).toBe(false);
+    button(root, 'pick-0').click();
+    expect(input?.multiple).toBe(true);
+  });
+
+  it('adds several files picked while a bulk add reads to it, with one progress line and one summary naming every rejected file', async () => {
+    const { slow, files, results: dogReads } = slowDogs(4);
+    const [firstFiles, laterFiles] = [[files[0], pdf('photo.pdf'), files[1]], [files[2], pdf('scan.pdf'), files[3]]].map((group) =>
+      group.flatMap((file) => file ?? []),
+    );
+    const { app, root } = openPage({ ...dogReads, 'photo.pdf': { ok: false, kind: 'no-text' }, 'scan.pdf': { ok: false, kind: 'unreadable-text' } });
+    const first = app.drop(firstFiles ?? [], 0);
+    await slow[0]?.release();
+    await vi.waitFor(() => expect(progress(root, 0)).toBe('Reading 3 of 3 reports…'));
+    const later = app.drop(laterFiles ?? [], 1);
+    expect(progress(root, 0)).toBe('Reading 3 of 6 reports…');
+    expect(spoken(root)).toBe('Reading 3 of 6 reports…');
+    expect(progress(root, 1)).toBeNull();
+    for (const read of slow.slice(1)) {
+      await read.release();
+    }
+    await Promise.all([first, later]);
+    expect(summary(root, 0)).toBe(`Added 4 dogs.⚠photo.pdf: ${REJECTIONS['no-text'].text}⚠scan.pdf: ${REJECTIONS['unreadable-text'].text}`);
+    expect(summary(root, 1)).toBeNull();
+    expect(spoken(root)).toBe(`Added 4 dogs. photo.pdf: ${REJECTIONS['no-text'].text} scan.pdf: ${REJECTIONS['unreadable-text'].text}`);
+  });
+
+  it('settles an add that joined a bulk add only once the shared summary shows', async () => {
+    const { slow, files, results: dogReads } = slowDogs(3);
+    const { app, root } = openPage({ ...reads, ...dogReads });
+    const first = app.drop(files, 0);
+    const shownWhenSettled: (string | null)[] = [];
+    const later = app.drop([pdf('a.pdf'), pdf('b.pdf')], 1).then(() => {
+      shownWhenSettled.push(summary(root, 0));
+    });
+    for (const read of slow) {
+      await read.release();
+    }
+    await Promise.all([first, later]);
+    expect(shownWhenSettled).toEqual(['Added 5 dogs.']);
+  });
+
+  it('adds two files dropped on the page while a bulk add reads to it, placing neither', async () => {
+    const { slow, files, results: dogReads } = slowDogs(3);
+    const { app, root } = openPage({ ...reads, ...dogReads });
+    const first = app.drop(files, 0);
+    const later = app.drop([pdf('a.pdf'), pdf('other.pdf')], null);
+    expect(progress(root, 0)).toBe('Reading 1 of 5 reports…');
+    expect(progress(root, 'page')).toBeNull();
+    for (const read of slow) {
+      await read.release();
+    }
+    await Promise.all([first, later]);
+    expect(pressed(root)).toEqual([]);
+    expect(headings(root)).toEqual(['Parent 1Choose a dog', 'Parent 2Choose a dog']);
+    expect(summary(root, 0)).toBe(`Added 4 dogs.⚠other.pdf: ${REJECTIONS['not-wisdom-dog'].text}`);
+    expect(summary(root, 'page')).toBeNull();
+  });
+
+  it('keeps a page-level bulk add’s progress above the slots when more files are dropped on a slot', async () => {
+    const { slow, files, results: dogReads } = slowDogs(3);
+    const { app, root } = openPage({ ...reads, ...dogReads });
+    const first = app.drop(files, null);
+    const later = app.drop([pdf('a.pdf'), pdf('b.pdf')], 1);
+    expect(progress(root, 'page')).toBe('Reading 1 of 5 reports…');
+    expect(progress(root, 1)).toBeNull();
+    for (const read of slow) {
+      await read.release();
+    }
+    await Promise.all([first, later]);
+    expect(summary(root, 'page')).toBe('Added 5 dogs.');
+  });
+
+  it('scrolls a page-level progress line into view', async () => {
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
+    const { app, root } = openPage(reads);
+    await app.drop(['a.pdf', 'b.pdf', 'c.pdf'].map(pdf), null);
+    expect(scroll.mock.contexts).toContain(root.querySelector('.page-bulk'));
+    scroll.mockRestore();
   });
 });
 
 describe('states between actions', () => {
-  const heading = (root: HTMLElement, slot: number) => root.querySelector(`[data-slot="${slot}"] h2`)?.textContent ?? '';
 
   it('keeps a slot cleared when the read it started finishes', async () => {
     const slow = slowRead(ok(c));
@@ -368,31 +1077,6 @@ describe('states between actions', () => {
     expect(heading(root, 0)).toBe('Parent 1Sample A');
   });
 
-  it('points to the slots when a drop finds both slots still reading', async () => {
-    const [first, second] = [slowRead(ok(a)), slowRead(ok(b))];
-    const { app, root } = openPage({ ...reads, '1.pdf': first.read, '2.pdf': second.read });
-    const reading = [app.load(0, pdf('1.pdf')), app.load(1, pdf('2.pdf'))];
-    await app.drop([pdf('c.pdf')], null);
-    expect(root.querySelector('.drop-alert')?.textContent).toBe('⚠Both reports are still being read. Drop the report on the slot you want it in.');
-    expect([heading(root, 0), heading(root, 1)]).toEqual(['Parent 1Reading report…', 'Parent 2Reading report…']);
-    await Promise.all([first.release(), second.release(), ...reading]);
-    expect(root.querySelector('.drop-alert')?.textContent).not.toContain('still being read');
-    expect([heading(root, 0), heading(root, 1)]).toEqual(['Parent 1Sample A', 'Parent 2Sample B']);
-  });
-
-  it('stops saying both reports are being read once one of them fails', async () => {
-    const [first, second] = [slowRead({ ok: false, kind: 'not-wisdom-dog' }), slowRead(ok(b))];
-    const { app, root } = openPage({ ...reads, '1.pdf': first.read, '2.pdf': second.read });
-    const reading = [app.load(0, pdf('1.pdf')), app.load(1, pdf('2.pdf'))];
-    await app.drop([pdf('c.pdf')], null);
-    expect(root.querySelector('.drop-alert')?.textContent).toContain('still being read');
-    await first.release();
-    await reading[0];
-    expect(root.querySelector('.drop-alert')?.textContent).not.toContain('still being read');
-    expect(heading(root, 1)).toBe('Parent 2Reading report…');
-    await Promise.all([second.release(), ...reading]);
-  });
-
   it('settles the ranges note once the question is answered and only ASIP is left', async () => {
     const { root, text } = await pair('nose.pdf', 'asip.pdf');
     expect(text()).toContain(ANSWER_NOTE);
@@ -416,13 +1100,6 @@ describe('states between actions', () => {
     expect(document.getElementById(badge.getAttribute('aria-controls') ?? '')?.hidden).toBe(false);
   });
 
-  it('scrolls a page-level drop message into view', async () => {
-    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
-    const { app, root } = openPage(reads);
-    await app.drop(['a.pdf', 'b.pdf', 'c.pdf'].map(pdf), null);
-    expect(scroll.mock.contexts).toContain(root.querySelector('.drop-alert'));
-    scroll.mockRestore();
-  });
 });
 
 describe('drag and drop events', () => {

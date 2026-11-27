@@ -200,6 +200,101 @@ describe('the filter field', () => {
     expect(spoken(root)).toBe('Parent 1: Aino chosen.');
   });
 
+  it('counts the list as it stands when typing pauses, after a bulk add’s save', async () => {
+    vi.useFakeTimers();
+    const slow = [1, 2, 3].map((index) => slowRead(ok({ ...b, name: `Aada ${index}`, kitIdHash: null })));
+    const files = slow.map((_, index) => `aada-${index + 1}.pdf`);
+    const { app, root } = openPage(Object.fromEntries(files.map((file, index) => [file, slow[index]?.read ?? (() => Promise.reject())])), { storage: many() });
+    const adding = app.drop(files.map(pdf), 1);
+    const field = root.querySelector<HTMLInputElement>('[data-key="find-0"]');
+    if (field === null) {
+      throw new Error('no filter field');
+    }
+    field.value = 'a';
+    field.dispatchEvent(new Event('input'));
+    vi.advanceTimersByTime(300);
+    await slow[0]?.release();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(rows(root, 0)).toContain('dog-0-new-1');
+    expect(rows(root, 0)).toHaveLength(6);
+    vi.advanceTimersByTime(1000);
+    expect(spoken(root)).toBe('6 dogs listed');
+    for (const read of slow.slice(1)) {
+      await read.release();
+    }
+    await adding;
+  });
+
+  it('counts the list when typing pauses, after a bulk add’s save that ends an undo line', async () => {
+    vi.useFakeTimers();
+    const slow = [1, 2, 3].map((index) => slowRead(ok({ ...b, name: `Aada ${index}`, kitIdHash: null })));
+    const files = slow.map((_, index) => `aada-${index + 1}.pdf`);
+    const { app, root } = openPage(Object.fromEntries(files.map((file, index) => [file, slow[index]?.read ?? (() => Promise.reject())])), { storage: many() });
+    const adding = app.drop(files.map(pdf), 1);
+    await slow[0]?.release();
+    await vi.advanceTimersByTimeAsync(0);
+    // Deleting Canela leaves an undo line, so the next save redraws the whole page.
+    button(root, 'delete-0-dog-3').click();
+    const field = root.querySelector<HTMLInputElement>('[data-key="find-0"]');
+    if (field === null) {
+      throw new Error('no filter field');
+    }
+    field.value = 'a';
+    field.dispatchEvent(new Event('input'));
+    vi.advanceTimersByTime(300);
+    await slow[1]?.release();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(root.querySelector('.undo')).toBeNull();
+    vi.advanceTimersByTime(1000);
+    expect(spoken(root)).toBe('6 dogs listed');
+    await slow[2]?.release();
+    await adding;
+  });
+
+  it('keeps focus and its text through a bulk add’s summary in the other slot', async () => {
+    const slow = [1, 2, 3].map((index) => slowRead(ok({ ...b, name: `Aada ${index}`, kitIdHash: null })));
+    const files = slow.map((_, index) => `aada-${index + 1}.pdf`);
+    const { app, root } = openPage(Object.fromEntries(files.map((file, index) => [file, slow[index]?.read ?? (() => Promise.reject())])), { storage: many() });
+    const adding = app.drop(files.map(pdf), 1);
+    const field = root.querySelector<HTMLInputElement>('[data-key="find-0"]');
+    if (field === null) {
+      throw new Error('no filter field');
+    }
+    field.focus();
+    field.value = 'a';
+    field.dispatchEvent(new Event('input'));
+    for (const read of slow) {
+      await read.release();
+    }
+    await adding;
+    expect(root.querySelector('[data-slot="1"] .bulk-summary')?.textContent).toBe('Added 3 dogs.');
+    expect(root.querySelector('[data-key="find-0"]')).toBe(field);
+    expect(document.activeElement).toBe(field);
+    expect(field.value).toBe('a');
+  });
+
+  it('drops the typing-pause count when files join a bulk add first', async () => {
+    vi.useFakeTimers();
+    const slow = [1, 2, 3, 4, 5].map((index) => slowRead(ok({ ...b, name: `Aada ${index}`, kitIdHash: null })));
+    const files = slow.map((_, index) => `aada-${index + 1}.pdf`);
+    const { app, root } = openPage(Object.fromEntries(files.map((file, index) => [file, slow[index]?.read ?? (() => Promise.reject())])), { storage: many() });
+    const adding = app.drop(files.slice(0, 3).map(pdf), 1);
+    const field = root.querySelector<HTMLInputElement>('[data-key="find-0"]');
+    if (field === null) {
+      throw new Error('no filter field');
+    }
+    field.value = 'a';
+    field.dispatchEvent(new Event('input'));
+    vi.advanceTimersByTime(300);
+    const joining = app.drop(files.slice(3).map(pdf), null);
+    vi.advanceTimersByTime(1000);
+    expect(spoken(root)).toBe('Reading 1 of 5 reports…');
+    for (const read of slow) {
+      await read.release();
+    }
+    await Promise.all([adding, joining]);
+  });
+
   it('empties the filter once its field goes, so a field shown again lists every dog', async () => {
     const { app, root } = openPage(reads, { storage: many() });
     const field = root.querySelector<HTMLInputElement>('[data-key="find-0"]');
@@ -412,6 +507,47 @@ describe('a long list', () => {
       button(root, 'dog-1-dog-1').click();
       expect(list(root, 0).scrollTop).toBe(0);
     });
+
+    /** Three files of dogs whose names sort first, read slowly, and how to release each. */
+    function earlyDogs() {
+      const slow = [1, 2, 3].map((index) => slowRead(ok({ ...b, name: `Aada ${index}`, kitIdHash: null })));
+      const files = slow.map((_, index) => `aada-${index + 1}.pdf`);
+      return { slow, files: files.map(pdf), reads: Object.fromEntries(files.map((file, index) => [file, slow[index]?.read ?? (() => Promise.reject())])) };
+    }
+
+    it('keeps a list where it was scrolled while a bulk add saves dogs into it', async () => {
+      stubLayout();
+      const early = earlyDogs();
+      const { app, root } = openPage(early.reads, { storage: mixed() });
+      const away = 2 * ROW;
+      const adding = app.drop(early.files, 1);
+      const scrolled = list(root, 0);
+      scrolled.scrollTop = away;
+      await early.slow[0]?.release();
+      await vi.waitFor(() => expect(rows(root, 0)).toHaveLength(8));
+      expect(list(root, 0)).not.toBe(scrolled);
+      expect(list(root, 0).scrollTop).toBe(away);
+      for (const read of early.slow.slice(1)) {
+        await read.release();
+      }
+      await adding;
+    });
+
+    it('stays in view while a bulk add saves dogs above it', async () => {
+      stubLayout();
+      const early = earlyDogs();
+      const { app, root } = openPage(early.reads, { storage: mixed() });
+      button(root, 'dog-0-dog-7').click();
+      expect(inView(root, 0)).toBe(true);
+      const adding = app.drop(early.files, 1);
+      await early.slow[0]?.release();
+      await vi.waitFor(() => expect(rows(root, 0)).toHaveLength(8));
+      expect(inView(root, 0)).toBe(true);
+      for (const read of early.slow.slice(1)) {
+        await read.release();
+      }
+      await adding;
+    });
   });
 });
 
@@ -424,6 +560,16 @@ describe('adding one report to a slot', () => {
     expect(pressed(root, 0)).toEqual(['dog-0-new-1']);
     expect(focused()).toBe('name-0');
     expect(spoken(root)).toBe('Parent 1: Sample C saved.');
+  });
+
+  it('moves focus to the heading of the slot whose Add a dog was tapped, wherever a click leaves focus', async () => {
+    const { app, root } = openPage(reads, { storage: savedStorage(a, b) });
+    button(root, 'dog-0-dog-1').click();
+    button(root, 'pick-1').click();
+    expect(focused()).toBe('pick-1');
+    await app.load(1, pdf('c.pdf'));
+    expect(heading(root, 1)).toBe('Parent 2Sample C');
+    expect(focused()).toBe('name-1');
   });
 
   it('updates the chosen dog in place when the report is its own', async () => {
@@ -679,6 +825,7 @@ describe('a report that is the other slot’s dog', () => {
     const storage = savedStorage(a, b);
     const { app, root } = openPage({ 'a2.pdf': ok({ ...a, breed: 'Updated breed' }) }, { storage });
     button(root, 'dog-0-dog-1').click();
+    button(root, 'pick-1').click();
     await app.load(1, pdf('a2.pdf'));
     expect(pressed(root, 0)).toEqual(['dog-0-dog-1']);
     expect(pressed(root, 1)).toEqual([]);
@@ -802,7 +949,7 @@ describe('stored data the page cannot use', () => {
     vi.mocked(renderResults).mockImplementationOnce(() => {
       throw new Error('a rendering bug');
     });
-    const initial = { slots: [{ ...EMPTY_SLOT, chosen: 'dog-1' }, { ...EMPTY_SLOT, chosen: 'dog-2' }] as const, pageAlert: null, undo: null, clearing: false };
+    const initial = { slots: [{ ...EMPTY_SLOT, chosen: 'dog-1' }, { ...EMPTY_SLOT, chosen: 'dog-2' }] as const, bulk: null, undo: null, clearing: false };
     expect(() => openPage(reads, { storage: savedStorage(a, b), initial })).toThrow('a rendering bug');
   });
 
@@ -816,7 +963,7 @@ describe('stored data the page cannot use', () => {
           { chosen: 'dog-1', reading: null, notice: null, filter: '', showAll: false },
           { chosen: 'dog-2', reading: null, notice: null, filter: '', showAll: false },
         ],
-        pageAlert: null,
+        bulk: null,
         undo: null,
         clearing: false,
       },
@@ -971,7 +1118,7 @@ describe('deleting a dog', () => {
     }
     const { root } = openPage(reads, {
       storage,
-      initial: { slots: [{ ...EMPTY_SLOT, chosen: 'dog-3' }, EMPTY_SLOT], pageAlert: null, undo: { deleted, slot: 0, chosen: true }, clearing: false },
+      initial: { slots: [{ ...EMPTY_SLOT, chosen: 'dog-3' }, EMPTY_SLOT], bulk: null, undo: { deleted, slot: 0, chosen: true }, clearing: false },
     });
     button(root, 'undo-0').click();
     expect(pressed(root, 0)).toEqual(['dog-0-dog-3']);

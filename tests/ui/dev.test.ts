@@ -29,7 +29,6 @@ const MARKERS: Readonly<Record<string, readonly [selector: string, text: string]
   'slot-loaded': ['.has-results [data-slot="1"] h2', 'Sample B'],
   'slot-questions': ['[data-slot="0"] legend', 'Nose and paw pads: black or brown?'],
   'slot-unanswerable': ['[data-slot="0"] .note', "The report can't tell which; results show both."],
-  'page-drop-error': ['.drop-alert', 'Both slots are full. Drop the report on the slot you want it in.'],
   'slot-missing': ['[data-slot="1"] .flag', 'not in report'],
   'list-none-chosen': ['[data-slot="0"] h2', 'Choose a dog'],
   'list-chosen': ['[data-slot="0"] button.dog[aria-pressed="true"]', 'Sample A'],
@@ -55,6 +54,12 @@ const MARKERS: Readonly<Record<string, readonly [selector: string, text: string]
   'storage-refused': ['.storage-alert [role="alert"]', 'Dogs can’t be saved in this browser.'],
   'storage-full': ['.storage-alert [role="alert"]', 'New dogs can’t be saved in this browser.'],
   'page-outdated': ['.storage-alert [role="alert"]', 'This page is out of date.'],
+  'bulk-open-reading': ['[data-slot="0"][aria-busy="true"] .drop[data-key="progress-0"]', 'Reading 3 of 8 reports…'],
+  'bulk-list-reading': ['[data-slot="1"] .listing + .add[data-key="progress-1"]', 'Reading 3 of 8 reports…'],
+  'bulk-open-summary': ['[data-slot="0"] h2 + .bulk-summary', 'No dogs added.'],
+  'bulk-list-summary': ['[data-slot="1"] .listing + .bulk-summary', 'Added 3 dogs and updated 1.'],
+  'bulk-page-reading': ['.page-bulk .bulk', 'Reading 2 of 5 reports…'],
+  'bulk-page-summary': ['.page-bulk .bulk-summary', 'Added Sample C.'],
 };
 
 async function health(query: Record<string, string>): Promise<HealthAnalysis> {

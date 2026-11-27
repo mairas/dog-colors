@@ -75,7 +75,6 @@ Every state of the page can be rendered without real reports through a dev-only 
 | Both dogs chosen | `?state=slot-loaded` |
 | Open nose question (bd 1 + bc 1) | `?state=slot-questions` |
 | Ambiguity no question settles (ASIP) | `?state=slot-unanswerable` |
-| Page-level drop message | `?state=page-drop-error` |
 | Locus missing from a report | `?state=slot-missing` |
 | Four saved dogs, nothing chosen | `?state=list-none-chosen` |
 | One dog chosen, the other list narrowed to females | `?state=list-chosen` |
@@ -103,6 +102,12 @@ Every state of the page can be rendered without real reports through a dev-only 
 | Storage refused: dogs kept only for the visit | `?state=storage-refused` |
 | Storage full: a dog added after earlier saves is not stored | `?state=storage-full` |
 | Saved dogs written by a newer page: out of date | `?state=page-outdated` |
+| Bulk add reading, progress in place of Choose PDF | `?state=bulk-open-reading` |
+| Bulk add reading, progress in place of Add a dog | `?state=bulk-list-reading` |
+| Bulk add summary above Choose PDF, every file rejected | `?state=bulk-open-summary` |
+| Bulk add summary above Add a dog | `?state=bulk-list-summary` |
+| Bulk add reading, dropped outside the slots | `?state=bulk-page-reading` |
+| Bulk add summary above the slots | `?state=bulk-page-summary` |
 
 `?fixtures=<first>,<second>` saves any two reports and chooses them, unanswered: the samples `a` to `e`, or the synthetic `q` (nose question), `x` (ASIP ambiguity), `m` (TYRP1 missing), `w` and `v` (merle and dilute carriers with a bobtail, both carrying a recessive condition, with an X-linked condition and one tested in Parent 1 only), `h` and `k` (two females sharing an X-linked, a mitochondrial and an unknown-inheritance condition; `k` is clear of the mitochondrial one), and `u` and `n` (the same health as `h` and `k`, with the sex unread). Their names are placeholders such as "Sample Q". These health pairings have no state of their own:
 
