@@ -492,21 +492,28 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     typingTimers[slot] = window.setTimeout(() => announcer.announce(listingStatus(listing(input))), TYPING_PAUSE_MS);
   }
 
+  /** The slot as `renderOpenSlot` draws it, empty or reading, or null while it lists dogs. */
+  function openSlot(slot: ParentIndex): OpenSlot | null {
+    if (listMode(slot)) {
+      return null;
+    }
+    const { reading, notice } = state.slots[slot];
+    const error = notice?.tone === 'warning' ? notice.message : null;
+    return reading === null ? { kind: 'empty', error } : { kind: 'reading', fileName: reading, error };
+  }
+
   /** The layout `renderSlot` gives the slot: its list, or the open slot empty or reading. */
-  const layoutOf = (slot: ParentIndex): string => (listMode(slot) ? 'list' : state.slots[slot].reading === null ? 'empty' : 'reading');
+  const layoutOf = (slot: ParentIndex): string => openSlot(slot)?.kind ?? 'list';
 
   /** Anything a slot draws from the saved dogs outside `.listing` must be listed in `reshaped`, or a bulk add's save leaves it stale. */
-  function renderSlot(slot: ParentIndex): { element: HTMLElement; layout: string } {
-    const current = state.slots[slot];
-    if (listMode(slot)) {
-      return { element: renderListSlot(listInput(slot), actions), layout: 'list' };
+  function renderSlot(slot: ParentIndex): HTMLElement {
+    const open = openSlot(slot);
+    if (open === null) {
+      return renderListSlot(listInput(slot), actions);
     }
-    const warning = current.notice?.tone === 'warning' ? current.notice.message : null;
-    const info = current.notice?.tone === 'info' ? current.notice.message : null;
-    const open: OpenSlot =
-      current.reading === null ? { kind: 'empty', error: warning } : { kind: 'reading', fileName: current.reading, error: warning };
-    const extras = { notice: info, deleted: undoLabel(slot), undo: actions.undo, bulk: bulkAt(slot) };
-    return { element: renderOpenSlot(slot, open, pick, extras), layout: open.kind };
+    const { notice } = state.slots[slot];
+    const extras = { notice: notice?.tone === 'info' ? notice.message : null, deleted: undoLabel(slot), undo: actions.undo, bulk: bulkAt(slot) };
+    return renderOpenSlot(slot, open, pick, extras);
   }
 
   /** Both slots' dogs, when each holds one. */
@@ -704,9 +711,10 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     );
 
     const slots = SLOTS.map(renderSlot);
-    slots.forEach(({ element, layout }, slot) => element.classList.toggle('enter', renderedLayouts[slot] !== layout));
-    renderedLayouts = slots.map(({ layout }) => layout);
-    slotsEl.replaceChildren(...slots.map(({ element }) => element));
+    const layouts = SLOTS.map(layoutOf);
+    slots.forEach((element, slot) => element.classList.toggle('enter', renderedLayouts[slot] !== layouts[slot]));
+    renderedLayouts = layouts;
+    slotsEl.replaceChildren(...slots);
     // Once in the page, so that the capped lists can be scrolled. The reveal
     // comes after the restore, which would otherwise undo it: a new choice is
     // scrolled to, and a list showing its chosen row keeps showing it as rows
@@ -714,7 +722,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     restoreScroll(view);
     SLOTS.forEach((slot) => {
       if (state.slots[slot].chosen !== revealed[slot] || view.chosenShown[slot] === true) {
-        revealChosen(slots[slot]?.element ?? slotsEl);
+        revealChosen(slots[slot] ?? slotsEl);
       }
     });
     revealed = state.slots.map((slot) => slot.chosen);
