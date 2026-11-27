@@ -431,7 +431,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     state = { slots: [EMPTY_SLOT, EMPTY_SLOT], bulk: null, undo: null, clearing: false };
     focusKeys = ['pick-0'];
     render();
-    announcer.announce('All saved dogs deleted.');
+    say('All saved dogs deleted.');
   }
 
   const pick = (slot: ParentIndex): void => {
@@ -483,9 +483,10 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     typingTimers[slot] = window.setTimeout(() => announcer.announce(listingStatus(listing(listInput(slot)))), TYPING_PAUSE_MS);
   }
 
-  /** Drops the typing-pause counts, which would overwrite what the caller is about to announce. */
-  function cancelCounts(): void {
+  /** Announces what an action did, first dropping any typing-pause count that would overwrite it. */
+  function say(text: string): void {
     SLOTS.forEach((slot) => window.clearTimeout(typingTimers[slot]));
+    announcer.announce(text);
   }
 
   /** Redraws the slots' rows in place, keeping each list's scroll and its chosen row in view as render() does. */
@@ -709,7 +710,6 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   }
 
   function render(): void {
-    cancelCounts();
     const view = beginUpdate();
     drawStorage();
     drawTools();
@@ -821,7 +821,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     const token = reserve(slot, file);
     const cleared = clears;
     render();
-    announcer.announce(`Reading the report for ${parentLabel(slot)}…`);
+    say(`Reading the report for ${parentLabel(slot)}…`);
     const result = await readReport(file);
     if (cleared === clears) {
       finishLoad(slot, token, file.name, result, target);
@@ -863,7 +863,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
         focusKeys = [`pick-${slot}`];
       }
       render();
-      announcer.announce(`${parentLabel(slot)}: ${message.text}`);
+      say(`${parentLabel(slot)}: ${message.text}`);
       return null;
     }
 
@@ -896,7 +896,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     }
     const emptied = settle();
     render();
-    announcer.announce(`${text}${placed && outcome.id === state.slots[slot].chosen ? resultsStatus() : ''}${clearedText(emptied)}`);
+    say(`${text}${placed && outcome.id === state.slots[slot].chosen ? resultsStatus() : ''}${clearedText(emptied)}`);
     return outcome;
   }
 
@@ -930,7 +930,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     });
     state = { ...state, bulk: null };
     render();
-    announcer.announce(`Reading the reports for ${reads.map(({ slot }) => parentLabel(slot)).join(' and ')}…`);
+    say(`Reading the reports for ${reads.map(({ slot }) => parentLabel(slot)).join(' and ')}…`);
 
     const saved: Tally = { added: [], updated: [], rejected: [] };
     for (const { file, slot, token } of reads) {
@@ -970,7 +970,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     }
     showProgress(at, 1, queue);
     render();
-    announcer.announce(bulkStartText(queue.length));
+    say(bulkStartText(queue.length));
     if (at === null) {
       pageBulk.scrollIntoView({ block: 'nearest' });
     }
@@ -1008,7 +1008,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     const done: BulkSummary = { kind: 'summary', ...saved };
     state = { ...state, bulk: { at, status: done } };
     render();
-    announcer.announce(bulkSummaryText(done));
+    say(bulkSummaryText(done));
   }
 
   /**
@@ -1023,7 +1023,6 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       queue.push(...files);
       const { current } = bulk.status;
       showProgress(bulk.at, current, queue);
-      cancelCounts();
       // As a single add does, the slot's new files replace its last message, which only a render removes.
       if (at !== null && state.slots[at].notice !== null) {
         setSlot(at, { notice: null });
@@ -1031,7 +1030,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       } else {
         refresh();
       }
-      announcer.announce(bulkProgressText(current, queue.length));
+      say(bulkProgressText(current, queue.length));
       await done;
       return;
     }
@@ -1055,7 +1054,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       // A cleared row that the filter or the sex narrowing hides leaves the list.
       focusKeys = clearing ? [`dog-${slot}-${id}`, `find-${slot}`, `name-${slot}`] : [];
       render();
-      announcer.announce(clearing ? `${parentLabel(slot)} cleared.` : `${parentLabel(slot)}: ${savedName(store.dog(id)?.name ?? null)} chosen.${resultsStatus()}`);
+      say(clearing ? `${parentLabel(slot)} cleared.` : `${parentLabel(slot)}: ${savedName(store.dog(id)?.name ?? null)} chosen.${resultsStatus()}`);
     },
     remove(slot, id) {
       const dog = store.dog(id);
@@ -1074,7 +1073,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       const cleared = settle();
       focusKeys = listMode(slot) ? [...neighbours, `pick-${slot}`, `name-${slot}`] : [`undo-${slot}`];
       render();
-      announcer.announce(`Deleted ${savedName(dog.name)}. Undo available.${clearedText(cleared)}`);
+      say(`Deleted ${savedName(dog.name)}. Undo available.${clearedText(cleared)}`);
     },
     showAll(slot, all) {
       setSlot(slot, { showAll: all });
@@ -1103,7 +1102,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       render();
       const name = savedName(store.dog(outcome.id)?.name ?? line.deleted.dog.name);
       const placed = chooses && state.slots[slot].chosen === outcome.id;
-      announcer.announce(`${name} restored.${placed ? resultsStatus() : ''}${clearedText(cleared)}`);
+      say(`${name} restored.${placed ? resultsStatus() : ''}${clearedText(cleared)}`);
     },
     pick,
     readd(slot, id) {
@@ -1118,7 +1117,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       store.setNose(chosen, nose ?? null);
       const cleared = settle();
       render();
-      announcer.announce(`${resultsShown ? 'Results updated.' : 'Answer saved.'}${clearedText(cleared)}`);
+      say(`${resultsShown ? 'Results updated.' : 'Answer saved.'}${clearedText(cleared)}`);
     },
   };
 

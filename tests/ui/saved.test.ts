@@ -225,6 +225,32 @@ describe('the filter field', () => {
     await adding;
   });
 
+  it('counts the list when typing pauses, after a bulk add’s save that ends an undo line', async () => {
+    vi.useFakeTimers();
+    const slow = [1, 2, 3].map((index) => slowRead(ok({ ...b, name: `Aada ${index}`, kitIdHash: null })));
+    const files = slow.map((_, index) => `aada-${index + 1}.pdf`);
+    const { app, root } = openPage(Object.fromEntries(files.map((file, index) => [file, slow[index]?.read ?? (() => Promise.reject())])), { storage: many() });
+    const adding = app.drop(files.map(pdf), 1);
+    await slow[0]?.release();
+    await vi.advanceTimersByTimeAsync(0);
+    // Deleting Canela leaves an undo line, so the next save redraws the whole page.
+    button(root, 'delete-0-dog-3').click();
+    const field = root.querySelector<HTMLInputElement>('[data-key="find-0"]');
+    if (field === null) {
+      throw new Error('no filter field');
+    }
+    field.value = 'a';
+    field.dispatchEvent(new Event('input'));
+    vi.advanceTimersByTime(300);
+    await slow[1]?.release();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(root.querySelector('.undo')).toBeNull();
+    vi.advanceTimersByTime(1000);
+    expect(spoken(root)).toBe('6 dogs listed');
+    await slow[2]?.release();
+    await adding;
+  });
+
   it('keeps focus and its text through a bulk add’s summary in the other slot', async () => {
     const slow = [1, 2, 3].map((index) => slowRead(ok({ ...b, name: `Aada ${index}`, kitIdHash: null })));
     const files = slow.map((_, index) => `aada-${index + 1}.pdf`);
