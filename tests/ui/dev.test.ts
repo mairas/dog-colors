@@ -54,6 +54,12 @@ const MARKERS: Readonly<Record<string, readonly [selector: string, text: string]
   'storage-refused': ['.storage-alert [role="alert"]', 'Dogs can’t be saved in this browser.'],
   'storage-full': ['.storage-alert [role="alert"]', 'New dogs can’t be saved in this browser.'],
   'page-outdated': ['.storage-alert [role="alert"]', 'This page is out of date.'],
+  'bulk-open-reading': ['[data-slot="0"][aria-busy="true"] .drop[data-key="progress-0"]', 'Reading 3 of 8 reports…'],
+  'bulk-list-reading': ['[data-slot="1"] .listing + .add[data-key="progress-1"]', 'Reading 3 of 8 reports…'],
+  'bulk-open-summary': ['[data-slot="0"] h2 + .bulk-summary', 'No dogs added.'],
+  'bulk-list-summary': ['[data-slot="1"] .listing + .bulk-summary', 'Added 3 dogs and updated 1.'],
+  'bulk-page-reading': ['.page-bulk .bulk', 'Reading 2 of 5 reports…'],
+  'bulk-page-summary': ['.page-bulk .bulk-summary', 'Added Sample C.'],
 };
 
 async function health(query: Record<string, string>): Promise<HealthAnalysis> {

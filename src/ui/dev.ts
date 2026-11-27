@@ -333,6 +333,52 @@ const STATES: Readonly<Record<string, (seed: Seeder) => Promise<FixtureStart>>> 
     seed.newer();
     return start(slot(), slot());
   },
+  'bulk-open-reading': async () => start(slot(), slot(), { bulk: { at: 0, status: { kind: 'reading', current: 3, total: 8 } } }),
+  'bulk-list-reading': async (seed) => {
+    await four(seed);
+    return start(slot('a'), slot(), { bulk: { at: 1, status: { kind: 'reading', current: 3, total: 8 } } });
+  },
+  'bulk-open-summary': async () =>
+    start(slot(), slot(), {
+      bulk: {
+        at: 0,
+        status: {
+          kind: 'summary',
+          added: [],
+          updated: [],
+          rejected: [
+            { name: 'litter-photo.pdf', message: REJECTIONS['no-text'] },
+            { name: 'invoice.pdf', message: REJECTIONS['not-wisdom-dog'] },
+          ],
+        },
+      },
+    }),
+  'bulk-list-summary': async (seed) => {
+    await four(seed);
+    return start(slot('a'), slot(), {
+      bulk: {
+        at: 1,
+        status: {
+          kind: 'summary',
+          added: ['Sample A', 'Sample B', 'Sample C'],
+          updated: ['Sample D'],
+          rejected: [{ name: 'litter-photo.pdf', message: REJECTIONS['no-text'] }],
+        },
+      },
+    });
+  },
+  'bulk-page-reading': async (seed) =>
+    start(slot(await seed.save('q', 'brown')), slot(await seed.save('b')), { bulk: { at: null, status: { kind: 'reading', current: 2, total: 5 } } }),
+  'bulk-page-summary': async (seed) => {
+    const chosen = [await seed.save('q', 'brown'), await seed.save('b')] as const;
+    await seed.save('c');
+    return start(slot(chosen[0]), slot(chosen[1]), {
+      bulk: {
+        at: null,
+        status: { kind: 'summary', added: ['Sample C'], updated: [], rejected: [{ name: 'scan.pdf', message: REJECTIONS['unreadable-text'] }] },
+      },
+    });
+  },
 };
 
 export const STATE_NAMES = Object.keys(STATES);
