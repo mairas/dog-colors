@@ -400,13 +400,18 @@ describe('adding a report again', () => {
   it('forgets the re-add target when Add a dog opens the picker', async () => {
     const storage = savedStorage(a, b);
     rewriteSaved(storage, ['dog-1'], (entry) => ({ ...entry, readerVersion: 0 }));
-    const { app, root } = openPage(reads, { storage });
+    // With no kit ID, nothing but the re-add target would tie the report to the stale dog.
+    const { app, root } = openPage({ 'nokit.pdf': ok({ ...c, kitIdHash: null }) }, { storage });
     button(root, 'dog-0-dog-1').click();
     pickerOf(root, 0);
     button(root, 'readd-0').click();
     button(root, 'pick-0').click();
-    await app.load(0, pdf('c.pdf'));
-    expect(listed(storage)).toHaveLength(3);
+    await app.load(0, pdf('nokit.pdf'));
+    expect(listed(storage).map((dog) => [dog.id, dog.name, dog.status])).toEqual([
+      ['dog-1', 'Sample A', 'stale'],
+      ['dog-2', 'Sample B', 'current'],
+      ['new-1', 'Sample C', 'current'],
+    ]);
   });
 });
 
