@@ -114,8 +114,8 @@ function build {
 function help {
   #@ Show this help message
   #@ Category: Core
-  echo "Puppy colour predictor - Development Commands"
-  echo "============================================="
+  echo "What the Pup? - Development Commands"
+  echo "===================================="
   echo ""
   echo "Available commands:"
   echo ""

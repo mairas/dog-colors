@@ -1,6 +1,6 @@
 # AGENTS.md
 
-A static single-page site, served from GitHub Pages, that reads two Wisdom Panel (MyDogDNA) PDF genetic reports and predicts the coat colours of the two dogs' puppies, with per-puppy probabilities. The reports are parsed in the browser and are never uploaded.
+A static single-page site, served from GitHub Pages, that reads two Wisdom Panel (MyDogDNA) PDF genetic reports and predicts the coat colours of the two dogs' puppies, with per-puppy probabilities, and the puppies' odds for the inherited health conditions both reports test. The reports are parsed in the browser and are never uploaded.
 
 ## Commands
 
