@@ -461,6 +461,21 @@ describe('adding several reports', () => {
     expect(spoken(root)).toBe('This report is Sample A, already Parent 1; the saved dog was updated.');
   });
 
+  it('leaves focus in Parent 1 when the second file of a placed batch is rejected or is the same dog', async () => {
+    for (const second of [{ ok: false, kind: 'not-wisdom-dog' } as const, ok(a)]) {
+      const [first, later] = [slowRead(ok(a)), slowRead(second)];
+      const { app, root } = openPage({ '1.pdf': first.read, '2.pdf': later.read });
+      const adding = app.drop([pdf('1.pdf'), pdf('2.pdf')], null);
+      await first.release();
+      await vi.waitFor(() => expect(heading(root, 0)).toBe('Parent 1Sample A'));
+      button(root, 'dog-0-new-1').focus();
+      await later.release();
+      await adding;
+      expect(root.querySelector('[data-slot="1"] .err')).not.toBeNull();
+      expect(document.activeElement?.getAttribute('data-key')).toBe('dog-0-new-1');
+    }
+  });
+
   it('lets a row tapped in a reserved slot win over the file headed there, which is still saved', async () => {
     const [first, second] = [slowRead(ok(a)), slowRead(ok(b))];
     const storage = savedStorage(c, d);

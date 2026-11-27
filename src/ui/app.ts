@@ -755,7 +755,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       const reason = rejection(result);
       const message = placed ? reason : { ...reason, text: `${fileName}: ${reason.text}` };
       setSlot(slot, { notice: { tone: 'warning', message } });
-      if (placed) {
+      if (placed && focusInSlotOrLost(slot)) {
         focusKeys = [`pick-${slot}`];
       }
       render();
@@ -774,7 +774,9 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       if (placed) {
         const notice = sameDogNotice(name, parentLabel(other));
         setSlot(slot, { notice: { tone: 'info', message: notice } });
-        focusKeys = [`pick-${slot}`];
+        if (moveFocus) {
+          focusKeys = [`pick-${slot}`];
+        }
         text = notice.text;
       } else {
         text = `${name} updated.`;
