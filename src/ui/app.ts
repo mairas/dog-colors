@@ -690,8 +690,10 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
         render();
         return;
       }
-      // A superseded read shows its rejection too, but focus stays where the user has acted since.
-      const message = result === null ? READER_FAILED : REJECTIONS[result.kind];
+      // A superseded read shows its rejection too, named by its file since the
+      // slot has moved on, but focus stays where the user has acted since.
+      const reason = result === null ? READER_FAILED : REJECTIONS[result.kind];
+      const message = placed ? reason : { ...reason, text: `${file.name}: ${reason.text}` };
       setSlot(slot, { notice: { tone: 'warning', message } });
       if (placed) {
         focusKeys = [`pick-${slot}`];

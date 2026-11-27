@@ -502,7 +502,9 @@ describe('adding one report to a slot', () => {
   });
 
   describe('a rejected read that was superseded', () => {
-    const REJECTED = "⚠This PDF isn't a Wisdom Panel dog report. Choose the genetics report you got from Wisdom Panel or MyDogDNA.";
+    const REASON = "This PDF isn't a Wisdom Panel dog report. Choose the genetics report you got from Wisdom Panel or MyDogDNA.";
+    /** The rejection as the slot shows it once the slot has moved on: named by its file. */
+    const rejected = (file: string): string => `⚠${file}: ${REASON}`;
 
     it('shows its rejection when a row tapped during the read won, leaving the choice and focus, until the next choose there', async () => {
       const slow = slowRead({ ok: false, kind: 'not-wisdom-dog' });
@@ -513,12 +515,23 @@ describe('adding one report to a slot', () => {
       row.click();
       await slow.release();
       await loading;
-      expect(notice(root, 0)).toBe(REJECTED);
+      expect(notice(root, 0)).toBe(rejected('slow.pdf'));
       expect(pressed(root, 0)).toEqual(['dog-0-dog-1']);
-      expect(spoken(root)).toBe(`Parent 1: ${REJECTED.slice(1)}`);
+      expect(spoken(root)).toBe(`Parent 1: slow.pdf: ${REASON}`);
       expect(focused()).toBe('dog-0-dog-1');
       button(root, 'dog-0-dog-1').click();
       expect(notice(root, 0)).toBeNull();
+    });
+
+    it('keeps the link of a rejection that has one', async () => {
+      const slow = slowRead({ ok: false, kind: 'unrecognised-layout' });
+      const { app, root } = openPage({ 'slow.pdf': slow.read }, { storage: savedStorage(a, b, d) });
+      const loading = app.load(0, pdf('slow.pdf'));
+      button(root, 'dog-0-dog-1').click();
+      await slow.release();
+      await loading;
+      expect(notice(root, 0)).toMatch(/^⚠slow\.pdf: This looks like a Wisdom Panel report/);
+      expect(root.querySelector('[data-slot="0"] .err a')?.textContent).toBe('Report the layout on the issue tracker');
     });
 
     it.each([
@@ -531,7 +544,7 @@ describe('adding one report to a slot', () => {
       button(root, 'dog-0-dog-1').click();
       await slow.release();
       await loading;
-      expect(notice(root, 0)).toBe(REJECTED);
+      expect(notice(root, 0)).toBe(rejected('slow.pdf'));
       await act(root, (file) => app.load(0, file));
       expect(notice(root, 0)).toBeNull();
     });
@@ -547,11 +560,11 @@ describe('adding one report to a slot', () => {
       const loadingSecond = app.load(0, pdf('second.pdf'));
       await first.release();
       await loadingFirst;
-      expect(notice(root, 0)).toBe(REJECTED);
+      expect(notice(root, 0)).toBe(rejected('first.pdf'));
       const spinner = root.querySelector('[data-slot="0"] .spin');
       expect(spinner).not.toBeNull();
       expect(root.querySelector('[data-slot="0"] .err')?.compareDocumentPosition(spinner ?? root)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-      expect(spoken(root)).toBe(`Parent 1: ${REJECTED.slice(1)}`);
+      expect(spoken(root)).toBe(`Parent 1: first.pdf: ${REASON}`);
       await second.release();
       await loadingSecond;
       expect(notice(root, 0)).toBeNull();
