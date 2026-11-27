@@ -1,5 +1,6 @@
-// A parent slot before it holds a card: empty with a picker, reading, or
-// showing why the last file was rejected, with a picker to try again.
+// A parent slot with nothing to choose: empty with a picker, reading, or
+// showing why the last file was rejected, with a picker to try again. Also the
+// pieces every slot shares: its heading, alert boxes and the undo line.
 
 import type { ParentIndex } from '../health/health.ts';
 import { h, svg } from './dom.ts';
@@ -10,12 +11,23 @@ export type OpenSlot =
   | { readonly kind: 'empty'; readonly error: Message | null }
   | { readonly kind: 'reading'; readonly fileName: string };
 
-/** An error or alert paragraph: icon and text, not colour alone. */
-export function alertBox(message: Message, className = ''): HTMLElement {
+/** A message tone, shown by its icon and not by colour alone. */
+export type Tone = 'warning' | 'info';
+
+const TONE_ICONS: Readonly<Record<Tone, string>> = { warning: '⚠', info: 'ⓘ' };
+
+/** A slot's own message: a rejection (warning) or a note about a report that went elsewhere (info). */
+export interface SlotNotice {
+  readonly tone: Tone;
+  readonly message: Message;
+}
+
+/** An error, alert or info paragraph: icon and text. Not a live region; the announcer speaks it. */
+export function alertBox(message: Message, className = '', tone: Tone = 'warning'): HTMLElement {
   return h(
     'p',
-    { class: `err ${className}`.trim() },
-    h('span', { 'aria-hidden': 'true', class: 'icon' }, '⚠'),
+    { class: ['err', tone === 'info' ? 'info' : '', className].filter((part) => part !== '').join(' ') },
+    h('span', { 'aria-hidden': 'true', class: 'icon' }, TONE_ICONS[tone]),
     h(
       'span',
       {},
@@ -44,7 +56,39 @@ function fileIcon(): SVGSVGElement {
   );
 }
 
-export function renderOpenSlot(slot: ParentIndex, state: OpenSlot, pick: (slot: ParentIndex) => void): HTMLElement {
+/** A dog as the page names it, with its predicted own colour when another saved dog shares the name. */
+export interface DogLabel {
+  readonly name: string;
+  readonly colour: string | null;
+}
+
+/** "Deleted Luna. Undo": the colour is for screen readers, telling apart dogs that share a name. */
+export function undoLine(slot: ParentIndex, deleted: DogLabel, undo: (slot: ParentIndex) => void): HTMLElement {
+  const button = h('button', { type: 'button', class: 'ghost', 'data-key': `undo-${slot}` }, 'Undo');
+  button.addEventListener('click', () => undo(slot));
+  return h(
+    'p',
+    { class: 'undo' },
+    h('span', {}, 'Deleted ', deleted.name, deleted.colour === null ? null : h('span', { class: 'vh' }, `, ${deleted.colour}`), '.'),
+    ' ',
+    button,
+  );
+}
+
+/** What an empty slot shows above its picker once saved dogs exist. */
+export interface OpenSlotExtras {
+  /** The report added here was the other slot's dog. */
+  readonly notice: Message | null;
+  readonly deleted: DogLabel | null;
+  undo(slot: ParentIndex): void;
+}
+
+export function renderOpenSlot(
+  slot: ParentIndex,
+  state: OpenSlot,
+  pick: (slot: ParentIndex) => void,
+  extras?: OpenSlotExtras,
+): HTMLElement {
   const headingId = slotHeadingId(slot);
   const heading = (text: string): HTMLElement => slotHeading(slot, text);
 
@@ -68,6 +112,8 @@ export function renderOpenSlot(slot: ParentIndex, state: OpenSlot, pick: (slot: 
     { class: 'slot', 'aria-labelledby': headingId, 'data-slot': String(slot) },
     heading(state.error === null ? 'No report yet' : 'Report can’t be read'),
     state.error === null ? null : alertBox(state.error),
+    extras === undefined || extras.notice === null ? null : alertBox(extras.notice, '', 'info'),
+    extras === undefined || extras.deleted === null ? null : undoLine(slot, extras.deleted, extras.undo),
     h(
       'div',
       { class: 'drop' },

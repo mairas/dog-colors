@@ -1,5 +1,6 @@
-// A loaded parent's card: who the report says the dog is, its colour genotype
-// as read, its predicted own colour, and the question that can settle it.
+// A parent's card: who the report says the dog is, its colour genotype as
+// read, its predicted own colour, and the question that can settle it. A
+// list-mode slot shows the same content as its card body, under its list.
 
 import type { AllelePair } from '../genetics/alleles.ts';
 import type { OwnColour, ResolvedDog } from '../genetics/dog.ts';
@@ -11,11 +12,11 @@ import type { ParentIndex } from '../health/health.ts';
 import { COLOUR_GENES, COLOUR_VARIANTS, type ColourGene } from '../report/loci.ts';
 import type { Report } from '../report/types.ts';
 import { coatChip } from './coat.ts';
-import { h } from './dom.ts';
+import { h, type Child } from './dom.ts';
 import { flagTags } from './results.ts';
 import type { Message } from './messages.ts';
 import { alertBox, slotHeading, slotHeadingId } from './slots.ts';
-import { formatPairs, geneName, GENE_LABELS, lowerFirst, parentLabel } from './names.ts';
+import { formatPairs, geneName, GENE_LABELS, lowerFirst, parentLabel, SEX_NAMES } from './names.ts';
 
 export interface CardInput {
   readonly slot: ParentIndex;
@@ -33,12 +34,21 @@ export interface CardActions {
   remove(slot: ParentIndex): void;
 }
 
-const SEX_NAMES = { male: 'Male', female: 'Female' } as const;
+/** What a card shows about one dog. */
+export interface CardContent {
+  readonly slot: ParentIndex;
+  readonly name: string;
+  readonly report: Report;
+  readonly dog: ResolvedDog;
+  readonly nose: NoseAnswer | undefined;
+}
+
+type Answer = CardActions['answer'];
 
 export const dogName = (report: Report, slot: ParentIndex): string => report.name ?? parentLabel(slot);
 
 /** The coat picture of what the possible own colours share: a part they disagree on is unknown or left out. */
-function ownPicture(colours: readonly OwnColour[]): SVGSVGElement | null {
+export function ownPicture(colours: readonly OwnColour[]): SVGSVGElement | null {
   const [first, ...others] = colours;
   if (first === undefined) {
     return null;
@@ -53,7 +63,7 @@ function pairOf(genotype: OwnColour['genotypes'][number], gene: ColourGene): All
 }
 
 /** "White with brown markings (b/b) or white with black markings (B/b)" when the genotype is ambiguous. */
-function ownColourText(dog: ResolvedDog): string {
+export function ownColourText(dog: ResolvedDog): string {
   const [first, ...others] = dog.ownColours;
   if (first === undefined) {
     return 'Unknown';
@@ -104,7 +114,7 @@ function readsAs(dog: ResolvedDog, gene: ColourGene, answered: boolean): string 
   return `${pairs}: ${effect}${asked ? ' (your answer)' : ''}${locus.undocumented ? ' (undocumented combination)' : ''}`;
 }
 
-function genotypeTable(input: CardInput): HTMLElement {
+function genotypeTable(input: CardContent): HTMLElement {
   const { report, dog, slot } = input;
   const listed = COLOUR_GENES.filter(
     (gene) =>
@@ -138,7 +148,7 @@ function genotypeTable(input: CardInput): HTMLElement {
     h(
       'table',
       { class: 'geno' },
-      h('caption', { class: 'vh' }, `${dogName(report, slot)}: colour genotype as read`),
+      h('caption', { class: 'vh' }, `${input.name}: colour genotype as read`),
       h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, 'Gene'), h('th', { scope: 'col' }, 'Report'), h('th', { scope: 'col' }, 'Reads as'))),
       h('tbody', {}, ...rows),
     ),
@@ -154,7 +164,7 @@ function unreadLoci(dog: ResolvedDog): string | null {
   return `${unknown.map(geneName).join(', ')} ${unknown.length === 1 ? 'is' : 'are'} missing or unreadable in this report`;
 }
 
-function mismatchHelp(input: CardInput): HTMLElement {
+function mismatchHelp(input: CardContent): HTMLElement {
   const { dog, slot } = input;
   const unread = unreadLoci(dog);
   return h(
@@ -180,7 +190,7 @@ const NOSE_OPTIONS: readonly { readonly value: NoseAnswer | undefined; readonly 
   { value: undefined, label: 'Not sure', key: 'unsure' },
 ];
 
-function noseQuestion(input: CardInput, actions: CardActions): HTMLElement[] {
+function noseQuestion(input: CardContent, answer: Answer): HTMLElement[] {
   const { slot } = input;
   const radios = NOSE_OPTIONS.map((option) => {
     const radio = h('input', {
@@ -190,7 +200,7 @@ function noseQuestion(input: CardInput, actions: CardActions): HTMLElement[] {
       checked: input.nose === option.value,
       'data-key': `nose-${slot}-${option.key}`,
     });
-    radio.addEventListener('change', () => actions.answer(slot, option.value));
+    radio.addEventListener('change', () => answer(slot, option.value));
     return h('label', { class: 'r' }, radio, ` ${option.label}`);
   });
   return [
@@ -223,24 +233,12 @@ function missingNote(dog: ResolvedDog): HTMLElement | null {
   return unread === null ? null : h('p', { class: 'note' }, `${unread}, so what depends on it shows as unknown.`);
 }
 
-export function renderCard(input: CardInput, actions: CardActions): HTMLElement {
-  const { report, dog, slot } = input;
-  const nameId = slotHeadingId(slot);
+/** Everything under the heading: sex and breed, own colour, notes, the nose question and the genotype table. */
+function cardDetails(content: CardContent, answer: Answer): Child[] {
+  const { report, dog } = content;
   const details = [report.sex === null ? null : SEX_NAMES[report.sex], report.breed].filter((part) => part !== null);
   const flags = dog.ownColours.flatMap((colour) => colour.phenotype.flags);
-
-  const button = (key: string, text: string): HTMLButtonElement =>
-    h('button', { type: 'button', class: 'ghost', 'data-key': `${key}-${slot}`, 'aria-describedby': nameId }, text);
-  const replace = button('replace', input.replacing ? 'Reading…' : 'Replace');
-  replace.addEventListener('click', () => actions.replace(slot));
-  const remove = button('remove', 'Remove');
-  remove.addEventListener('click', () => actions.remove(slot));
-
-  return h(
-    'section',
-    { class: 'slot card', 'aria-labelledby': nameId, 'data-slot': String(slot) },
-    input.alert === null ? null : alertBox(input.alert, 'card-alert'),
-    slotHeading(slot, dogName(report, slot)),
+  return [
     details.length > 0 ? h('p', { class: 'sec meta' }, details.join(' · ')) : null,
     h(
       'div',
@@ -256,10 +254,47 @@ export function renderCard(input: CardInput, actions: CardActions): HTMLElement 
       ),
     ),
     missingNote(dog),
-    mismatchHelp(input),
-    ...(dog.questions.length > 0 ? noseQuestion(input, actions) : []),
+    mismatchHelp(content),
+    ...(dog.questions.length > 0 ? noseQuestion(content, answer) : []),
     ...unsettledNotes(dog),
-    genotypeTable(input),
+    genotypeTable(content),
+  ];
+}
+
+export function renderCard(input: CardInput, actions: CardActions): HTMLElement {
+  const { report, slot } = input;
+  const nameId = slotHeadingId(slot);
+  const name = dogName(report, slot);
+
+  const button = (key: string, text: string): HTMLButtonElement =>
+    h('button', { type: 'button', class: 'ghost', 'data-key': `${key}-${slot}`, 'aria-describedby': nameId }, text);
+  const replace = button('replace', input.replacing ? 'Reading…' : 'Replace');
+  replace.addEventListener('click', () => actions.replace(slot));
+  const remove = button('remove', 'Remove');
+  remove.addEventListener('click', () => actions.remove(slot));
+
+  return h(
+    'section',
+    { class: 'slot card', 'aria-labelledby': nameId, 'data-slot': String(slot) },
+    input.alert === null ? null : alertBox(input.alert, 'card-alert'),
+    slotHeading(slot, name),
+    ...cardDetails({ slot, name, report, dog: input.dog, nose: input.nose }, actions.answer),
     h('div', { class: 'actions' }, replace, remove),
   );
+}
+
+/**
+ * A chosen dog's card under its slot's list, without a heading of its own. A
+ * stale dog's card opens with a note and `readd`'s button.
+ */
+export function renderCardBody(content: CardContent, answer: Answer, readd: ((slot: ParentIndex) => void) | null): HTMLElement {
+  const { slot } = content;
+  let staleNote: HTMLElement | null = null;
+  if (readd !== null) {
+    staleNote = alertBox({ text: 'Read by an older version of this page.' }, 'stale-note', 'info');
+    const again = h('button', { type: 'button', class: 'ghost', 'data-key': `readd-${slot}` }, 'Add the report again');
+    again.addEventListener('click', () => readd(slot));
+    staleNote.append(again);
+  }
+  return h('div', { class: 'card-body' }, staleNote, ...cardDetails(content, answer));
 }

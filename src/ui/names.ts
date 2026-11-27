@@ -6,6 +6,7 @@ import { BASE_COLOUR_WORDS, type BaseColour, type Flag, type Pattern, type Trait
 import type { UnknownLocus } from '../genetics/results.ts';
 import type { ParentIndex } from '../health/health.ts';
 import type { ColourGene } from '../report/loci.ts';
+import type { Sex } from '../report/types.ts';
 
 export const GENE_LABELS: Readonly<Record<ColourGene, string>> = {
   ASIP: 'agouti',
@@ -26,6 +27,17 @@ export const GENE_LABELS: Readonly<Record<ColourGene, string>> = {
 export const geneName = (gene: ColourGene): string => `${gene} (${GENE_LABELS[gene]})`;
 
 export const parentLabel = (parent: ParentIndex): string => `Parent ${parent + 1}`;
+
+/** What a saved dog without a name is called, in rows, headings and results. */
+export const UNNAMED_DOG = 'Unnamed dog';
+
+export const savedName = (name: string | null): string => name ?? UNNAMED_DOG;
+
+export const SEX_NAMES: Readonly<Record<Sex, string>> = { male: 'Male', female: 'Female' };
+export const SEX_WORDS: Readonly<Record<Sex, string>> = { male: 'male', female: 'female' };
+export const SEX_PLURALS: Readonly<Record<Sex, string>> = { male: 'males', female: 'females' };
+/** Shown beside a name; the row's accessible name carries the word. */
+export const SEX_SYMBOLS: Readonly<Record<Sex, string>> = { male: '♂', female: '♀' };
 
 export const copiesText = (copies: number): string => (copies === 1 ? '1 copy' : `${copies} copies`);
 
