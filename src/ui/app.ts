@@ -793,73 +793,99 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   /** A slot that has nothing chosen and is not reading. */
   const free = (slot: ParentIndex): boolean => state.slots[slot].chosen === null && state.slots[slot].reading === null;
 
+  /** What a bulk add has saved and rejected so far. */
+  interface Tally {
+    readonly added: string[];
+    readonly updated: string[];
+    readonly rejected: RejectedFile[];
+  }
+
+  /** Counts a saved report under its dog's name as the store now holds it. */
+  function tally(into: Tally, outcome: AddOutcome, report: Report): void {
+    const name = savedName(store.dog(outcome.id)?.name ?? report.name);
+    (outcome.kind === 'added' ? into.added : into.updated).push(name);
+  }
+
   /**
-   * Reads several files one at a time and saves each. When they fit the slots
-   * free as they arrive, each is placed in its slot, in drop order, as a
-   * single add would place it, and a summary follows only if one updated a
-   * saved dog. Otherwise none is placed: progress, then the summary, show
-   * where the files arrived, and only those two are announced.
+   * Reads files that fit the free slots one at a time and places each in its
+   * slot, in drop order, as a single add would. A summary follows only if one
+   * updated a saved dog; it is shown, not announced.
    */
-  async function addSeveral(files: readonly File[], at: ParentIndex | null): Promise<void> {
+  async function addPlaced(files: readonly File[], open: readonly ParentIndex[], at: ParentIndex | null): Promise<void> {
     const batch = ++bulks;
     const cleared = clears;
-    const open = SLOTS.filter(free);
-    const placing = files.length <= open.length;
-    const slotsFor = files.map((file, index) => {
-      const slot = placing ? open[index] : undefined;
-      return slot === undefined ? null : { slot, token: reserve(slot, file) };
+    const reads = files.flatMap((file, index) => {
+      const slot = open[index];
+      return slot === undefined ? [] : [{ file, slot, token: reserve(slot, file) }];
     });
-    const total = files.length;
-    state = { ...state, bulk: placing ? null : { at, status: { kind: 'reading', current: 1, total } } };
+    state = { ...state, bulk: null };
     render();
-    if (placing) {
-      announcer.announce(`Reading the reports for ${open.map(parentLabel).join(' and ')}…`);
-    } else {
-      announcer.announce(bulkStartText(total));
-      if (at === null) {
-        pageBulk.scrollIntoView({ block: 'nearest' });
-      }
-    }
+    announcer.announce(`Reading the reports for ${reads.map(({ slot }) => parentLabel(slot)).join(' and ')}…`);
 
-    const summary: { added: string[]; updated: string[]; rejected: RejectedFile[] } = { added: [], updated: [], rejected: [] };
-    for (const [index, file] of files.entries()) {
+    const saved: Tally = { added: [], updated: [], rejected: [] };
+    for (const { file, slot, token } of reads) {
       const result = await readReport(file);
       if (cleared !== clears) {
         // Clear saved dogs was confirmed during the read: the rest is discarded.
         return;
       }
-      const reserved = slotsFor[index] ?? null;
-      let outcome: AddOutcome | null = null;
-      if (reserved !== null) {
-        outcome = finishLoad(reserved.slot, reserved.token, file.name, result, null);
-      } else if (result?.ok === true) {
-        outcome = store.add(result.report).outcome;
-        endUndo();
-      } else {
-        summary.rejected.push({ name: file.name, message: rejection(result) });
-      }
+      const outcome = finishLoad(slot, token, file.name, result, null);
       if (outcome !== null && result?.ok === true) {
-        const name = savedName(store.dog(outcome.id)?.name ?? result.report.name);
-        (outcome.kind === 'added' ? summary.added : summary.updated).push(name);
+        tally(saved, outcome, result.report);
       }
-      if (!placing && batch === bulks && index + 1 < total) {
-        state = { ...state, bulk: { at, status: { kind: 'reading', current: index + 2, total } } };
-      }
-      if (reserved === null) {
-        render();
-      }
+    }
+    // A later bulk add owns the progress and summary.
+    if (batch === bulks && saved.updated.length > 0) {
+      state = { ...state, bulk: { at, status: { kind: 'summary', ...saved } } };
+      render();
+    }
+  }
+
+  /**
+   * Reads files one at a time and saves each, placing none: progress, then
+   * the summary, show where the files arrived, and only those two are announced.
+   */
+  async function addUnplaced(files: readonly File[], at: ParentIndex | null): Promise<void> {
+    const batch = ++bulks;
+    const cleared = clears;
+    const total = files.length;
+    state = { ...state, bulk: { at, status: { kind: 'reading', current: 1, total } } };
+    render();
+    announcer.announce(bulkStartText(total));
+    if (at === null) {
+      pageBulk.scrollIntoView({ block: 'nearest' });
     }
 
-    // A later bulk add owns the progress and summary; this one's dogs are saved all the same.
-    if (batch !== bulks || (placing && summary.updated.length === 0)) {
-      return;
+    const saved: Tally = { added: [], updated: [], rejected: [] };
+    for (const [index, file] of files.entries()) {
+      const result = await readReport(file);
+      if (cleared !== clears) {
+        return;
+      }
+      if (result?.ok === true) {
+        tally(saved, store.add(result.report).outcome, result.report);
+        endUndo();
+      } else {
+        saved.rejected.push({ name: file.name, message: rejection(result) });
+      }
+      if (batch === bulks && index + 1 < total) {
+        state = { ...state, bulk: { at, status: { kind: 'reading', current: index + 2, total } } };
+      }
+      render();
     }
-    const done: BulkSummary = { kind: 'summary', ...summary };
-    state = { ...state, bulk: { at, status: done } };
-    render();
-    if (!placing) {
+    // A later bulk add owns the progress and summary; this one's dogs are saved all the same.
+    if (batch === bulks) {
+      const done: BulkSummary = { kind: 'summary', ...saved };
+      state = { ...state, bulk: { at, status: done } };
+      render();
       announcer.announce(bulkSummaryText(done));
     }
+  }
+
+  /** Several files: placed when they fit the slots free as they arrive, otherwise none is placed. */
+  async function addSeveral(files: readonly File[], at: ParentIndex | null): Promise<void> {
+    const open = SLOTS.filter(free);
+    await (files.length <= open.length ? addPlaced(files, open, at) : addUnplaced(files, at));
   }
 
   const actions: ListActions = {
