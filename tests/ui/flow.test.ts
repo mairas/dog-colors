@@ -669,6 +669,79 @@ describe('adding several reports', () => {
     await adding;
   });
 
+  it('shows the storage warning when storage refuses partway through a bulk add, and keeps the rest for the visit', async () => {
+    const { slow, files, results: dogReads } = slowDogs(3);
+    const storage = new MemoryStorage();
+    const { app, root } = openPage(dogReads, { storage });
+    const adding = app.drop(files, 0);
+    await slow[0]?.release();
+    await vi.waitFor(() => expect(progress(root, 0)).toBe('Reading 2 of 3 reports…'));
+    storage.failWrites = true;
+    await slow[1]?.release();
+    await vi.waitFor(() => expect(progress(root, 0)).toBe('Reading 3 of 3 reports…'));
+    expect(root.querySelector('.storage-alert [role="alert"]')?.textContent).toContain('New dogs can’t be saved in this browser');
+    await slow[2]?.release();
+    await adding;
+    expect(summary(root, 0)).toBe('Added 3 dogs.');
+    expect(saved(root)).toHaveLength(3);
+    const stored = JSON.parse(storage.getItem(SAVED_DOGS_KEY) ?? '{}') as { dogs: unknown[] };
+    expect(stored.dogs).toHaveLength(1);
+  });
+
+  it('names a file the reader failed on in the summary, and reads the rest', async () => {
+    const { app, root } = openPage({ ...reads, 'broken.pdf': () => Promise.reject(new Error('worker failed')) });
+    await app.drop([pdf('a.pdf'), pdf('broken.pdf'), pdf('b.pdf')], 0);
+    expect(summary(root, 0)).toBe("Added 2 dogs.⚠broken.pdf: Couldn't start the PDF reader. Reload the page and try again.");
+  });
+
+  it('discards a placed batch’s remaining read when Clear saved dogs is confirmed during it', async () => {
+    const [first, second] = [slowRead(ok(a)), slowRead(ok(b))];
+    const storage = new MemoryStorage();
+    const { app, root } = openPage({ '1.pdf': first.read, '2.pdf': second.read }, { storage });
+    const adding = app.drop([pdf('1.pdf'), pdf('2.pdf')], null);
+    await first.release();
+    await vi.waitFor(() => expect(heading(root, 0)).toBe('Parent 1Sample A'));
+    button(root, 'clear-saved').click();
+    button(root, 'clear-delete').click();
+    await second.release();
+    await adding;
+    expect(headings(root)).toEqual(['Parent 1No report yet', 'Parent 2No report yet']);
+    expect(root.querySelector('.err, .bulk, .bulk-summary')).toBeNull();
+    expect(storage.getItem(SAVED_DOGS_KEY)).toBeNull();
+    expect(spoken(root)).toBe('All saved dogs deleted.');
+  });
+
+  it('reads one file dropped outside the slots while both read, with page-level progress and summary', async () => {
+    const [first, second] = [slowRead(ok(a)), slowRead(ok(b))];
+    const { app, root } = openPage({ ...reads, '1.pdf': first.read, '2.pdf': second.read });
+    const loads = [app.load(0, pdf('1.pdf')), app.load(1, pdf('2.pdf'))];
+    const adding = app.drop([pdf('c.pdf')], null);
+    expect(progress(root, 'page')).toBe('Reading 1 report…');
+    await adding;
+    expect(summary(root, 'page')).toBe('Added Sample C.');
+    expect([...root.querySelectorAll('[data-slot] .add .file')].map((line) => line.textContent)).toEqual(['Reading 1.pdf…', 'Reading 2.pdf…']);
+    await first.release();
+    await second.release();
+    await Promise.all(loads);
+    expect(headings(root)).toEqual(['Parent 1Sample A', 'Parent 2Sample B']);
+  });
+
+  it('keeps a bulk add’s progress through a delete and a single add in the other slot', async () => {
+    const { slow, files, results: dogReads } = slowDogs(3);
+    const { app, root } = openPage({ ...reads, ...dogReads }, { storage: savedStorage(a, b) });
+    const adding = app.drop(files, 0);
+    button(root, 'delete-1-dog-2').click();
+    expect(progress(root, 0)).toBe('Reading 1 of 3 reports…');
+    await app.load(1, pdf('c.pdf'));
+    expect(heading(root, 1)).toBe('Parent 2Sample C');
+    expect(progress(root, 0)).toBe('Reading 1 of 3 reports…');
+    for (const read of slow) {
+      await read.release();
+    }
+    await adding;
+    expect(summary(root, 0)).toBe('Added 3 dogs.');
+  });
+
   it('returns focus from the progress to Add a dog when the summary replaces it', async () => {
     const { app, root } = openPage(reads, { storage: savedStorage(d) });
     button(root, 'pick-0').focus();
