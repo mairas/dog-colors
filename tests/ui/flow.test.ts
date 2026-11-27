@@ -938,6 +938,21 @@ describe('adding several reports', () => {
     expect(spoken(root)).toBe(`Added 4 dogs. photo.pdf: ${REJECTIONS['no-text'].text} scan.pdf: ${REJECTIONS['unreadable-text'].text}`);
   });
 
+  it('settles an add that joined a bulk add only once the shared summary shows', async () => {
+    const { slow, files, results: dogReads } = slowDogs(3);
+    const { app, root } = openPage({ ...reads, ...dogReads });
+    const first = app.drop(files, 0);
+    const shownWhenSettled: (string | null)[] = [];
+    const later = app.drop([pdf('a.pdf'), pdf('b.pdf')], 1).then(() => {
+      shownWhenSettled.push(summary(root, 0));
+    });
+    for (const read of slow) {
+      await read.release();
+    }
+    await Promise.all([first, later]);
+    expect(shownWhenSettled).toEqual(['Added 5 dogs.']);
+  });
+
   it('adds two files dropped on the page while a bulk add reads to it, placing neither', async () => {
     const { slow, files, results: dogReads } = slowDogs(3);
     const { app, root } = openPage({ ...reads, ...dogReads });

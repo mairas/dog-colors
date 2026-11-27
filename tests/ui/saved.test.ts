@@ -412,6 +412,47 @@ describe('a long list', () => {
       button(root, 'dog-1-dog-1').click();
       expect(list(root, 0).scrollTop).toBe(0);
     });
+
+    /** Three files of dogs whose names sort first, read slowly, and how to release each. */
+    function earlyDogs() {
+      const slow = [1, 2, 3].map((index) => slowRead(ok({ ...b, name: `Aada ${index}`, kitIdHash: null })));
+      const files = slow.map((_, index) => `aada-${index + 1}.pdf`);
+      return { slow, files: files.map(pdf), reads: Object.fromEntries(files.map((file, index) => [file, slow[index]?.read ?? (() => Promise.reject())])) };
+    }
+
+    it('keeps a list where it was scrolled while a bulk add saves dogs into it', async () => {
+      stubLayout();
+      const early = earlyDogs();
+      const { app, root } = openPage(early.reads, { storage: mixed() });
+      const away = 2 * ROW;
+      const adding = app.drop(early.files, 1);
+      const scrolled = list(root, 0);
+      scrolled.scrollTop = away;
+      await early.slow[0]?.release();
+      await vi.waitFor(() => expect(rows(root, 0)).toHaveLength(8));
+      expect(list(root, 0)).not.toBe(scrolled);
+      expect(list(root, 0).scrollTop).toBe(away);
+      for (const read of early.slow.slice(1)) {
+        await read.release();
+      }
+      await adding;
+    });
+
+    it('stays in view while a bulk add saves dogs above it', async () => {
+      stubLayout();
+      const early = earlyDogs();
+      const { app, root } = openPage(early.reads, { storage: mixed() });
+      button(root, 'dog-0-dog-7').click();
+      expect(inView(root, 0)).toBe(true);
+      const adding = app.drop(early.files, 1);
+      await early.slow[0]?.release();
+      await vi.waitFor(() => expect(rows(root, 0)).toHaveLength(8));
+      expect(inView(root, 0)).toBe(true);
+      for (const read of early.slow.slice(1)) {
+        await read.release();
+      }
+      await adding;
+    });
   });
 });
 
