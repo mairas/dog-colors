@@ -17,7 +17,11 @@ import {
   type ListActions,
   type ListSlotInput,
 } from '../../src/ui/list.ts';
-import { alertBox, renderOpenSlot } from '../../src/ui/slots.ts';
+import { alertBox, bulkSummary, renderOpenSlot, type BulkReading, type BulkSummary, type OpenSlotExtras } from '../../src/ui/slots.ts';
+
+const READING: BulkReading = { kind: 'reading', current: 3, total: 8 };
+const SUMMARY: BulkSummary = { kind: 'summary', added: ['Aino', 'Bruno'], updated: [], rejected: [] };
+const NO_EXTRAS: OpenSlotExtras = { notice: null, deleted: null, undo: () => undefined, bulk: null };
 import { MemoryStorage, sequentialIds, withNoseQuestion } from '../saved/storage.ts';
 import { sampleReport } from './app.ts';
 
@@ -89,6 +93,7 @@ function render(input: Partial<ListSlotInput> & Pick<ListSlotInput, 'dogs'>): HT
       notice: null,
       deleted: null,
       reading: null,
+      bulk: null,
       ...input,
     },
     ACTIONS,
@@ -547,6 +552,20 @@ describe('a list-mode slot’s messages and add control', () => {
     expect(element.querySelector('.card-body')).not.toBeNull();
   });
 
+  it('shows a bulk add’s progress in place of Add a dog, and its summary above it', () => {
+    const dogs = saved(dog('Aino', 'female'));
+    const reading = render({ dogs, bulk: READING });
+    expect(reading.querySelector('[data-key="pick-1"]')).toBeNull();
+    expect(text(reading.querySelector('.add[aria-busy="true"][data-key="progress-1"]'))).toBe('Reading 3 of 8 reports…');
+    const done = render({ dogs, bulk: SUMMARY });
+    expect(done.querySelector('.bulk-summary + .add [data-key="pick-1"]')).not.toBeNull();
+  });
+
+  it('keeps the slot’s own reading indicator in place of Add a dog while a bulk add reads', () => {
+    const element = render({ dogs: saved(dog('Aino', 'female')), reading: 'kuura.pdf', bulk: READING });
+    expect(text(element.querySelector('.add'))).toBe('Reading kuura.pdf…');
+  });
+
   it('asks the nose question on the chosen dog’s card, with its saved answer', () => {
     const dogs = saved(withNoseQuestion(dog('Nina', 'female')));
     const [nina] = dogs;
@@ -567,6 +586,7 @@ describe('an empty slot', () => {
       notice: null,
       deleted: { name: 'Aino', colour: null },
       undo: (slot) => calls.push(`undo ${slot}`),
+      bulk: null,
     });
     const children = [...element.children].map((child) => child.className || child.tagName.toLowerCase());
     expect(children).toEqual(['h2', 'undo', 'drop']);
@@ -581,15 +601,65 @@ describe('an empty slot', () => {
       notice: { text: 'This report is Bruno, already Parent 1; the saved dog was updated.' },
       deleted: null,
       undo: () => undefined,
+      bulk: null,
     });
     const children = [...element.children].map((child) => child.className || child.tagName.toLowerCase());
     expect(children).toEqual(['h2', 'err info', 'drop']);
     expect(element.querySelector('[role], [aria-live]')).toBeNull();
   });
 
+  it('shows a bulk add’s progress in place of Choose PDF, able to hold focus', () => {
+    const element = renderOpenSlot(0, { kind: 'empty', error: null }, pick, { ...NO_EXTRAS, bulk: READING });
+    expect([...element.children].map((child) => child.className || child.tagName.toLowerCase())).toEqual(['h2', 'drop']);
+    expect(element.getAttribute('aria-busy')).toBe('true');
+    expect(element.querySelector('[data-key="pick-0"]')).toBeNull();
+    const progress = byKey(element, 'progress-0');
+    expect(progress.querySelector('.spin')).not.toBeNull();
+    expect(progress.getAttribute('tabindex')).toBe('-1');
+    expect(text(progress)).toBe('Reading 3 of 8 reports…');
+    expect(heading(element)).toBe('No report yet');
+  });
+
+  it('shows a bulk add’s summary above Choose PDF', () => {
+    const element = renderOpenSlot(0, { kind: 'empty', error: null }, pick, { ...NO_EXTRAS, bulk: SUMMARY });
+    expect([...element.children].map((child) => child.className || child.tagName.toLowerCase())).toEqual(['h2', 'bulk-summary', 'drop']);
+    expect(text(byKey(element, 'pick-0'))).toBe('Choose PDF');
+  });
+
   it('is today’s slot without extras', () => {
     const element = renderOpenSlot(0, { kind: 'empty', error: null }, pick);
     expect([...element.children].map((child) => child.className || child.tagName.toLowerCase())).toEqual(['h2', 'drop']);
+  });
+});
+
+describe('a bulk add’s summary', () => {
+  const lead = (summary: Omit<BulkSummary, 'kind' | 'rejected'>): string =>
+    text(bulkSummary({ kind: 'summary', rejected: [], ...summary }).querySelector('b'));
+
+  it('counts the dogs added and updated, or names the one dog saved', () => {
+    expect(lead({ added: ['A', 'B', 'C', 'D', 'E', 'F'], updated: ['G'] })).toBe('Added 6 dogs and updated 1.');
+    expect(lead({ added: ['A', 'B'], updated: [] })).toBe('Added 2 dogs.');
+    expect(lead({ added: [], updated: ['A', 'B', 'C'] })).toBe('Updated 3 dogs.');
+    expect(lead({ added: ['A'], updated: ['A'] })).toBe('Added 1 dog and updated 1.');
+    expect(lead({ added: ['Luna'], updated: [] })).toBe('Added Luna.');
+    expect(lead({ added: [], updated: ['Luna'] })).toBe('Updated Luna.');
+    expect(lead({ added: [], updated: [] })).toBe('No dogs added.');
+  });
+
+  it('names each rejected file with its reason, with the rejection’s link, as literal text', () => {
+    const element = bulkSummary({
+      kind: 'summary',
+      added: ['<img src=x onerror=alert(1)>'],
+      updated: [],
+      rejected: [
+        { name: '<b>x</b>.pdf', message: { text: 'This PDF contains no text.' } },
+        { name: 'odd.pdf', message: { text: 'This layout is new.', link: { href: 'https://example.org/issues', label: 'Report it' } } },
+      ],
+    });
+    expect(element.querySelector('img')).toBeNull();
+    expect([...element.querySelectorAll('.err')].map(text)).toEqual(['⚠<b>x</b>.pdf couldn’t be read: this PDF contains no text.', '⚠odd.pdf couldn’t be read: this layout is new. Report it']);
+    expect(element.querySelector('.err a')?.getAttribute('href')).toBe('https://example.org/issues');
+    expect(element.querySelector('[role], [aria-live]')).toBeNull();
   });
 });
 

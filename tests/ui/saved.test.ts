@@ -802,7 +802,7 @@ describe('stored data the page cannot use', () => {
     vi.mocked(renderResults).mockImplementationOnce(() => {
       throw new Error('a rendering bug');
     });
-    const initial = { slots: [{ ...EMPTY_SLOT, chosen: 'dog-1' }, { ...EMPTY_SLOT, chosen: 'dog-2' }] as const, pageAlert: null, undo: null, clearing: false };
+    const initial = { slots: [{ ...EMPTY_SLOT, chosen: 'dog-1' }, { ...EMPTY_SLOT, chosen: 'dog-2' }] as const, bulk: null, undo: null, clearing: false };
     expect(() => openPage(reads, { storage: savedStorage(a, b), initial })).toThrow('a rendering bug');
   });
 
@@ -816,7 +816,7 @@ describe('stored data the page cannot use', () => {
           { chosen: 'dog-1', reading: null, notice: null, filter: '', showAll: false },
           { chosen: 'dog-2', reading: null, notice: null, filter: '', showAll: false },
         ],
-        pageAlert: null,
+        bulk: null,
         undo: null,
         clearing: false,
       },
@@ -971,7 +971,7 @@ describe('deleting a dog', () => {
     }
     const { root } = openPage(reads, {
       storage,
-      initial: { slots: [{ ...EMPTY_SLOT, chosen: 'dog-3' }, EMPTY_SLOT], pageAlert: null, undo: { deleted, slot: 0, chosen: true }, clearing: false },
+      initial: { slots: [{ ...EMPTY_SLOT, chosen: 'dog-3' }, EMPTY_SLOT], bulk: null, undo: { deleted, slot: 0, chosen: true }, clearing: false },
     });
     button(root, 'undo-0').click();
     expect(pressed(root, 0)).toEqual(['dog-0-dog-3']);

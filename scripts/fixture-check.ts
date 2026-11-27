@@ -16,7 +16,6 @@ const STATE_NAMES = [
   'slot-loaded',
   'slot-questions',
   'slot-unanswerable',
-  'page-drop-error',
   'slot-missing',
   'list-none-chosen',
   'list-chosen',

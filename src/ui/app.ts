@@ -9,7 +9,7 @@ import { predictPuppies, type PuppyPrediction } from '../genetics/results.ts';
 import { analyseHealth, type HealthAnalysis, type ParentIndex } from '../health/health.ts';
 import type { ReadResult, Report, Sex } from '../report/types.ts';
 import type { SavedDog, UsableDog } from '../saved/check.ts';
-import { openSavedDogs, type SavedDogs, type StoreMode, type StoredDog } from '../saved/store.ts';
+import { openSavedDogs, type AddOutcome, type SavedDogs, type StoreMode, type StoredDog } from '../saved/store.ts';
 import { createAnnouncer } from './announce.ts';
 import { h, svg } from './dom.ts';
 import { healthWarnings, renderHealth } from './health.ts';
@@ -29,22 +29,34 @@ import {
   type ListSlotInput,
 } from './list.ts';
 import {
-  DROP_FULL,
-  DROP_ONE_FREE,
-  DROP_READING,
-  DROP_TOO_MANY,
+  bulkStartText,
+  bulkSummaryLead,
   PRIVACY_DOWNLOAD,
   PRIVACY_KEPT,
   PRIVACY_READ,
   READER_FAILED,
   REJECTIONS,
+  REJECTED_FILE_JOIN,
   RESULTS_FAILED,
   sameDogNotice,
   STORAGE_WARNINGS,
+  type Message,
 } from './messages.ts';
-import { parentLabel, savedName } from './names.ts';
+import { lowerFirst, parentLabel, savedName } from './names.ts';
 import { ETHICS_LINK_KEY, renderResults, sameSexLead } from './results.ts';
-import { alertBox, renderOpenSlot, slotHeadingId, type DogLabel, type OpenSlot, type SlotNotice } from './slots.ts';
+import {
+  alertBox,
+  bulkProgress,
+  bulkSummary,
+  renderOpenSlot,
+  slotHeadingId,
+  type BulkStatus,
+  type BulkSummary,
+  type DogLabel,
+  type OpenSlot,
+  type RejectedFile,
+  type SlotNotice,
+} from './slots.ts';
 
 /** Reads a chosen file; throws only when the reader itself fails. */
 export type ReadFile = (file: File) => Promise<ReadResult>;
@@ -71,10 +83,16 @@ export interface UndoLine {
   readonly chosen: boolean;
 }
 
+/** Several files picked or dropped at once: their progress, then their summary until the next add or delete. */
+export interface BulkAdd {
+  /** The slot the files were picked or dropped in; null for a drop outside both slots. */
+  readonly at: ParentIndex | null;
+  readonly status: BulkStatus;
+}
+
 export interface AppState {
   readonly slots: readonly [SlotState, SlotState];
-  /** A page-level drop message, until the next action. */
-  readonly pageAlert: string | null;
+  readonly bulk: BulkAdd | null;
   readonly undo: UndoLine | null;
   /** Clear saved dogs is asking for its second tap. */
   readonly clearing: boolean;
@@ -101,6 +119,8 @@ export interface AppOptions {
 
 interface ViewState {
   readonly active: string | undefined;
+  /** The slot holding focus: when its focused element is replaced, focus goes to the slot's picker or the bulk progress in its place. */
+  readonly activeSlot: ParentIndex | null;
   readonly open: ReadonlyMap<string, boolean>;
   readonly expanded: ReadonlySet<string>;
   /** Each saved-dog list's scroll position. */
@@ -112,7 +132,7 @@ interface ViewState {
 export interface App {
   /** Reads a file into a slot, as the slot's picker does: a re-add when the picker was opened by Add the report again. */
   load(slot: ParentIndex, file: File): Promise<void>;
-  /** Applies the drop rules to files dropped on a slot, or elsewhere when `target` is null. */
+  /** Adds files dropped or picked in a slot, or dropped outside both slots when `target` is null. */
   drop(files: readonly File[], target: ParentIndex | null): Promise<void>;
 }
 
@@ -240,13 +260,15 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   // Even reading window.localStorage throws where storage is disabled.
   const storage = (): PageStorage => options.storage ?? window.localStorage;
   const store = options.savedDogs ?? openSavedDogs({ storage, now, ...(options.newId === undefined ? {} : { newId: options.newId }) });
-  let state: AppState = options.initial ?? { slots: [EMPTY_SLOT, EMPTY_SLOT], pageAlert: null, undo: null, clearing: false };
+  let state: AppState = options.initial ?? { slots: [EMPTY_SLOT, EMPTY_SLOT], bulk: null, undo: null, clearing: false };
   /** Each slot's latest read: an earlier one still saves its dog, but does not place it. */
   const tokens: [number, number] = [0, 0];
   /** Each slot's latest-started read that has finished, by token: a rejection finishing after it is out of date. */
   const finished: [number, number] = [0, 0];
   /** How many times Clear saved dogs was confirmed: a read that began before the latest is discarded. */
   let clears = 0;
+  /** How many bulk adds began: only the latest shows its progress and summary. */
+  let bulks = 0;
   /** The dog Add the report again was pressed for, until the slot's picker gives a file or Add a dog opens it. */
   const readdTargets: [string | null, string | null] = [null, null];
   const typingTimers: [number | undefined, number | undefined] = [undefined, undefined];
@@ -262,7 +284,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   let cachedHealth: { reports: readonly [Report, Report]; health: HealthAnalysis } | null = null;
 
   const announcer = createAnnouncer();
-  const dropAlert = h('div', { class: 'drop-alert' });
+  const pageBulk = h('div', { class: 'page-bulk' });
   const storageAlert = h('div', { class: 'storage-alert' });
   const privacy = h('span', {});
   const slotsEl = h('div', { class: 'slots' });
@@ -273,14 +295,18 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     const input = h('input', {
       type: 'file',
       accept: 'application/pdf,.pdf',
+      multiple: true,
       class: 'vh',
       tabindex: '-1',
       'aria-hidden': 'true',
       'data-testid': `file-${slot}`,
     });
     input.addEventListener('change', () => {
-      const file = input.files?.[0];
-      if (file !== undefined) {
+      const files = [...(input.files ?? [])];
+      const [file] = files;
+      if (files.length > 1) {
+        void app.drop(files, slot);
+      } else if (file !== undefined) {
         void app.load(slot, file);
       }
     });
@@ -295,7 +321,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     privacyNote(privacy),
     storageAlert,
     h('a', { class: 'ready btn', href: '#results' }, 'Results ready', h('span', { 'aria-hidden': 'true' }, '↓')),
-    dropAlert,
+    pageBulk,
     slotsEl,
     toolsEl,
     pairEl,
@@ -312,9 +338,11 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     state = { ...state, slots };
   };
 
-  /** Clears the page-level drop message, which lasts only until the next action. */
-  const clearTransient = (): void => {
-    state = { ...state, pageAlert: null };
+  /** Ends a bulk add's summary: the next add or delete does. */
+  const endSummary = (): void => {
+    if (state.bulk?.status.kind === 'summary') {
+      state = { ...state, bulk: null };
+    }
   };
 
   /** The saved dog, when the page can choose it: usable, and its genetics read. */
@@ -383,7 +411,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     readdTargets[0] = null;
     readdTargets[1] = null;
     store.clear();
-    state = { slots: [EMPTY_SLOT, EMPTY_SLOT], pageAlert: null, undo: null, clearing: false };
+    state = { slots: [EMPTY_SLOT, EMPTY_SLOT], bulk: null, undo: null, clearing: false };
     focusKeys = ['pick-0'];
     render();
     announcer.announce('All saved dogs deleted.');
@@ -394,13 +422,17 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     openPicker(slot);
   };
 
+  /** Opens the slot's picker: several files for Add a dog and Choose PDF, one for Add the report again. */
   function openPicker(slot: ParentIndex): void {
-    clearTransient();
     render();
     const input = inputs[slot];
+    input.multiple = readdTargets[slot] === null;
     input.value = '';
     input.click();
   }
+
+  /** The bulk add shown in the slot, or at page level for null. */
+  const bulkAt = (slot: ParentIndex | null): BulkStatus | null => (state.bulk !== null && state.bulk.at === slot ? state.bulk.status : null);
 
   /** The deleted dog the slot's undo line offers back. */
   const undoLabel = (slot: ParentIndex): DogLabel | null =>
@@ -422,6 +454,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       notice: current.notice,
       deleted: undoLabel(slot),
       reading: current.reading,
+      bulk: bulkAt(slot),
     };
   };
 
@@ -450,7 +483,8 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     const info = current.notice?.tone === 'info' ? current.notice.message : null;
     const open: OpenSlot =
       current.reading === null ? { kind: 'empty', error: warning } : { kind: 'reading', fileName: current.reading, error: warning };
-    return { element: renderOpenSlot(slot, open, pick, { notice: info, deleted: undoLabel(slot), undo: actions.undo }), layout: open.kind };
+    const extras = { notice: info, deleted: undoLabel(slot), undo: actions.undo, bulk: bulkAt(slot) };
+    return { element: renderOpenSlot(slot, open, pick, extras), layout: open.kind };
   }
 
   /** Both slots' dogs, when each holds one. */
@@ -512,8 +546,10 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       const element = slotsEl.querySelector<HTMLElement>(`[data-slot="${slot}"]`);
       return element !== null && chosenInView(element);
     });
-    const active = document.activeElement instanceof HTMLElement ? document.activeElement.dataset['key'] : undefined;
-    return { active, open, expanded, scrolled, chosenShown };
+    const focusedEl = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const slot = focusedEl?.closest<HTMLElement>('[data-slot]')?.dataset['slot'];
+    const activeSlot = slot === '0' ? 0 : slot === '1' ? 1 : null;
+    return { active: focusedEl?.dataset['key'], activeSlot, open, expanded, scrolled, chosenShown };
   }
 
   /**
@@ -542,7 +578,8 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       }
     });
     const keyed = (key: string): HTMLElement | null => root.querySelector<HTMLElement>(`[data-key="${CSS.escape(key)}"]`);
-    const target = [...focusKeys, view.active].find((key) => key !== undefined && keyed(key) !== null);
+    const replaced = view.activeSlot === null ? [] : [`pick-${view.activeSlot}`, `progress-${view.activeSlot}`];
+    const target = [...focusKeys, view.active, ...replaced].find((key) => key !== undefined && keyed(key) !== null);
     focusKeys = [];
     if (target !== undefined) {
       keyed(target)?.focus();
@@ -600,7 +637,10 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     drawStorage();
     drawTools();
 
-    dropAlert.replaceChildren(...(state.pageAlert === null ? [] : [alertBox({ text: state.pageAlert })]));
+    const page = bulkAt(null);
+    pageBulk.replaceChildren(
+      ...(page === null ? [] : [page.kind === 'reading' ? bulkProgress(page, 'bulk', null) : bulkSummary(page)]),
+    );
 
     const slots = SLOTS.map(renderSlot);
     slots.forEach(({ element, layout }, slot) => element.classList.toggle('enter', renderedLayouts[slot] !== layout));
@@ -651,56 +691,73 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     return lost || (slotsEl.querySelector(`[data-slot="${slot}"]`)?.contains(active) ?? false);
   }
 
-  /**
-   * Reads a file for a slot and saves it. Only the slot's latest read places
-   * its dog there; a superseded or overtaken read is still saved. A report of
-   * the dog the other slot holds updates that dog and leaves it there.
-   */
-  async function startLoad(slot: ParentIndex, file: File, target: string | null): Promise<void> {
-    const token = ++tokens[slot];
-    const cleared = clears;
+  /** Reads a file; null when the reader itself fails. */
+  async function readReport(file: File): Promise<ReadResult | null> {
+    try {
+      return await options.read(file);
+    } catch {
+      return null;
+    }
+  }
+
+  const rejection = (result: ReadResult | null): Message => (result === null || result.ok ? READER_FAILED : REJECTIONS[result.kind]);
+
+  /** Shows the slot reading the file; only the slot's latest read, by its token, places its dog there. */
+  function reserve(slot: ParentIndex, file: File): number {
     setSlot(slot, { reading: file.name, notice: null });
+    return ++tokens[slot];
+  }
+
+  /** Reads a file for a slot and saves it, unless Clear saved dogs is confirmed meanwhile. */
+  async function startLoad(slot: ParentIndex, file: File, target: string | null): Promise<void> {
+    endSummary();
+    const token = reserve(slot, file);
+    const cleared = clears;
     render();
     announcer.announce(`Reading the report for ${parentLabel(slot)}…`);
+    const result = await readReport(file);
+    if (cleared === clears) {
+      finishLoad(slot, token, file.name, result, target);
+    }
+  }
 
-    let result: ReadResult | null;
-    try {
-      result = await options.read(file);
-    } catch {
-      result = null;
-    }
-    if (cleared !== clears) {
-      // Clear saved dogs was confirmed during the read: Clear already emptied the slot.
-      return;
-    }
+  /**
+   * Saves a read made for a slot. Only the slot's latest read places its dog
+   * there; a superseded or overtaken read is still saved. A report of the dog
+   * the other slot holds updates that dog and leaves it there. Returns what
+   * the store did, or null for a rejected file.
+   */
+  function finishLoad(
+    slot: ParentIndex,
+    token: number,
+    fileName: string,
+    result: ReadResult | null,
+    target: string | null,
+  ): AddOutcome | null {
     const placed = token === tokens[slot];
     const overtaken = finished[slot] > token;
     finished[slot] = Math.max(finished[slot], token);
     if (placed) {
       setSlot(slot, { reading: null });
     }
-    // It says both reads are in progress, which stops being true once one settles.
-    if (state.pageAlert === DROP_READING) {
-      clearTransient();
-    }
 
     if (result?.ok !== true) {
       if (overtaken) {
         // A file added to the slot later has already finished: its outcome stands.
         render();
-        return;
+        return null;
       }
       // A superseded read shows its rejection too, named by its file since the
       // slot has moved on, but focus stays where the user has acted since.
-      const reason = result === null ? READER_FAILED : REJECTIONS[result.kind];
-      const message = placed ? reason : { ...reason, text: `${file.name}: ${reason.text}` };
+      const reason = rejection(result);
+      const message = placed ? reason : { ...reason, text: `${fileName}: ${reason.text}` };
       setSlot(slot, { notice: { tone: 'warning', message } });
       if (placed) {
         focusKeys = [`pick-${slot}`];
       }
       render();
       announcer.announce(`${parentLabel(slot)}: ${message.text}`);
-      return;
+      return null;
     }
 
     const moveFocus = focusInSlotOrLost(slot);
@@ -731,26 +788,91 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     const emptied = settle();
     render();
     announcer.announce(`${text}${placed && outcome.id === state.slots[slot].chosen ? resultsStatus() : ''}${clearedText(emptied)}`);
-  }
-
-  function pageMessage(text: string): void {
-    state = { ...state, pageAlert: text };
-    render();
-    dropAlert.scrollIntoView({ block: 'nearest' });
-    announcer.announce(text);
+    return outcome;
   }
 
   /** A slot that has nothing chosen and is not reading. */
   const free = (slot: ParentIndex): boolean => state.slots[slot].chosen === null && state.slots[slot].reading === null;
 
-  /** Both slots are taken: by a chosen dog, or by reads in progress. */
-  const slotsTaken = (): string => (SLOTS.some((slot) => state.slots[slot].chosen !== null) ? DROP_FULL : DROP_READING);
+  const summaryText = (summary: BulkSummary): string =>
+    [
+      bulkSummaryLead(summary.added, summary.updated),
+      ...summary.rejected.map(({ name, message }) => `${name}${REJECTED_FILE_JOIN}${lowerFirst(message.text)}`),
+    ].join(' ');
+
+  /**
+   * Reads several files one at a time and saves each. When they fit the slots
+   * free as they arrive, each is placed in its slot, in drop order, as a
+   * single add would place it, and a summary follows only if one updated a
+   * saved dog. Otherwise none is placed: progress, then the summary, show
+   * where the files arrived, and only those two are announced.
+   */
+  async function addSeveral(files: readonly File[], at: ParentIndex | null): Promise<void> {
+    const batch = ++bulks;
+    const cleared = clears;
+    const open = SLOTS.filter(free);
+    const placing = files.length <= open.length;
+    const slotsFor = files.map((file, index) => {
+      const slot = placing ? open[index] : undefined;
+      return slot === undefined ? null : { slot, token: reserve(slot, file) };
+    });
+    const total = files.length;
+    state = { ...state, bulk: placing ? null : { at, status: { kind: 'reading', current: 1, total } } };
+    render();
+    if (placing) {
+      announcer.announce(`Reading the reports for ${open.map(parentLabel).join(' and ')}…`);
+    } else {
+      announcer.announce(bulkStartText(total));
+      if (at === null) {
+        pageBulk.scrollIntoView({ block: 'nearest' });
+      }
+    }
+
+    const summary: { added: string[]; updated: string[]; rejected: RejectedFile[] } = { added: [], updated: [], rejected: [] };
+    for (const [index, file] of files.entries()) {
+      const result = await readReport(file);
+      if (cleared !== clears) {
+        // Clear saved dogs was confirmed during the read: the rest is discarded.
+        return;
+      }
+      const reserved = slotsFor[index] ?? null;
+      let outcome: AddOutcome | null = null;
+      if (reserved !== null) {
+        outcome = finishLoad(reserved.slot, reserved.token, file.name, result, null);
+      } else if (result?.ok === true) {
+        outcome = store.add(result.report).outcome;
+        endUndo();
+      } else {
+        summary.rejected.push({ name: file.name, message: rejection(result) });
+      }
+      if (outcome !== null && result?.ok === true) {
+        const name = savedName(store.dog(outcome.id)?.name ?? result.report.name);
+        (outcome.kind === 'added' ? summary.added : summary.updated).push(name);
+      }
+      if (!placing && batch === bulks && index + 1 < total) {
+        state = { ...state, bulk: { at, status: { kind: 'reading', current: index + 2, total } } };
+      }
+      if (reserved === null) {
+        render();
+      }
+    }
+
+    // A later bulk add owns the progress and summary; this one's dogs are saved all the same.
+    if (batch !== bulks || (placing && summary.updated.length === 0)) {
+      return;
+    }
+    const done: BulkSummary = { kind: 'summary', ...summary };
+    state = { ...state, bulk: { at, status: done } };
+    render();
+    if (!placing) {
+      announcer.announce(summaryText(done));
+    }
+  }
 
   const actions: ListActions = {
     toggle(slot, id) {
       const clearing = state.slots[slot].chosen === id;
       supersede(slot);
-      clearTransient();
       endUndo();
       choose(slot, clearing ? null : id);
       // A cleared row that the filter or the sex narrowing hides leaves the list.
@@ -769,7 +891,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       );
       const chosen = state.slots[slot].chosen === id;
       SLOTS.filter((other) => state.slots[other].chosen === id).forEach((other) => choose(other, null));
-      clearTransient();
+      endSummary();
       const { deleted } = store.remove(id);
       state = { ...state, undo: deleted === null ? null : { deleted, slot, chosen } };
       const cleared = settle();
@@ -791,7 +913,6 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       if (line === null) {
         return;
       }
-      clearTransient();
       endUndo();
       const { outcome } = store.restore(line.deleted);
       const { slot } = line;
@@ -817,7 +938,6 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       if (chosen === null) {
         return;
       }
-      clearTransient();
       store.setNose(chosen, nose ?? null);
       const cleared = settle();
       render();
@@ -829,32 +949,16 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     async load(slot, file) {
       const target = readdTargets[slot];
       readdTargets[slot] = null;
-      clearTransient();
       await startLoad(slot, file, target);
     },
     async drop(files, target) {
-      clearTransient();
-      const open = SLOTS.filter(free);
-      const [first, second] = files;
-      if (files.length > 2) {
-        pageMessage(DROP_TOO_MANY);
-      } else if (first === undefined) {
-        render();
-      } else if (second === undefined) {
-        const slot = target ?? open[0];
-        if (slot === undefined) {
-          pageMessage(slotsTaken());
-        } else {
-          await startLoad(slot, first, null);
-        }
-      } else if (open.length === 2) {
-        await Promise.all([startLoad(0, first, null), startLoad(1, second, null)]);
-      } else if (open[0] !== undefined) {
-        const loading = startLoad(open[0], first, null);
-        pageMessage(DROP_ONE_FREE);
-        await loading;
-      } else {
-        pageMessage(slotsTaken());
+      const [file] = files;
+      // One file goes to the slot it was dropped on, or outside the slots to the first free one.
+      const slot = target ?? SLOTS.find(free);
+      if (files.length === 1 && file !== undefined && slot !== undefined) {
+        await startLoad(slot, file, null);
+      } else if (files.length > 0) {
+        await addSeveral(files, target);
       }
     },
   };

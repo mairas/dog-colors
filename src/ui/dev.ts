@@ -23,7 +23,7 @@ import { READER_VERSION } from '../report/version.ts';
 import { STORED_VERSION } from '../saved/check.ts';
 import { openSavedDogs, SAVED_DOGS_KEY, type SavedDogs, type StoredDog } from '../saved/store.ts';
 import { EMPTY_SLOT, NOTE_HIDDEN_KEY, type AppOptions, type AppState, type PageStorage, type SlotState } from './app.ts';
-import { DROP_FULL, REJECTIONS, sameDogNotice, type Message } from './messages.ts';
+import { REJECTIONS, sameDogNotice, type Message } from './messages.ts';
 
 const FIXTURES: Readonly<Record<string, { readonly lines: readonly Line[] }>> = {
   a: fixtureA,
@@ -215,7 +215,7 @@ const slot = (chosen: string | null = null, changes: Partial<SlotState> = {}): S
 const warning = (message: Message): Partial<SlotState> => ({ notice: { tone: 'warning', message } });
 const sameDog: Partial<SlotState> = { notice: { tone: 'info', message: sameDogNotice('Sample A', 'Parent 1') } };
 const start = (first: SlotState, second: SlotState, page: Partial<Omit<AppState, 'slots'>> = {}): FixtureStart => ({
-  initial: { slots: [first, second], pageAlert: null, undo: null, clearing: false, ...page },
+  initial: { slots: [first, second], bulk: null, undo: null, clearing: false, ...page },
 });
 
 /** Four dogs: two males (A, C) and two females (B, D). */
@@ -241,7 +241,6 @@ const STATES: Readonly<Record<string, (seed: Seeder) => Promise<FixtureStart>>> 
   'slot-loaded': async (seed) => start(slot(await seed.save('q', 'brown')), slot(await seed.save('b'))),
   'slot-questions': async (seed) => start(slot(await seed.save('q')), slot(await seed.save('b'))),
   'slot-unanswerable': async (seed) => start(slot(await seed.save('x')), slot(await seed.save('b'))),
-  'page-drop-error': async (seed) => start(slot(await seed.save('q', 'brown')), slot(await seed.save('b')), { pageAlert: DROP_FULL }),
   'slot-missing': async (seed) => start(slot(await seed.save('q', 'brown')), slot(await seed.save('m'))),
   'list-none-chosen': async (seed) => {
     await four(seed);

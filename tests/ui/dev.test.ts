@@ -29,7 +29,6 @@ const MARKERS: Readonly<Record<string, readonly [selector: string, text: string]
   'slot-loaded': ['.has-results [data-slot="1"] h2', 'Sample B'],
   'slot-questions': ['[data-slot="0"] legend', 'Nose and paw pads: black or brown?'],
   'slot-unanswerable': ['[data-slot="0"] .note', "The report can't tell which; results show both."],
-  'page-drop-error': ['.drop-alert', 'Both slots are full. Drop the report on the slot you want it in.'],
   'slot-missing': ['[data-slot="1"] .flag', 'not in report'],
   'list-none-chosen': ['[data-slot="0"] h2', 'Choose a dog'],
   'list-chosen': ['[data-slot="0"] button.dog[aria-pressed="true"]', 'Sample A'],

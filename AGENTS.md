@@ -75,7 +75,6 @@ Every state of the page can be rendered without real reports through a dev-only 
 | Both dogs chosen | `?state=slot-loaded` |
 | Open nose question (bd 1 + bc 1) | `?state=slot-questions` |
 | Ambiguity no question settles (ASIP) | `?state=slot-unanswerable` |
-| Page-level drop message | `?state=page-drop-error` |
 | Locus missing from a report | `?state=slot-missing` |
 | Four saved dogs, nothing chosen | `?state=list-none-chosen` |
 | One dog chosen, the other list narrowed to females | `?state=list-chosen` |

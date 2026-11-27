@@ -34,10 +34,29 @@ export const REJECTIONS: Readonly<Record<RejectionKind, Message>> = {
 
 export const READER_FAILED: Message = { text: "Couldn't start the PDF reader. Reload the page and try again." };
 
-export const DROP_TOO_MANY = 'Drop at most two reports.';
-export const DROP_ONE_FREE = "Only one slot was free, so the second report wasn't loaded.";
-export const DROP_FULL = 'Both slots are full. Drop the report on the slot you want it in.';
-export const DROP_READING = 'Both reports are still being read. Drop the report on the slot you want it in.';
+/** What a bulk add says as it starts: "Reading 8 reports…". */
+export const bulkStartText = (total: number): string => (total === 1 ? 'Reading 1 report…' : `Reading ${total} reports…`);
+
+/** A bulk add's progress: "Reading 3 of 8 reports…". */
+export const bulkProgressText = (current: number, total: number): string =>
+  total === 1 ? bulkStartText(total) : `Reading ${current} of ${total} reports…`;
+
+const dogCount = (count: number): string => `${count} ${count === 1 ? 'dog' : 'dogs'}`;
+
+/** A bulk add's summary lead, from the names of the dogs it added and updated: "Added 6 dogs and updated 1.", or the name when one dog was saved. */
+export function bulkSummaryLead(added: readonly string[], updated: readonly string[]): string {
+  const [only] = [...added, ...updated];
+  if (added.length + updated.length === 1 && only !== undefined) {
+    return `${added.length === 1 ? 'Added' : 'Updated'} ${only}.`;
+  }
+  if (updated.length === 0) {
+    return added.length === 0 ? 'No dogs added.' : `Added ${dogCount(added.length)}.`;
+  }
+  return added.length === 0 ? `Updated ${dogCount(updated.length)}.` : `Added ${dogCount(added.length)} and updated ${updated.length}.`;
+}
+
+/** Joins a rejected file's name to its reason: "photo.pdf couldn’t be read: " and the rejection text. */
+export const REJECTED_FILE_JOIN = ' couldn’t be read: ';
 
 /** The results area's message when the genetics reject a pair's stored data. */
 export const RESULTS_FAILED: Message = {

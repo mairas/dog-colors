@@ -10,7 +10,7 @@ import type { SavedDog, UsableDog } from '../saved/check.ts';
 import { ownColourText, ownPicture, renderCardBody, type CardActions } from './card.ts';
 import { h, svg } from './dom.ts';
 import { lowerFirst, parentLabel, savedName, SEX_PLURALS, SEX_SYMBOLS, SEX_WORDS } from './names.ts';
-import { alertBox, fileIcon, slotHeading, slotHeadingId, undoLine, type DogLabel, type SlotNotice } from './slots.ts';
+import { alertBox, bulkProgress, bulkSummary, fileIcon, slotHeading, slotHeadingId, undoLine, type BulkStatus, type DogLabel, type SlotNotice } from './slots.ts';
 
 /** More saved dogs than this and each slot gets a filter field. */
 export const FILTER_FROM = 6;
@@ -68,6 +68,8 @@ export interface ListSlotInput extends ListingInput {
   readonly deleted: DogLabel | null;
   /** The name of a file being read for this slot. */
   readonly reading: string | null;
+  /** A bulk add's progress, in place of Add a dog, or its summary above it. */
+  readonly bulk: BulkStatus | null;
 }
 
 /** Whether a slot lists dogs: any saved dog but the other slot's, stale and unusable ones included. */
@@ -357,7 +359,9 @@ export function renderListSlot(input: ListSlotInput, actions: ListActions): HTML
   }
 
   let add: HTMLElement;
-  if (input.reading === null) {
+  if (input.reading === null && input.bulk?.kind === 'reading') {
+    add = bulkProgress(input.bulk, 'add', slot);
+  } else if (input.reading === null) {
     const picker = h('button', { type: 'button', class: 'ghost', 'data-key': `pick-${slot}`, 'aria-describedby': headingId }, 'Add a dog');
     picker.addEventListener('click', () => actions.pick(slot));
     add = h('div', { class: 'add' }, picker, ' ', h('span', { class: 'sec' }, 'or drop reports here'));
@@ -378,6 +382,7 @@ export function renderListSlot(input: ListSlotInput, actions: ListActions): HTML
     showsFilter(input.dogs) ? h('label', { class: 'find' }, h('span', { class: 'vh' }, `Find a dog for ${parentLabel(slot)}`), field) : null,
     renderListing(input, actions),
     input.deleted === null ? null : undoLine(slot, input.deleted, actions.undo),
+    input.bulk?.kind === 'summary' ? bulkSummary(input.bulk) : null,
     add,
     chosen === null
       ? null

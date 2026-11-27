@@ -1,11 +1,12 @@
 // A parent slot with nothing to choose: empty with a picker, reading, or
 // showing why the last file was rejected, with a picker to try again. Also the
-// pieces every slot shares: its heading, alert boxes and the undo line.
+// pieces every slot shares: its heading, alert boxes, the undo line and a bulk
+// add's progress and summary.
 
 import type { ParentIndex } from '../health/health.ts';
 import { h, svg } from './dom.ts';
-import type { Message } from './messages.ts';
-import { parentLabel } from './names.ts';
+import { bulkProgressText, bulkSummaryLead, REJECTED_FILE_JOIN, type Message } from './messages.ts';
+import { lowerFirst, parentLabel } from './names.ts';
 
 export type OpenSlot =
   | { readonly kind: 'empty'; readonly error: Message | null }
@@ -36,6 +37,68 @@ export function alertBox(message: Message, className = '', tone: Tone = 'warning
       message.text,
       message.link === undefined ? null : ' ',
       message.link === undefined ? null : h('a', { href: message.link.href, rel: 'noopener' }, message.link.label),
+    ),
+  );
+}
+
+/** A file a bulk add could not read, and why. */
+export interface RejectedFile {
+  readonly name: string;
+  readonly message: Message;
+}
+
+/** A bulk add reading its files one at a time. */
+export interface BulkReading {
+  readonly kind: 'reading';
+  /** The file being read, counted from 1. */
+  readonly current: number;
+  readonly total: number;
+}
+
+/** What a bulk add did: the names of the dogs it added and updated, and the files it could not read. */
+export interface BulkSummary {
+  readonly kind: 'summary';
+  readonly added: readonly string[];
+  readonly updated: readonly string[];
+  readonly rejected: readonly RejectedFile[];
+}
+
+export type BulkStatus = BulkReading | BulkSummary;
+
+/**
+ * "Reading 3 of 8 reports…" with a spinner. In a slot it stands where the
+ * slot's picker was, and can hold focus while the picker is gone.
+ */
+export function bulkProgress(status: BulkReading, className: string, slot: ParentIndex | null): HTMLElement {
+  return h(
+    'div',
+    { class: className, 'aria-busy': 'true', ...(slot === null ? {} : { 'data-key': `progress-${slot}`, tabindex: '-1' }) },
+    h('span', { class: 'spin', 'aria-hidden': 'true' }),
+    h('span', {}, bulkProgressText(status.current, status.total)),
+  );
+}
+
+/** The counts, then each rejected file by name with its reason. Not a live region; the announcer speaks it. */
+export function bulkSummary(summary: BulkSummary): HTMLElement {
+  return h(
+    'div',
+    { class: 'bulk-summary' },
+    h('p', {}, h('b', {}, bulkSummaryLead(summary.added, summary.updated))),
+    ...summary.rejected.map(({ name, message }) =>
+      h(
+        'p',
+        { class: 'err' },
+        h('span', { 'aria-hidden': 'true', class: 'icon' }, TONE_ICONS.warning),
+        h(
+          'span',
+          {},
+          h('b', {}, name),
+          REJECTED_FILE_JOIN,
+          lowerFirst(message.text),
+          message.link === undefined ? null : ' ',
+          message.link === undefined ? null : h('a', { href: message.link.href, rel: 'noopener' }, message.link.label),
+        ),
+      ),
     ),
   );
 }
@@ -82,6 +145,8 @@ export interface OpenSlotExtras {
   readonly notice: Message | null;
   readonly deleted: DogLabel | null;
   undo(slot: ParentIndex): void;
+  /** A bulk add's progress, in place of Choose PDF, or its summary above it. */
+  readonly bulk: BulkStatus | null;
 }
 
 export function renderOpenSlot(
@@ -110,24 +175,32 @@ export function renderOpenSlot(
     );
   }
 
-  const picker = h(
-    'button',
-    { type: 'button', class: 'pick', 'data-key': `pick-${slot}`, 'aria-describedby': headingId },
-    state.error === null ? 'Choose PDF' : 'Choose another PDF',
-  );
-  picker.addEventListener('click', () => pick(slot));
-  return h(
-    'section',
-    { class: 'slot', 'aria-labelledby': headingId, 'data-slot': String(slot) },
-    heading(state.error === null ? 'No report yet' : 'Report can’t be read'),
-    ...notices,
-    undo,
-    h(
+  const bulk = extras?.bulk ?? null;
+  let drop: HTMLElement;
+  if (bulk?.kind === 'reading') {
+    drop = bulkProgress(bulk, 'drop', slot);
+  } else {
+    const picker = h(
+      'button',
+      { type: 'button', class: 'pick', 'data-key': `pick-${slot}`, 'aria-describedby': headingId },
+      state.error === null ? 'Choose PDF' : 'Choose another PDF',
+    );
+    picker.addEventListener('click', () => pick(slot));
+    drop = h(
       'div',
       { class: 'drop' },
       state.error === null ? fileIcon(32) : null,
       picker,
       h('span', { class: 'sec' }, 'or drop the report here'),
-    ),
+    );
+  }
+  return h(
+    'section',
+    { class: 'slot', 'aria-labelledby': headingId, 'data-slot': String(slot), ...(bulk?.kind === 'reading' ? { 'aria-busy': 'true' } : {}) },
+    heading(state.error === null ? 'No report yet' : 'Report can’t be read'),
+    ...notices,
+    undo,
+    bulk?.kind === 'summary' ? bulkSummary(bulk) : null,
+    drop,
   );
 }
