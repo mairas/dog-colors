@@ -4,6 +4,7 @@ import type { Report } from '../../src/report/types.ts';
 import { hash, MemoryStorage } from '../saved/storage.ts';
 import { syntheticReport } from '../genetics/synthetic.ts';
 import { openSavedDogs, SAVED_DOGS_KEY } from '../../src/saved/store.ts';
+import { REJECTIONS } from '../../src/ui/messages.ts';
 import {
   button,
   fixtureText,
@@ -598,6 +599,45 @@ describe('adding several reports', () => {
     expect(input?.multiple).toBe(false);
     button(root, 'pick-0').click();
     expect(input?.multiple).toBe(true);
+  });
+
+  it('adds several files picked while a bulk add reads to it, with one progress line and one summary naming every rejected file', async () => {
+    const { slow, files, results: dogReads } = slowDogs(4);
+    const [firstFiles, laterFiles] = [[files[0], pdf('photo.pdf'), files[1]], [files[2], pdf('scan.pdf'), files[3]]].map((group) =>
+      group.flatMap((file) => file ?? []),
+    );
+    const { app, root } = openPage({ ...dogReads, 'photo.pdf': { ok: false, kind: 'no-text' }, 'scan.pdf': { ok: false, kind: 'unreadable-text' } });
+    const first = app.drop(firstFiles ?? [], 0);
+    await slow[0]?.release();
+    await vi.waitFor(() => expect(progress(root, 0)).toBe('Reading 3 of 3 reports…'));
+    const later = app.drop(laterFiles ?? [], 1);
+    expect(progress(root, 0)).toBe('Reading 3 of 6 reports…');
+    expect(spoken(root)).toBe('Reading 3 of 6 reports…');
+    expect(progress(root, 1)).toBeNull();
+    for (const read of slow.slice(1)) {
+      await read.release();
+    }
+    await Promise.all([first, later]);
+    expect(summary(root, 0)).toBe(`Added 4 dogs.⚠photo.pdf: ${REJECTIONS['no-text'].text}⚠scan.pdf: ${REJECTIONS['unreadable-text'].text}`);
+    expect(summary(root, 1)).toBeNull();
+    expect(spoken(root)).toBe(`Added 4 dogs. photo.pdf: ${REJECTIONS['no-text'].text} scan.pdf: ${REJECTIONS['unreadable-text'].text}`);
+  });
+
+  it('adds two files dropped on the page while a bulk add reads to it, placing neither', async () => {
+    const { slow, files, results: dogReads } = slowDogs(3);
+    const { app, root } = openPage({ ...reads, ...dogReads });
+    const first = app.drop(files, 0);
+    const later = app.drop([pdf('a.pdf'), pdf('other.pdf')], null);
+    expect(progress(root, 0)).toBe('Reading 1 of 5 reports…');
+    expect(progress(root, 'page')).toBeNull();
+    for (const read of slow) {
+      await read.release();
+    }
+    await Promise.all([first, later]);
+    expect(pressed(root)).toEqual([]);
+    expect(headings(root)).toEqual(['Parent 1Choose a dog', 'Parent 2Choose a dog']);
+    expect(summary(root, 0)).toBe(`Added 4 dogs.⚠other.pdf: ${REJECTIONS['not-wisdom-dog'].text}`);
+    expect(summary(root, 'page')).toBeNull();
   });
 
   it('scrolls a page-level progress line into view', async () => {

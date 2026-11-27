@@ -29,6 +29,7 @@ import {
   type ListSlotInput,
 } from './list.ts';
 import {
+  bulkProgressText,
   bulkStartText,
   PRIVACY_DOWNLOAD,
   PRIVACY_KEPT,
@@ -266,8 +267,10 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   const finished: [number, number] = [0, 0];
   /** How many times Clear saved dogs was confirmed: a read that began before the latest is discarded. */
   let clears = 0;
-  /** How many bulk adds began: only the latest shows its progress and summary. */
+  /** How many bulk adds began: a placed one shows its summary only if it was the latest. */
   let bulks = 0;
+  /** The unplaced bulk add reading: its queue, which later several-file adds join, and its end. */
+  let gathering: { readonly queue: File[]; readonly done: Promise<void> } | null = null;
   /** The dog Add the report again was pressed for, until the slot's picker gives a file or Add a dog opens it. */
   const readdTargets: [string | null, string | null] = [null, null];
   const typingTimers: [number | undefined, number | undefined] = [undefined, undefined];
@@ -405,6 +408,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   /** Deletes every saved dog and empties both slots; reads in progress are discarded, not saved. */
   function clearSaved(): void {
     clears++;
+    gathering = null;
     tokens[0]++;
     tokens[1]++;
     readdTargets[0] = null;
@@ -841,23 +845,29 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     }
   }
 
+  /** Shows the unplaced bulk add's progress: the file being read, counted from 1, of every file queued. */
+  function showProgress(at: ParentIndex | null, current: number, queue: readonly File[]): void {
+    state = { ...state, bulk: { at, status: { kind: 'reading', current, total: queue.length } } };
+  }
+
   /**
-   * Reads files one at a time and saves each, placing none: progress, then
-   * the summary, show where the files arrived, and only those two are announced.
+   * Reads the queued files one at a time and saves each, placing none:
+   * progress, then the summary, show where the files arrived, and only those
+   * two are announced. Files queued meanwhile are read in turn.
    */
-  async function addUnplaced(files: readonly File[], at: ParentIndex | null): Promise<void> {
-    const batch = ++bulks;
+  async function readUnplaced(queue: File[], at: ParentIndex | null): Promise<void> {
+    bulks++;
     const cleared = clears;
-    const total = files.length;
-    state = { ...state, bulk: { at, status: { kind: 'reading', current: 1, total } } };
+    showProgress(at, 1, queue);
     render();
-    announcer.announce(bulkStartText(total));
+    announcer.announce(bulkStartText(queue.length));
     if (at === null) {
       pageBulk.scrollIntoView({ block: 'nearest' });
     }
 
     const saved: Tally = { added: [], updated: [], rejected: [] };
-    for (const [index, file] of files.entries()) {
+    // An array's iterator checks its length at each step, so it reaches files queued meanwhile.
+    for (const [index, file] of queue.entries()) {
       const result = await readReport(file);
       if (cleared !== clears) {
         return;
@@ -868,24 +878,43 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       } else {
         saved.rejected.push({ name: file.name, message: rejection(result) });
       }
-      if (batch === bulks && index + 1 < total) {
-        state = { ...state, bulk: { at, status: { kind: 'reading', current: index + 2, total } } };
+      if (index + 1 < queue.length) {
+        showProgress(at, index + 2, queue);
       }
       render();
     }
-    // A later bulk add owns the progress and summary; this one's dogs are saved all the same.
-    if (batch === bulks) {
-      const done: BulkSummary = { kind: 'summary', ...saved };
-      state = { ...state, bulk: { at, status: done } };
-      render();
-      announcer.announce(bulkSummaryText(done));
-    }
+    gathering = null;
+    const done: BulkSummary = { kind: 'summary', ...saved };
+    state = { ...state, bulk: { at, status: done } };
+    render();
+    announcer.announce(bulkSummaryText(done));
   }
 
-  /** Several files: placed when they fit the slots free as they arrive, otherwise none is placed. */
+  /**
+   * Several files: placed when they fit the slots free as they arrive,
+   * otherwise none is placed. While an unplaced add reads, they join its
+   * queue, its progress and its one summary.
+   */
   async function addSeveral(files: readonly File[], at: ParentIndex | null): Promise<void> {
+    if (gathering !== null) {
+      const { queue, done } = gathering;
+      queue.push(...files);
+      const current = state.bulk?.status.kind === 'reading' ? state.bulk.status.current : 1;
+      showProgress(state.bulk?.at ?? at, current, queue);
+      render();
+      announcer.announce(bulkProgressText(current, queue.length));
+      await done;
+      return;
+    }
     const open = SLOTS.filter(free);
-    await (files.length <= open.length ? addPlaced(files, open, at) : addUnplaced(files, at));
+    if (files.length <= open.length) {
+      await addPlaced(files, open, at);
+      return;
+    }
+    const queue = [...files];
+    const done = readUnplaced(queue, at);
+    gathering = { queue, done };
+    await done;
   }
 
   const actions: ListActions = {
