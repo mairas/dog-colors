@@ -176,7 +176,7 @@ const slot = (chosen: string | null = null, changes: Partial<SlotState> = {}): S
 const warning = (message: Message): Partial<SlotState> => ({ notice: { tone: 'warning', message } });
 const sameDog: Partial<SlotState> = { notice: { tone: 'info', message: sameDogNotice('Sample A', 'Parent 1') } };
 const start = (first: SlotState, second: SlotState, pageAlert: string | null = null): FixtureStart => ({
-  initial: { slots: [first, second], pageAlert },
+  initial: { slots: [first, second], pageAlert, undo: null },
 });
 
 /** Four dogs: two males (A, C) and two females (B, D). */

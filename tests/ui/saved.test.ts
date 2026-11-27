@@ -2,7 +2,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Report } from '../../src/report/types.ts';
 import { openSavedDogs, SAVED_DOGS_KEY } from '../../src/saved/store.ts';
-import { startApp } from '../../src/ui/app.ts';
+import { EMPTY_SLOT, startApp } from '../../src/ui/app.ts';
 import { hash, MemoryStorage, sequentialIds, withNoseQuestion } from '../saved/storage.ts';
 import {
   button,
@@ -440,6 +440,7 @@ describe('stored data the page cannot use', () => {
           { chosen: 'dog-2', reading: null, notice: null, filter: '', showAll: false },
         ],
         pageAlert: null,
+        undo: null,
       },
     });
     expect(heading(root, 0)).toBe('Parent 1Choose a dog');
@@ -510,6 +511,175 @@ describe('clearing a chosen row that the list would hide', () => {
     row.click();
     button(root, 'dog-0-dog-1').click();
     expect(focused()).toBe('dog-0-dog-1');
+  });
+});
+
+describe('deleting a dog', () => {
+  const undoLine = (root: HTMLElement, slot: number) => root.querySelector(`[data-slot="${slot}"] .undo`);
+
+  /** Sample B asks the nose question and is answered brown. */
+  function answered(): MemoryStorage {
+    const storage = savedStorage(a, withNoseQuestion({ ...b, kitIdHash: null }), c, d);
+    openSavedDogs({ storage: () => storage }).setNose('dog-2', 'brown');
+    return storage;
+  }
+
+  it('removes an unchosen dog from both lists, offers Undo under the list, and Undo restores it unchosen with its nose answer', () => {
+    const storage = answered();
+    const { root } = openPage(reads, { storage });
+    button(root, 'dog-0-dog-1').click();
+    expect(rows(root, 1)).toEqual(['dog-1-dog-2', 'dog-1-dog-4']);
+
+    button(root, 'delete-1-dog-2').click();
+    expect(rows(root, 1)).toEqual(['dog-1-dog-4']);
+    expect(rows(root, 0)).not.toContain('dog-0-dog-2');
+    expect(listed(storage).map((dog) => dog.id)).toEqual(['dog-1', 'dog-3', 'dog-4']);
+    expect(undoLine(root, 1)?.textContent).toBe('Deleted Sample B. Undo');
+    expect(undoLine(root, 1)?.previousElementSibling?.classList.contains('listing')).toBe(true);
+    expect(undoLine(root, 0)).toBeNull();
+    expect(spoken(root)).toBe('Deleted Sample B. Undo available.');
+    expect(focused()).toBe('delete-1-dog-4');
+
+    button(root, 'undo-1').click();
+    expect(rows(root, 1)).toEqual(['dog-1-dog-2', 'dog-1-dog-4']);
+    expect(pressed(root, 1)).toEqual([]);
+    expect(undoLine(root, 1)).toBeNull();
+    expect(listed(storage).find((dog) => dog.id === 'dog-2')?.nose).toBe('brown');
+    expect(spoken(root)).toBe('Sample B restored.');
+    expect(focused()).toBe('dog-1-dog-2');
+  });
+
+  it('clears the slot holding the deleted dog, and Undo chooses it again while that slot has nothing chosen', () => {
+    const { root } = openPage(reads, { storage: savedStorage(a, b, c, d) });
+    button(root, 'dog-0-dog-1').click();
+    button(root, 'dog-1-dog-2').click();
+    button(root, 'delete-0-dog-1').click();
+    expect(heading(root, 0)).toBe('Parent 1Choose a dog');
+    expect(results(root)?.hidden).toBe(true);
+    button(root, 'undo-0').click();
+    expect(pressed(root, 0)).toEqual(['dog-0-dog-1']);
+    expect(results(root)?.hidden).toBe(false);
+    expect(spoken(root)).toBe('Sample A restored. Results updated.');
+    expect(focused()).toBe('dog-0-dog-1');
+  });
+
+  it('only lists the dog again when its slot holds another dog by the time of Undo', () => {
+    const storage = savedStorage(a, b, c, d);
+    const deleted = openSavedDogs({ storage: () => storage }).remove('dog-1').deleted;
+    if (deleted === null) {
+      throw new Error('nothing deleted');
+    }
+    const { root } = openPage(reads, {
+      storage,
+      initial: { slots: [{ ...EMPTY_SLOT, chosen: 'dog-3' }, EMPTY_SLOT], pageAlert: null, undo: { deleted, slot: 0, chosen: true } },
+    });
+    button(root, 'undo-0').click();
+    expect(pressed(root, 0)).toEqual(['dog-0-dog-3']);
+    expect(rows(root, 0)).toContain('dog-0-dog-1');
+    expect(focused()).toBe('dog-0-dog-1');
+  });
+
+  it('shows today’s empty slot with Undo above Choose PDF when the delete leaves nothing choosable there, with focus on Undo', () => {
+    const { root } = openPage(reads, { storage: savedStorage(a, b) });
+    button(root, 'dog-0-dog-1').click();
+    button(root, 'delete-1-dog-2').click();
+    expect(heading(root, 1)).toBe('Parent 2No report yet');
+    expect(undoLine(root, 1)?.nextElementSibling?.classList.contains('drop')).toBe(true);
+    expect(focused()).toBe('undo-1');
+    button(root, 'undo-1').click();
+    expect(rows(root, 1)).toEqual(['dog-1-dog-2']);
+    expect(focused()).toBe('dog-1-dog-2');
+  });
+
+  it('moves focus to the previous row’s delete after the last row, and to Add a dog when no row is left listed', () => {
+    const { root } = openPage(reads, { storage: savedStorage(a, b, c, d) });
+    button(root, 'delete-0-dog-4').click();
+    expect(focused()).toBe('delete-0-dog-3');
+
+    button(root, 'dog-0-dog-1').click();
+    expect(rows(root, 1)).toEqual(['dog-1-dog-2']);
+    button(root, 'delete-1-dog-2').click();
+    expect(rows(root, 1)).toEqual([]);
+    expect(heading(root, 1)).toBe('Parent 2Choose a dog');
+    expect(focused()).toBe('pick-1');
+  });
+
+  it('keeps the undo line while typing in a filter and pressing Show all', () => {
+    const { root } = openPage(reads, { storage: savedStorage(a, ...sevenFemales()) });
+    button(root, 'dog-0-dog-1').click();
+    button(root, 'delete-1-dog-2').click();
+    const field = root.querySelector<HTMLInputElement>('[data-key="find-1"]');
+    if (field === null) {
+      throw new Error('no filter field');
+    }
+    field.value = 'e';
+    field.dispatchEvent(new Event('input'));
+    expect(undoLine(root, 1)).not.toBeNull();
+    button(root, 'show-all-1').click();
+    expect(undoLine(root, 1)).not.toBeNull();
+  });
+
+  it.each([
+    ['a choose in the other slot', (root: HTMLElement) => button(root, 'dog-1-dog-2').click()],
+    ['a clear in the same slot', (root: HTMLElement) => button(root, 'dog-0-dog-3').click()],
+    ['another delete', (root: HTMLElement) => button(root, 'delete-1-dog-2').click()],
+  ])('ends the undo line on %s', (_, act) => {
+    const { root } = openPage(reads, { storage: savedStorage(a, b, c, d) });
+    button(root, 'dog-0-dog-3').click();
+    button(root, 'delete-0-dog-1').click();
+    expect(undoLine(root, 0)).not.toBeNull();
+    act(root);
+    expect(undoLine(root, 0)).toBeNull();
+  });
+
+  it('ends the undo line when a read finishes and saves, even one not placed', async () => {
+    const slow = slowRead(ok(c));
+    const { app, root } = openPage({ 'slow.pdf': slow.read }, { storage: savedStorage(a, b, d) });
+    const loading = app.load(1, pdf('slow.pdf'));
+    button(root, 'dog-1-dog-2').click();
+    button(root, 'delete-0-dog-1').click();
+    expect(undoLine(root, 0)).not.toBeNull();
+    await slow.release();
+    await loading;
+    expect(undoLine(root, 0)).toBeNull();
+    expect(pressed(root, 1)).toEqual(['dog-1-dog-2']);
+  });
+
+  it('keeps the undo line when a read is rejected', async () => {
+    const { app, root } = openPage(reads, { storage: savedStorage(a, b, d) });
+    button(root, 'delete-0-dog-1').click();
+    await app.load(1, pdf('other.pdf'));
+    expect(undoLine(root, 0)).not.toBeNull();
+  });
+
+  it('saves the dog again when its report, being read, finishes after the delete, and ends the undo line', async () => {
+    const luna = { ...a, name: 'Luna' };
+    const slow = slowRead(ok(luna));
+    const storage = savedStorage(luna, b, d);
+    const { app, root } = openPage({ 'luna.pdf': slow.read }, { storage });
+    const loading = app.load(1, pdf('luna.pdf'));
+    button(root, 'delete-0-dog-1').click();
+    expect(undoLine(root, 0)?.textContent).toBe('Deleted Luna. Undo');
+    await slow.release();
+    await loading;
+    expect(undoLine(root, 0)).toBeNull();
+    expect(listed(storage).map((dog) => dog.name)).toEqual(['Luna', 'Sample B', 'Sample D']);
+  });
+
+  it('on Undo keeps the dog another tab saved meanwhile with the same kit ID, carrying the nose answer and choosing it', () => {
+    const luna = withNoseQuestion({ ...a, name: 'Luna', kitIdHash: hash('ab') });
+    const storage = savedStorage(luna, b);
+    openSavedDogs({ storage: () => storage }).setNose('dog-1', 'brown');
+    const { root } = openPage(reads, { storage });
+    button(root, 'dog-0-dog-1').click();
+    button(root, 'delete-0-dog-1').click();
+    openSavedDogs({ storage: () => storage, newId: sequentialIds('tab') }).add({ ...luna, name: 'Luna Again' });
+    button(root, 'undo-0').click();
+    expect(pressed(root, 0)).toEqual(['dog-0-tab-1']);
+    expect(heading(root, 0)).toBe('Parent 1Luna Again');
+    expect(listed(storage).find((dog) => dog.id === 'tab-1')?.nose).toBe('brown');
+    expect(spoken(root)).toBe('Luna Again restored.');
+    expect(focused()).toBe('dog-0-tab-1');
   });
 });
 

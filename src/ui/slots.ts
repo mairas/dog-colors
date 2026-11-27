@@ -91,12 +91,14 @@ export function renderOpenSlot(
 ): HTMLElement {
   const headingId = slotHeadingId(slot);
   const heading = (text: string): HTMLElement => slotHeading(slot, text);
+  const undo = extras === undefined || extras.deleted === null ? null : undoLine(slot, extras.deleted, extras.undo);
 
   if (state.kind === 'reading') {
     return h(
       'section',
       { class: 'slot', 'aria-labelledby': headingId, 'aria-busy': 'true', 'data-slot': String(slot) },
       heading('Reading report…'),
+      undo,
       h('div', { class: 'drop' }, h('div', { class: 'spin', 'aria-hidden': 'true' }), h('span', { class: 'file' }, state.fileName)),
     );
   }
@@ -113,7 +115,7 @@ export function renderOpenSlot(
     heading(state.error === null ? 'No report yet' : 'Report can’t be read'),
     state.error === null ? null : alertBox(state.error),
     extras === undefined || extras.notice === null ? null : alertBox(extras.notice, '', 'info'),
-    extras === undefined || extras.deleted === null ? null : undoLine(slot, extras.deleted, extras.undo),
+    undo,
     h(
       'div',
       { class: 'drop' },

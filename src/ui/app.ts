@@ -9,11 +9,12 @@ import { predictPuppies, type PuppyPrediction } from '../genetics/results.ts';
 import { analyseHealth, type HealthAnalysis, type ParentIndex } from '../health/health.ts';
 import type { ReadResult, Report, Sex } from '../report/types.ts';
 import type { SavedDog, UsableDog } from '../saved/check.ts';
-import { openSavedDogs } from '../saved/store.ts';
+import { openSavedDogs, type StoredDog } from '../saved/store.ts';
 import { createAnnouncer } from './announce.ts';
 import { h, svg } from './dom.ts';
 import { healthWarnings, renderHealth } from './health.ts';
 import {
+  dogLabel,
   filterField,
   listing,
   listingStatus,
@@ -38,7 +39,7 @@ import {
 } from './messages.ts';
 import { parentLabel, savedName } from './names.ts';
 import { ETHICS_LINK_KEY, renderResults, sameSexLead } from './results.ts';
-import { alertBox, renderOpenSlot, slotHeadingId, type OpenSlot, type SlotNotice } from './slots.ts';
+import { alertBox, renderOpenSlot, slotHeadingId, type DogLabel, type OpenSlot, type SlotNotice } from './slots.ts';
 
 /** Reads a chosen file; throws only when the reader itself fails. */
 export type ReadFile = (file: File) => Promise<ReadResult>;
@@ -56,10 +57,20 @@ export interface SlotState {
   readonly showAll: boolean;
 }
 
+/** The last deleted dog, offered back until the next choose, clear, add or delete in either slot. */
+export interface UndoLine {
+  readonly deleted: StoredDog;
+  /** The slot whose list it was deleted from. */
+  readonly slot: ParentIndex;
+  /** Whether that slot had it chosen: Undo chooses it again if the slot still has nothing chosen. */
+  readonly chosen: boolean;
+}
+
 export interface AppState {
   readonly slots: readonly [SlotState, SlotState];
   /** A page-level drop message, until the next action. */
   readonly pageAlert: string | null;
+  readonly undo: UndoLine | null;
 }
 
 /** Where the saved dogs and the breeding note's dismissal are kept: localStorage in the browser. */
@@ -216,7 +227,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   // Even reading window.localStorage throws where storage is disabled.
   const storage = (): NoteStorage => options.storage ?? window.localStorage;
   const store = openSavedDogs({ storage, now, ...(options.newId === undefined ? {} : { newId: options.newId }) });
-  let state: AppState = options.initial ?? { slots: [EMPTY_SLOT, EMPTY_SLOT], pageAlert: null };
+  let state: AppState = options.initial ?? { slots: [EMPTY_SLOT, EMPTY_SLOT], pageAlert: null, undo: null };
   /** Each slot's latest read: an earlier one still saves its dog, but does not place it. */
   const tokens: [number, number] = [0, 0];
   /** The dog Add the report again was pressed for, until the slot's picker gives a file or Add a dog opens it. */
@@ -320,6 +331,11 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   /** " Parent 1 cleared." for each slot a store write emptied. */
   const clearedText = (cleared: readonly ParentIndex[]): string => cleared.map((slot) => ` ${parentLabel(slot)} cleared.`).join('');
 
+  /** Ends the undo line: any choose, clear, add or delete does. */
+  const endUndo = (): void => {
+    state = { ...state, undo: null };
+  };
+
   const pick = (slot: ParentIndex): void => {
     readdTargets[slot] = null;
     openPicker(slot);
@@ -332,6 +348,10 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     input.value = '';
     input.click();
   }
+
+  /** The deleted dog the slot's undo line offers back. */
+  const undoLabel = (slot: ParentIndex): DogLabel | null =>
+    state.undo === null || state.undo.slot !== slot ? null : dogLabel(state.undo.deleted.dog, store.dogs(), resolveSaved);
 
   /** Whether the slot lists dogs, rather than today's empty slot. */
   const listMode = (slot: ParentIndex): boolean => listsDogs(store.dogs(), chosenDog(otherSlot(slot)));
@@ -347,7 +367,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       showAll: current.showAll,
       field: fields[slot],
       notice: current.notice,
-      deleted: null,
+      deleted: undoLabel(slot),
       reading: current.reading,
       resolve: resolveSaved,
     };
@@ -370,7 +390,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     const warning = current.notice?.tone === 'warning' ? current.notice.message : null;
     const info = current.notice?.tone === 'info' ? current.notice.message : null;
     const open: OpenSlot = current.reading === null ? { kind: 'empty', error: warning } : { kind: 'reading', fileName: current.reading };
-    return { element: renderOpenSlot(slot, open, pick, { notice: info, deleted: null, undo: actions.undo }), layout: open.kind };
+    return { element: renderOpenSlot(slot, open, pick, { notice: info, deleted: undoLabel(slot), undo: actions.undo }), layout: open.kind };
   }
 
   /** Both slots' dogs, when each holds one. */
@@ -541,6 +561,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
 
     const moveFocus = focusInSlotOrLost(slot);
     const { outcome } = store.add(result.report, target ?? undefined);
+    endUndo();
     const name = savedName(store.dog(outcome.id)?.name ?? result.report.name);
     const verb = outcome.kind === 'added' ? 'saved' : 'updated';
     const other = otherSlot(slot);
@@ -590,6 +611,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
         tokens[slot]++;
       }
       clearTransient();
+      endUndo();
       choose(slot, clearing ? null : id);
       // A cleared row that the filter or the sex narrowing hides leaves the list.
       focusKeys = clearing ? [`dog-${slot}-${id}`, `find-${slot}`, `name-${slot}`] : [];
@@ -601,12 +623,19 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       if (dog === undefined) {
         return;
       }
+      const row = slotsEl.querySelector(`[data-key="${CSS.escape(`delete-${slot}-${id}`)}"]`)?.closest('li');
+      const neighbours = [row?.nextElementSibling, row?.previousElementSibling].flatMap(
+        (item) => item?.querySelector<HTMLElement>('button.del')?.dataset['key'] ?? [],
+      );
+      const chosen = state.slots[slot].chosen === id;
       SLOTS.filter((other) => state.slots[other].chosen === id).forEach((other) => choose(other, null));
-      store.remove(id);
+      clearTransient();
+      const { deleted } = store.remove(id);
+      state = { ...state, undo: deleted === null ? null : { deleted, slot, chosen } };
       const cleared = settle();
-      focusKeys = [`pick-${slot}`];
+      focusKeys = listMode(slot) ? [...neighbours, `pick-${slot}`, `name-${slot}`] : [`undo-${slot}`];
       render();
-      announcer.announce(`Deleted ${savedName(dog.name)}.${clearedText(cleared)}`);
+      announcer.announce(`Deleted ${savedName(dog.name)}. Undo available.${clearedText(cleared)}`);
     },
     showAll(slot, all) {
       setSlot(slot, { showAll: all });
@@ -618,7 +647,28 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       render();
     },
     undo() {
-      // The undo line arrives with deleting; until then nothing offers it.
+      const line = state.undo;
+      if (line === null) {
+        return;
+      }
+      clearTransient();
+      endUndo();
+      const { outcome } = store.restore(line.deleted);
+      const { slot } = line;
+      const chooses = line.chosen && state.slots[slot].chosen === null && state.slots[otherSlot(slot)].chosen !== outcome.id;
+      if (chooses) {
+        if (state.slots[slot].reading !== null) {
+          // The read still saves its dog, without placing it here.
+          tokens[slot]++;
+        }
+        choose(slot, outcome.id);
+      }
+      const cleared = settle();
+      focusKeys = [`dog-${slot}-${outcome.id}`, `find-${slot}`, `name-${slot}`];
+      render();
+      const name = savedName(store.dog(outcome.id)?.name ?? line.deleted.dog.name);
+      const placed = chooses && state.slots[slot].chosen === outcome.id;
+      announcer.announce(`${name} restored.${placed ? resultsStatus() : ''}${clearedText(cleared)}`);
     },
     pick,
     readd(slot, id) {
