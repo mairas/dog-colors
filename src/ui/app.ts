@@ -1009,7 +1009,13 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       queue.push(...files);
       const current = state.bulk?.status.kind === 'reading' ? state.bulk.status.current : 1;
       showProgress(shownAt, current, queue);
-      refresh();
+      // As a single add does, the slot's new files replace its last message, which only a render removes.
+      if (at !== null && state.slots[at].notice !== null) {
+        setSlot(at, { notice: null });
+        render();
+      } else {
+        refresh();
+      }
       announcer.announce(bulkProgressText(current, queue.length));
       await done;
       return;

@@ -651,6 +651,24 @@ describe('adding several reports', () => {
     }
   });
 
+  it('clears the slot’s earlier rejection when files dropped there join a bulk add reading in the other slot', async () => {
+    for (const storage of [new MemoryStorage(), savedStorage(d)]) {
+      const { slow, files, results: dogReads } = slowDogs(3);
+      const { app, root } = openPage({ ...reads, ...dogReads }, { storage });
+      await app.load(1, pdf('other.pdf'));
+      expect(root.querySelector('[data-slot="1"] .err')).not.toBeNull();
+      const first = app.drop(files, 0);
+      const later = app.drop([pdf('a.pdf'), pdf('b.pdf')], 1);
+      expect(progress(root, 0)).toBe('Reading 1 of 5 reports…');
+      expect(root.querySelector('[data-slot="1"] .err')).toBeNull();
+      for (const read of slow) {
+        await read.release();
+      }
+      await Promise.all([first, later]);
+      expect(root.querySelector('[data-slot="1"] .err')).toBeNull();
+    }
+  });
+
   /** Counts focusin events on the page from now on. */
   function focusins(root: HTMLElement): { readonly keys: (string | null)[] } {
     const keys: (string | null)[] = [];
