@@ -1,6 +1,7 @@
 // What the page says when a report can't be used: the cause, then what to do.
 
 import type { RejectionKind } from '../report/types.ts';
+import type { StoreMode } from '../saved/store.ts';
 
 export interface Message {
   /** A bold lead-in, written before the text and followed by a full stop. */
@@ -43,6 +44,26 @@ export const RESULTS_FAILED: Message = {
   title: 'Puppy colours can’t be worked out for this pair',
   text: 'The saved data of one of these dogs can’t be used. Add its report again, or choose another dog.',
 };
+
+/** The warning above the slots once the saved dogs can't be kept, by the store's mode. */
+export const STORAGE_WARNINGS: Readonly<Record<Exclude<StoreMode, 'working'>, Message>> = {
+  'nothing-stored': {
+    title: 'Dogs can’t be saved in this browser',
+    text: 'The dogs you add are kept only until you close or reload this page. Browser storage that is turned off or full can cause this.',
+  },
+  full: {
+    title: 'New dogs can’t be saved in this browser',
+    text: 'Storage is full, so dogs added from now on are kept only until you close or reload this page. Dogs saved earlier stay until you delete them.',
+  },
+  'out-of-date': { title: 'This page is out of date', text: 'Reload it to see your saved dogs.' },
+};
+
+export const PRIVACY_READ = 'Reports are read in your browser and never uploaded.';
+/** Dropped while nothing can be stored. */
+export const PRIVACY_KEPT =
+  'The dogs you add are kept in this browser until you delete them. Private windows forget them on closing, and Safari may clear them if you don’t visit for a week.';
+export const PRIVACY_DOWNLOAD =
+  'Download the PDF from your dog’s results on Wisdom Panel, or print the web report from Chrome, Edge or Safari with “Save as PDF”.';
 
 /** A slot's note when the report added there is the dog the other slot holds. */
 export function sameDogNotice(name: string, parent: string): Message {

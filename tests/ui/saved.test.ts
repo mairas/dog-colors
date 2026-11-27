@@ -3,7 +3,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Report } from '../../src/report/types.ts';
 import { openSavedDogs, SAVED_DOGS_KEY } from '../../src/saved/store.ts';
 import { EMPTY_SLOT, NOTE_HIDDEN_KEY, startApp } from '../../src/ui/app.ts';
-import { hash, MemoryStorage, sequentialIds, withNoseQuestion } from '../saved/storage.ts';
+import { hash, MemoryStorage, refusing, sequentialIds, withNoseQuestion } from '../saved/storage.ts';
 import {
   button,
   focused,
@@ -751,3 +751,72 @@ describe('Clear saved dogs', () => {
   });
 });
 
+describe('storage that refuses', () => {
+  const PRIVACY_READ = 'Reports are read in your browser and never uploaded.';
+  const PRIVACY_KEPT =
+    'The dogs you add are kept in this browser until you delete them. Private windows forget them on closing, and Safari may clear them if you don’t visit for a week.';
+  const PRIVACY_DOWNLOAD =
+    'Download the PDF from your dog’s results on Wisdom Panel, or print the web report from Chrome, Edge or Safari with “Save as PDF”.';
+  const privacy = (root: HTMLElement) => root.querySelector('.privacy')?.textContent;
+  const warning = (root: HTMLElement) => root.querySelector('[role="alert"]');
+
+  it('reads the whole privacy line, with no warning, while storage works', () => {
+    const { root } = openPage(reads);
+    expect(privacy(root)).toBe(`${PRIVACY_READ} ${PRIVACY_KEPT} ${PRIVACY_DOWNLOAD}`);
+    expect(warning(root)).toBeNull();
+  });
+
+  it('works through choosing and results with storage turned off, warns above the slots and drops the storage sentences', async () => {
+    const { app, root } = openPage(reads, { storage: refusing });
+    expect(warning(root)?.textContent).toBe(
+      '⚠Dogs can’t be saved in this browser. The dogs you add are kept only until you close or reload this page. Browser storage that is turned off or full can cause this.',
+    );
+    expect(warning(root)?.classList.contains('err')).toBe(true);
+    expect(root.querySelector('.privacy + .storage-alert')?.contains(warning(root))).toBe(true);
+    expect(privacy(root)).toBe(`${PRIVACY_READ} ${PRIVACY_DOWNLOAD}`);
+    await app.load(0, pdf('a.pdf'));
+    await app.load(1, pdf('b.pdf'));
+    expect(results(root)?.hidden).toBe(false);
+    button(root, 'dog-1-new-2').click();
+    button(root, 'dog-1-new-2').click();
+    expect(results(root)?.hidden).toBe(false);
+  });
+
+  it('warns that new dogs can’t be saved from a quota error on, keeping the privacy line whole', async () => {
+    const storage = new MemoryStorage();
+    const { app, root } = openPage(reads, { storage });
+    await app.load(0, pdf('a.pdf'));
+    await app.load(1, pdf('b.pdf'));
+    expect(warning(root)).toBeNull();
+    storage.failWrites = true;
+    await app.load(1, pdf('c.pdf'));
+    expect(warning(root)?.textContent).toBe(
+      '⚠New dogs can’t be saved in this browser. Storage is full, so dogs added from now on are kept only until you close or reload this page. Dogs saved earlier stay until you delete them.',
+    );
+    expect(privacy(root)).toBe(`${PRIVACY_READ} ${PRIVACY_KEPT} ${PRIVACY_DOWNLOAD}`);
+    const shown = warning(root);
+    storage.failWrites = false;
+
+    button(root, 'delete-0-new-1').click();
+    expect(heading(root, 1)).toBe('Parent 2Sample C');
+    expect(warning(root)).toBe(shown);
+    expect(listed(storage).map((dog) => dog.name)).toEqual(['Sample B']);
+
+    button(root, 'clear-saved').click();
+    button(root, 'clear-delete').click();
+    expect(warning(root)?.textContent).toContain('New dogs can’t be saved in this browser.');
+  });
+
+  it('says the page is out of date when a newer page wrote the dogs, shows no Clear button and writes nothing', async () => {
+    const stored = '{"version":99,"dogs":[]}';
+    const storage = new MemoryStorage({ [SAVED_DOGS_KEY]: stored });
+    const { app, root } = openPage(reads, { storage });
+    expect(warning(root)?.textContent).toBe('⚠This page is out of date. Reload it to see your saved dogs.');
+    await app.load(0, pdf('a.pdf'));
+    expect(heading(root, 0)).toBe('Parent 1Sample A');
+    expect(root.querySelector('[data-key="clear-saved"]')).toBeNull();
+    button(root, 'delete-0-new-1').click();
+    expect(storage.getItem(SAVED_DOGS_KEY)).toBe(stored);
+    expect(privacy(root)).toBe(`${PRIVACY_READ} ${PRIVACY_KEPT} ${PRIVACY_DOWNLOAD}`);
+  });
+});

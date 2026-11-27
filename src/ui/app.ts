@@ -9,7 +9,7 @@ import { predictPuppies, type PuppyPrediction } from '../genetics/results.ts';
 import { analyseHealth, type HealthAnalysis, type ParentIndex } from '../health/health.ts';
 import type { ReadResult, Report, Sex } from '../report/types.ts';
 import type { SavedDog, UsableDog } from '../saved/check.ts';
-import { openSavedDogs, type StoredDog } from '../saved/store.ts';
+import { openSavedDogs, type StoreMode, type StoredDog } from '../saved/store.ts';
 import { createAnnouncer } from './announce.ts';
 import { h, svg } from './dom.ts';
 import { healthWarnings, renderHealth } from './health.ts';
@@ -32,10 +32,14 @@ import {
   DROP_ONE_FREE,
   DROP_READING,
   DROP_TOO_MANY,
+  PRIVACY_DOWNLOAD,
+  PRIVACY_KEPT,
+  PRIVACY_READ,
   READER_FAILED,
   REJECTIONS,
   RESULTS_FAILED,
   sameDogNotice,
+  STORAGE_WARNINGS,
 } from './messages.ts';
 import { parentLabel, savedName } from './names.ts';
 import { ETHICS_LINK_KEY, renderResults, sameSexLead } from './results.ts';
@@ -120,7 +124,11 @@ const otherSlot = (slot: ParentIndex): ParentIndex => (slot === 0 ? 1 : 0);
 /** The parents' sex when both reports give the same one; an unread sex settles nothing. */
 const sameSex = (first: Sex | null, second: Sex | null): Sex | undefined => (first !== null && first === second ? first : undefined);
 
-function privacyNote(): HTMLElement {
+/** The privacy line's text: its storage sentences go while nothing can be stored. */
+const privacyText = (mode: StoreMode): string =>
+  (mode === 'nothing-stored' ? [PRIVACY_READ, PRIVACY_DOWNLOAD] : [PRIVACY_READ, PRIVACY_KEPT, PRIVACY_DOWNLOAD]).join(' ');
+
+function privacyNote(text: HTMLElement): HTMLElement {
   return h(
     'p',
     { class: 'privacy' },
@@ -130,11 +138,7 @@ function privacyNote(): HTMLElement {
       svg('rect', { x: '4', y: '10', width: '16', height: '11', rx: '2' }),
       svg('path', { d: 'M8 10V7a4 4 0 0 1 8 0v3' }),
     ),
-    h(
-      'span',
-      {},
-      'Reports are read in your browser and never uploaded. Download the PDF from your dog’s results on Wisdom Panel, or print the web report from Chrome, Edge or Safari with “Save as PDF”.',
-    ),
+    text,
   );
 }
 
@@ -239,6 +243,8 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   const typingTimers: [number | undefined, number | undefined] = [undefined, undefined];
   /** Where the next render puts focus: the first of these data-keys found, else where focus was. */
   let focusKeys: readonly string[] = [];
+  /** The store mode the storage warning and the privacy line were last drawn for. */
+  let drawnMode: StoreMode | null = null;
   let renderedLayouts: readonly string[] = [];
   let revealed: readonly (string | null)[] = [null, null];
   let resultsShown = false;
@@ -248,6 +254,8 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
 
   const announcer = createAnnouncer();
   const dropAlert = h('div', { class: 'drop-alert' });
+  const storageAlert = h('div', { class: 'storage-alert' });
+  const privacy = h('span', {});
   const slotsEl = h('div', { class: 'slots' });
   const toolsEl = h('div', { class: 'library-tools' });
   const pairEl = h('div', { class: 'pair' });
@@ -275,7 +283,8 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   const note = breedingNote();
   root.replaceChildren(
     note,
-    privacyNote(),
+    privacyNote(privacy),
+    storageAlert,
     h('a', { class: 'ready btn', href: '#results' }, 'Results ready', h('span', { 'aria-hidden': 'true' }, '↓')),
     dropAlert,
     slotsEl,
@@ -496,6 +505,23 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     }
   }
 
+  /** The storage warning and the privacy line, redrawn only when the mode changes, so the alert is spoken once. */
+  function drawStorage(): void {
+    const mode = store.mode();
+    if (mode === drawnMode) {
+      return;
+    }
+    drawnMode = mode;
+    privacy.textContent = privacyText(mode);
+    if (mode === 'working') {
+      storageAlert.replaceChildren();
+    } else {
+      const warning = alertBox(STORAGE_WARNINGS[mode]);
+      warning.setAttribute('role', 'alert');
+      storageAlert.replaceChildren(warning);
+    }
+  }
+
   /** Clear saved dogs, or its inline confirmation, while any dog is saved and storage may be written. */
   function drawTools(): void {
     const count = store.dogs().length;
@@ -525,6 +551,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   function render(): void {
     settle();
     const view = snapshot();
+    drawStorage();
     drawTools();
 
     dropAlert.replaceChildren(...(state.pageAlert === null ? [] : [alertBox({ text: state.pageAlert })]));

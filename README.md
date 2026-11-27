@@ -8,7 +8,7 @@ The site is under construction.
 
 ## Privacy
 
-Your reports never leave your computer. The PDFs are read by your browser, on the page itself, and are never uploaded. The site counts page views with [GoatCounter](https://www.goatcounter.com/). For each view it sends the page address, the referring page, the page title and the screen size, and nothing from the reports. As with any request, GoatCounter also receives your IP address and browser identification, which it uses for country and browser statistics. It sets no cookies.
+Your reports never leave your computer. The PDFs are read by your browser, on the page itself, and are never uploaded. The dogs you add are kept in this browser until you delete them. Private windows forget them on closing, and Safari may clear them if you don’t visit for a week. Each dog is kept as what the page read from its report, without the PDF and without the owner’s name; its kit ID is kept only as a hash, to recognise the same dog when its report is added again. The site counts page views with [GoatCounter](https://www.goatcounter.com/). For each view it sends the page address, the referring page, the page title and the screen size, and nothing from the reports. As with any request, GoatCounter also receives your IP address and browser identification, which it uses for country and browser statistics. It sets no cookies.
 
 ## Development
 
