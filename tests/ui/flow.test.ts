@@ -659,16 +659,22 @@ describe('adding several reports', () => {
   }
 
   it('moves no focus while a bulk add’s reads change no layout and no chosen dog', async () => {
-    for (const start of ['pick-1', 'geno-summary-0', 'clear-saved']) {
+    for (const start of ['pick-1', 'geno-summary-0', 'clear-saved', 'clear-cancel']) {
       const { slow, files, results: dogReads } = slowDogs(4);
       const { app, root } = openPage(dogReads, { storage: savedStorage(a, b) });
       button(root, 'dog-0-dog-1').click();
+      if (start === 'clear-cancel') {
+        button(root, 'clear-saved').click();
+      }
       root.querySelector<HTMLElement>(`[data-key="${start}"]`)?.focus();
       const adding = app.drop(files, 1);
       const focus = focusins(root);
       for (const [index, read] of slow.slice(0, 3).entries()) {
         await read.release();
         await vi.waitFor(() => expect(progress(root, 1)).toBe(`Reading ${index + 2} of 4 reports…`));
+        if (start === 'clear-cancel') {
+          expect(root.querySelector('.confirm span')?.textContent).toBe(`Delete all ${index + 3} saved dogs?`);
+        }
       }
       const rows = [...root.querySelectorAll('[data-slot="1"] button.dog')].map((row) => row.getAttribute('data-key'));
       expect(rows.sort()).toEqual(['dog-1-dog-2', 'dog-1-new-1', 'dog-1-new-2', 'dog-1-new-3']);

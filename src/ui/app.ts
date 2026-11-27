@@ -291,8 +291,8 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   let focusKeys: readonly string[] = [];
   /** The store mode the storage warning and the privacy line were last drawn for. */
   let drawnMode: StoreMode | null = null;
-  /** What Clear saved dogs last drew: nothing, its button, or its confirmation with the count. */
-  let drawnTools: string | null = null;
+  /** What Clear saved dogs last drew: nothing, its button, or its confirmation. */
+  let drawnTools: 'none' | 'button' | 'asking' | null = null;
   let renderedLayouts: readonly string[] = [];
   let revealed: readonly (string | null)[] = [null, null];
   let resultsShown = false;
@@ -646,12 +646,18 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
 
   /**
    * Clear saved dogs, or its inline confirmation, while any dog is saved and
-   * storage may be written; redrawn only when that changes, so focus on it stays.
+   * storage may be written; redrawn only when that changes, so focus on it
+   * stays. A new count rewrites the confirmation's question in place.
    */
   function drawTools(): void {
     const count = store.dogs().length;
-    const shown = count === 0 || store.mode() === 'out-of-date' ? 'none' : state.clearing ? `asking ${count}` : 'button';
+    const question = `Delete all ${count} saved ${count === 1 ? 'dog' : 'dogs'}?`;
+    const shown = count === 0 || store.mode() === 'out-of-date' ? 'none' : state.clearing ? 'asking' : 'button';
     if (shown === drawnTools) {
+      const asked = toolsEl.querySelector('.confirm .question');
+      if (asked !== null) {
+        asked.textContent = question;
+      }
       return;
     }
     drawnTools = shown;
@@ -670,7 +676,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
         ? h(
             'div',
             { class: 'confirm', role: 'group', 'aria-label': 'Clear saved dogs' },
-            h('span', {}, `Delete all ${count} saved ${count === 1 ? 'dog' : 'dogs'}?`),
+            h('span', { class: 'question' }, question),
             button('clear-delete', 'danger', 'Delete', clearSaved),
             button('clear-cancel', 'ghost', 'Cancel', () => askClear(false)),
           )
