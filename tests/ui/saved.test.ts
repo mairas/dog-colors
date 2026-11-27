@@ -646,6 +646,64 @@ describe('deleting a dog', () => {
     expect(pressed(root, 1)).toEqual(['dog-1-dog-2']);
   });
 
+  describe('the dog chosen in a slot that is reading', () => {
+    const reading = (root: HTMLElement, slot: number) => root.querySelector(`[data-slot="${slot}"] .add[aria-busy="true"]`);
+
+    /** Sample A chosen in Parent 1, with Sample C being read there. */
+    function readingOverChosen(storage = savedStorage(a, b, d)) {
+      const slow = slowRead(ok(c));
+      const page = openPage({ 'slow.pdf': slow.read }, { storage });
+      button(page.root, 'dog-0-dog-1').click();
+      const loading = page.app.load(0, pdf('slow.pdf'));
+      const finish = async (): Promise<void> => {
+        await slow.release();
+        await loading;
+      };
+      return { ...page, storage, finish };
+    }
+
+    it('keeps the read when the dog is deleted, and places it once read', async () => {
+      const { root, finish } = readingOverChosen();
+      button(root, 'delete-0-dog-1').click();
+      expect(heading(root, 0)).toBe('Parent 1Choose a dog');
+      expect(reading(root, 0)?.textContent).toBe('Reading slow.pdf…');
+      await finish();
+      expect(pressed(root, 0)).toEqual(['dog-0-new-1']);
+      expect(reading(root, 0)).toBeNull();
+    });
+
+    it('lets a row tapped after the delete win over the read', async () => {
+      const { root, storage, finish } = readingOverChosen();
+      button(root, 'delete-0-dog-1').click();
+      button(root, 'dog-0-dog-2').click();
+      expect(reading(root, 0)).toBeNull();
+      await finish();
+      expect(pressed(root, 0)).toEqual(['dog-0-dog-2']);
+      expect(listed(storage).map((dog) => dog.name)).toEqual(['Sample B', 'Sample C', 'Sample D']);
+    });
+
+    it('lets Undo after the delete win over the read', async () => {
+      const { root, storage, finish } = readingOverChosen();
+      button(root, 'delete-0-dog-1').click();
+      button(root, 'undo-0').click();
+      expect(reading(root, 0)).toBeNull();
+      await finish();
+      expect(pressed(root, 0)).toEqual(['dog-0-dog-1']);
+      expect(listed(storage).map((dog) => dog.name)).toContain('Sample C');
+    });
+
+    it('keeps the read when another tab deleted the dog and this page’s next write clears the slot', async () => {
+      const { root, storage, finish } = readingOverChosen();
+      openSavedDogs({ storage: () => storage }).remove('dog-1');
+      button(root, 'delete-1-dog-3').click();
+      expect(heading(root, 0)).toBe('Parent 1Choose a dog');
+      expect(spoken(root)).toBe('Deleted Sample D. Undo available. Parent 1 cleared.');
+      expect(reading(root, 0)?.textContent).toBe('Reading slow.pdf…');
+      await finish();
+      expect(pressed(root, 0)).toEqual(['dog-0-new-1']);
+    });
+  });
+
   it('keeps the undo line when a read is rejected', async () => {
     const { app, root } = openPage(reads, { storage: savedStorage(a, b, d) });
     button(root, 'delete-0-dog-1').click();

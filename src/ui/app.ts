@@ -326,7 +326,15 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     if (state.slots[slot].chosen !== id) {
       setSlot(otherSlot(slot), { showAll: false });
     }
-    setSlot(slot, { chosen: id, reading: null, notice: null });
+    setSlot(slot, { chosen: id, notice: null });
+  }
+
+  /** Supersedes the slot's read in progress: it still saves its dog, without placing it here. */
+  function supersede(slot: ParentIndex): void {
+    if (state.slots[slot].reading !== null) {
+      tokens[slot]++;
+      setSlot(slot, { reading: null });
+    }
   }
 
   /**
@@ -692,12 +700,8 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
 
   const actions: ListActions = {
     toggle(slot, id) {
-      const current = state.slots[slot];
-      const clearing = current.chosen === id;
-      if (current.reading !== null) {
-        // The read still saves its dog, without placing it here.
-        tokens[slot]++;
-      }
+      const clearing = state.slots[slot].chosen === id;
+      supersede(slot);
       clearTransient();
       endUndo();
       choose(slot, clearing ? null : id);
@@ -745,10 +749,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       const { slot } = line;
       const chooses = line.chosen && state.slots[slot].chosen === null && state.slots[otherSlot(slot)].chosen !== outcome.id;
       if (chooses) {
-        if (state.slots[slot].reading !== null) {
-          // The read still saves its dog, without placing it here.
-          tokens[slot]++;
-        }
+        supersede(slot);
         choose(slot, outcome.id);
       }
       const cleared = settle();
