@@ -59,26 +59,36 @@ pdf.js is the legacy build everywhere: Node needs it, and it polyfills built-ins
 
 Run `./run setup` once, then `./run dev` and open <http://localhost:5173/dog-colors/>. The dev server serves without the Content-Security-Policy, because Vite injects inline scripts during development. To see the page as deployed, with the policy in force, run `./run build` and then `./run preview`, and open <http://localhost:4173/dog-colors/>.
 
-The breeding note's close cross hides it for 30 days by storing the expiry, in epoch milliseconds, under the localStorage key `dog-colors:breeding-note-hidden-until`; on the plain page, remove that key to see the note again. The fixture states below keep it in memory instead, so a dismissal lasts until the next load and never reaches localStorage; add `&note=hidden` to start one with the note dismissed.
+The breeding note's close cross hides it for 30 days by storing the expiry, in epoch milliseconds, under the localStorage key `dog-colors:breeding-note-hidden-until`; on the plain page, remove that key to see the note again. Every report read is saved under the localStorage key `dog-colors:saved-dogs`; remove that key to see the first-visit page. The fixture states below keep both in memory instead, so their dogs and a dismissal last until the next load and never reach localStorage; add `&note=hidden` to start one with the note dismissed.
 
-Every state of the page can be rendered without real reports through a dev-only query parameter, handled by `src/ui/dev.ts` from the committed fixtures and synthetic reports built from them. The module is loaded only when the build-time constant `__FIXTURES__` is true: in the dev server and in `./run preview-fixtures`, never in `./run build`, so the production bundle carries none of it; `./run check-fixtures` checks this, in CI and before every Pages deploy. Use `./run preview-fixtures` (<http://localhost:4173/dog-colors/>) to see a state with the policy in force, or `./run dev` (port 5173).
+Every state of the page can be rendered without real reports through a dev-only query parameter, handled by `src/ui/dev.ts` from the committed fixtures and synthetic reports built from them. A state saves its dogs through the store into its in-memory storage, with the reports' short names (below) as their IDs. The module is loaded only when the build-time constant `__FIXTURES__` is true: in the dev server and in `./run preview-fixtures`, never in `./run build`, so the production bundle carries none of it; `./run check-fixtures` checks this, in CI and before every Pages deploy. Use `./run preview-fixtures` (<http://localhost:4173/dog-colors/>) to see a state with the policy in force, or `./run dev` (port 5173).
 
-`?state=<name>` gives one of the approved mockup's states:
+`?state=<name>` gives one of the approved mockups' states:
 
 | State | URL |
 |---|---|
-| Both slots empty | `?state=slot-empty` |
+| Both slots empty, nothing saved | `?state=slot-empty` |
 | Note dismissed, start | `?state=slot-empty&note=hidden` |
-| One card, results hidden | `?state=results-hidden` |
-| Reading a report | `?state=slot-reading` |
-| Rejected file in an empty slot | `?state=slot-error` |
-| Both cards loaded | `?state=slot-loaded` |
+| One dog chosen, the other slot with nothing choosable | `?state=results-hidden` |
+| Reading a report, nothing choosable | `?state=slot-reading` |
+| Rejected file in a slot with nothing choosable | `?state=slot-error` |
+| Both dogs chosen | `?state=slot-loaded` |
 | Open nose question (bd 1 + bc 1) | `?state=slot-questions` |
 | Ambiguity no question settles (ASIP) | `?state=slot-unanswerable` |
-| Rejected replacement, kept card | `?state=slot-replace-error` |
 | Page-level drop message | `?state=page-drop-error` |
 | Locus missing from a report | `?state=slot-missing` |
-| Same report in both slots | `?state=pair-duplicate` |
+| Four saved dogs, nothing chosen | `?state=list-none-chosen` |
+| One dog chosen, the other list narrowed to females | `?state=list-chosen` |
+| Narrowed by sex: males only | `?state=list-narrowed` |
+| Show all pressed | `?state=list-all-shown` |
+| Filter and narrowing match nothing | `?state=list-no-match` |
+| Filter field (fourteen dogs), chosen dog last | `?state=list-many` |
+| Reading a report under a list | `?state=list-reading` |
+| Rejected file under a list, chosen card kept | `?state=list-rejected` |
+| Report of the other slot's dog, list layout | `?state=list-same-dog` |
+| Report of the other slot's dog, nothing choosable | `?state=open-same-dog` |
+| Stale and unusable rows | `?state=list-stale` |
+| Stale dog chosen | `?state=stale-chosen` |
 | Results | `?state=results-populated` |
 | Note dismissed, results | `?state=results-populated&note=hidden` |
 | Results with ranges | `?state=results-ranges` |
@@ -86,8 +96,9 @@ Every state of the page can be rendered without real reports through a dev-only 
 | Results with an unknown locus | `?state=results-partial` |
 | Same-sex pair (two males) | `?fixtures=a,c` |
 | Health odds unknown: same-sex parents, unknown inheritance | `?state=results-health-unknown` |
+| Pair the genetics reject: results error (the failure is staged) | `?state=results-failed` |
 
-`?fixtures=<first>,<second>` loads any two reports, unanswered: the samples `a` to `e`, or the synthetic `q` (nose question), `x` (ASIP ambiguity), `m` (TYRP1 missing), `w` and `v` (merle and dilute carriers with a bobtail, both carrying a recessive condition, with an X-linked condition and one tested in Parent 1 only), `h` and `k` (two females sharing an X-linked, a mitochondrial and an unknown-inheritance condition; `k` is clear of the mitochondrial one), and `u` and `n` (the same health as `h` and `k`, with the sex unread). Their names are placeholders such as "Sample Q". These health pairings have no state of their own:
+`?fixtures=<first>,<second>` saves any two reports and chooses them, unanswered: the samples `a` to `e`, or the synthetic `q` (nose question), `x` (ASIP ambiguity), `m` (TYRP1 missing), `w` and `v` (merle and dilute carriers with a bobtail, both carrying a recessive condition, with an X-linked condition and one tested in Parent 1 only), `h` and `k` (two females sharing an X-linked, a mitochondrial and an unknown-inheritance condition; `k` is clear of the mitochondrial one), and `u` and `n` (the same health as `h` and `k`, with the sex unread). Their names are placeholders such as "Sample Q". These health pairings have no state of their own:
 
 | Health state | URL |
 |---|---|
