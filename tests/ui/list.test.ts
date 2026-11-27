@@ -101,8 +101,8 @@ const rows = (element: HTMLElement): HTMLButtonElement[] => [...element.querySel
 const rowNames = (element: HTMLElement): string[] => rows(element).map((row) => row.querySelector('.nm')?.firstChild?.textContent ?? '');
 const heading = (element: HTMLElement): string => element.querySelector('h2')?.lastChild?.textContent ?? '';
 const text = (element: Element | null): string => (element?.textContent ?? '').replace(/\s+/g, ' ').trim();
-const byKey = (element: HTMLElement, key: string): HTMLButtonElement => {
-  const found = element.querySelector<HTMLButtonElement>(`[data-key="${key}"]`);
+const byKey = <T extends HTMLElement = HTMLButtonElement>(element: HTMLElement, key: string): T => {
+  const found = element.querySelector<T>(`[data-key="${key}"]`);
   if (found === null) {
     throw new Error(`no element ${key}`);
   }
@@ -551,7 +551,7 @@ describe('a list-mode slot’s messages and add control', () => {
     const dogs = saved(withNoseQuestion(dog('Nina', 'female')));
     const [nina] = dogs;
     const element = render({ dogs, chosen: nina?.id ?? null });
-    const brown = byKey(element, 'nose-1-brown') as unknown as HTMLInputElement;
+    const brown = byKey<HTMLInputElement>(element, 'nose-1-brown');
     expect(brown.checked).toBe(false);
     brown.click();
     expect(calls).toEqual(['answer 1 brown']);
