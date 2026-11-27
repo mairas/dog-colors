@@ -429,7 +429,14 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   function typed(slot: ParentIndex, text: string): void {
     setSlot(slot, { filter: text });
     const input = listInput(slot);
+    // As render() keeps the list's scroll and its chosen row in view.
+    const view = snapshot();
     slotsEl.querySelector(`[data-slot="${slot}"] .listing`)?.replaceWith(renderListing(input, actions));
+    restoreScroll(view);
+    const element = slotsEl.querySelector<HTMLElement>(`[data-slot="${slot}"]`);
+    if (element !== null && view.chosenShown[slot] === true) {
+      revealChosen(element);
+    }
     window.clearTimeout(typingTimers[slot]);
     typingTimers[slot] = window.setTimeout(() => announcer.announce(listingStatus(listing(input))), TYPING_PAUSE_MS);
   }

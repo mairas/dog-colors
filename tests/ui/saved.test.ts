@@ -352,6 +352,45 @@ describe('a long list', () => {
       expect(inView(root, 0)).toBe(true);
     });
 
+    it('stays in view while a letter is typed in the filter and erased', () => {
+      stubLayout();
+      const { root } = openPage(reads, { storage: mixed() });
+      button(root, 'dog-0-dog-7').click();
+      const field = root.querySelector<HTMLInputElement>('[data-key="find-0"]');
+      if (field === null) {
+        throw new Error('no filter field');
+      }
+      field.focus();
+      field.value = 'e';
+      field.dispatchEvent(new Event('input'));
+      expect(rows(root, 0)).toHaveLength(3);
+      expect(inView(root, 0)).toBe(true);
+      field.value = '';
+      field.dispatchEvent(new Event('input'));
+      expect(rows(root, 0)).toHaveLength(7);
+      expect(inView(root, 0)).toBe(true);
+      expect(document.activeElement).toBe(field);
+    });
+
+    it('keeps a list the user scrolled away from it where it was while a letter is typed', () => {
+      stubLayout();
+      const { root } = openPage(reads, { storage: mixed() });
+      button(root, 'dog-0-dog-1').click();
+      const field = root.querySelector<HTMLInputElement>('[data-key="find-0"]');
+      if (field === null) {
+        throw new Error('no filter field');
+      }
+      const away = 5 * ROW;
+      list(root, 0).scrollTop = away;
+      field.focus();
+      // Every name has an "a", so all seven rows stay.
+      field.value = 'a';
+      field.dispatchEvent(new Event('input'));
+      expect(rows(root, 0)).toHaveLength(7);
+      expect(list(root, 0).scrollTop).toBe(away);
+      expect(document.activeElement).toBe(field);
+    });
+
     it('leaves a list the user scrolled away from it where it was', () => {
       stubLayout();
       const { root } = openPage(reads, { storage: mixed() });
