@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { Report } from '../../src/report/types.ts';
-import { stateFromQuery } from '../../src/ui/dev.ts';
-import { MemoryStorage, ok, openPage, pdf, sampleReport } from './app.ts';
+import { MemoryStorage } from '../saved/storage.ts';
+import { ok, openPage, openState, pdf, sampleReport } from './app.ts';
 
 const HEADING = 'Colour is never a reason to choose a pairing';
 const REMINDER =
@@ -109,8 +109,7 @@ describe('dismissing the breeding note', () => {
 
   it('comes back for the visit through the results link, keeping the dismissal', async () => {
     const storage = new MemoryStorage({ [KEY]: String(NOW + DAY) });
-    const initial = await stateFromQuery(new URLSearchParams({ state: 'results-warnings' }));
-    const { root } = openPage({}, { initial, storage, now: NOW });
+    const { root } = await openState({ state: 'results-warnings' }, { storage, now: NOW });
     expect(panelOf(root)?.hidden).toBe(true);
     const click = new MouseEvent('click', { bubbles: true, cancelable: true });
     root.querySelector<HTMLElement>('#results .ethics-line a')?.dispatchEvent(click);
@@ -123,14 +122,13 @@ describe('dismissing the breeding note', () => {
 
   it('focuses the shown note through the results link, leaving storage alone', async () => {
     const storage = new MemoryStorage();
-    const initial = await stateFromQuery(new URLSearchParams({ state: 'results-warnings' }));
-    const { root } = openPage({}, { initial, storage, now: NOW });
+    const { root } = await openState({ state: 'results-warnings' }, { storage, now: NOW });
     const click = new MouseEvent('click', { bubbles: true, cancelable: true });
     root.querySelector<HTMLElement>('#results .ethics-line a')?.dispatchEvent(click);
     expect(click.defaultPrevented).toBe(true);
     expect(panelOf(root)?.hidden).toBe(false);
     expect(document.activeElement).toBe(root.querySelector('#ethics-h'));
-    expect(storage.items.size).toBe(0);
+    expect(storage.items.has(KEY)).toBe(false);
   });
 });
 
@@ -162,7 +160,7 @@ describe('the results reminder', () => {
   });
 
   it('precedes the warnings', async () => {
-    const { root } = openPage({}, { initial: await stateFromQuery(new URLSearchParams({ state: 'results-warnings' })) });
+    const { root } = await openState({ state: 'results-warnings' });
     expect(line(root)?.nextElementSibling?.classList.contains('warnings')).toBe(true);
   });
 
@@ -172,7 +170,7 @@ describe('the results reminder', () => {
     ['partial', { state: 'results-partial' }],
     ['same-sex', { fixtures: 'a,c' }],
   ])('shows in the %s results', async (name, query) => {
-    const { root } = openPage({}, { initial: await stateFromQuery(new URLSearchParams(query)) });
+    const { root } = await openState(query);
     expect(line(root)?.textContent).toBe(REMINDER);
     expect(root.querySelector('#results .same-sex') !== null).toBe(name === 'same-sex');
   });

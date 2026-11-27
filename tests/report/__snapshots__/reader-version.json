@@ -1,0 +1,573 @@
+{
+  "readerVersion": 1,
+  "pdfjsDist": "6.5.438",
+  "fixtures": {
+    "a": {
+      "format": "current",
+      "name": "Sample A",
+      "sex": "male",
+      "breed": "Spanish Water Dog",
+      "kitIdHash": "2e6286dbfc67578ee8562f64fb0df14841cccc9c28cf798b92c7f4c4f2a6eb5e",
+      "colour": {
+        "ASIP": {
+          "ay": 0,
+          "a": 0,
+          "at": 1
+        },
+        "CBD103": {
+          "KB": 2
+        },
+        "MC1R": {
+          "Em": 0,
+          "e1": 1,
+          "e2": 0,
+          "e3": 0,
+          "eH": 0,
+          "eA": 0,
+          "eG": 0
+        },
+        "HPS3": {
+          "co": 0
+        },
+        "MFSD12": {
+          "i": 2
+        },
+        "MLPH": {
+          "d1": 0,
+          "d2": 0,
+          "d3": 0
+        },
+        "TYRP1": {
+          "basd": 0,
+          "bc": 1,
+          "bd": 0,
+          "be": 0,
+          "bh": 0,
+          "bs": 1
+        },
+        "MITF": {
+          "sp": 2
+        },
+        "PMEL": {
+          "M": 0
+        },
+        "PSMB7": {
+          "H": 0
+        },
+        "RALY": {
+          "-": 0
+        },
+        "USH2A": {
+          "TRr": 0
+        },
+        "SLC45A2": {
+          "cal": 0
+        }
+      },
+      "missingLoci": [],
+      "shortTail": 0,
+      "health": [
+        {
+          "name": "Chondrodystrophy (CDDY) and Intervertebral Disc Disease (IVDD) Risk",
+          "gene": "FGF4 retrogene",
+          "variant": "Insertion",
+          "copies": 2,
+          "result": "At Risk",
+          "inheritance": "AD",
+          "knownInBreed": true
+        },
+        {
+          "name": "Early-Onset Progressive Retinal Atrophy, (Discovered in the Spanish Water Dog)",
+          "gene": "PDE6B",
+          "variant": "Deletion",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "AR",
+          "knownInBreed": true
+        },
+        {
+          "name": "Amelogenesis Imperfecta (Discovered in the Lancashire Heeler)",
+          "gene": "Confidential",
+          "variant": "-",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "AR",
+          "knownInBreed": false
+        },
+        {
+          "name": "Degenerative Myelopathy",
+          "gene": "SOD1",
+          "variant": "G>A",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "AR",
+          "knownInBreed": false
+        },
+        {
+          "name": "Hemophilia A (Discovered in the German Shepherd Dog - Variant 1)",
+          "gene": "FVIII",
+          "variant": "G>A",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "XR",
+          "knownInBreed": false
+        },
+        {
+          "name": "Hypophosphatasia",
+          "gene": "Confidential",
+          "variant": "-",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "AR",
+          "knownInBreed": false
+        },
+        {
+          "name": "Sensory Ataxic Neuropathy",
+          "gene": "tRNATyr",
+          "variant": "Deletion",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "MT",
+          "knownInBreed": false
+        },
+        {
+          "name": "von Willebrand's Disease, type 1",
+          "gene": "VWF",
+          "variant": "G>A",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "AD",
+          "knownInBreed": false
+        },
+        {
+          "name": "von Willebrand's Disease, type 3 (Discovered in the Kooiker Hound)",
+          "gene": "VWF",
+          "variant": "G>A",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "AR",
+          "knownInBreed": false
+        }
+      ]
+    },
+    "b": {
+      "format": "current",
+      "name": "Sample B",
+      "sex": "female",
+      "breed": "Spanish Water Dog",
+      "kitIdHash": "83de20c31f419d937eac6d2603a27487811ebb37906a8e635dc58fb2bb8072e8",
+      "colour": {
+        "ASIP": {
+          "ay": 0,
+          "a": 0,
+          "at": 2
+        },
+        "CBD103": {
+          "KB": 1
+        },
+        "MC1R": {
+          "Em": 1,
+          "e1": 0,
+          "e2": 0,
+          "e3": 0,
+          "eH": 0,
+          "eA": 0,
+          "eG": 0
+        },
+        "HPS3": {
+          "co": 0
+        },
+        "MFSD12": {
+          "i": 1
+        },
+        "MLPH": {
+          "d1": 0,
+          "d2": 0,
+          "d3": 0
+        },
+        "TYRP1": {
+          "basd": 0,
+          "bc": 2,
+          "bd": 1,
+          "be": 0,
+          "bh": 0,
+          "bs": 0
+        },
+        "MITF": {
+          "sp": 1
+        },
+        "PMEL": {
+          "M": 0
+        },
+        "PSMB7": {
+          "H": 0
+        },
+        "RALY": {
+          "-": 0
+        },
+        "USH2A": {
+          "TRr": 0
+        },
+        "SLC45A2": {
+          "cal": 0
+        }
+      },
+      "missingLoci": [],
+      "shortTail": 0,
+      "health": [
+        {
+          "name": "Chondrodystrophy (CDDY) and Intervertebral Disc Disease (IVDD) Risk",
+          "gene": "FGF4 retrogene",
+          "variant": "Insertion",
+          "copies": 2,
+          "result": "At Risk",
+          "inheritance": "AD",
+          "knownInBreed": true
+        },
+        {
+          "name": "Early-Onset Progressive Retinal Atrophy, (Discovered in the Spanish Water Dog)",
+          "gene": "PDE6B",
+          "variant": "Deletion",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "AR",
+          "knownInBreed": true
+        },
+        {
+          "name": "Degenerative Myelopathy",
+          "gene": "SOD1",
+          "variant": "G>A",
+          "copies": 1,
+          "result": "Carrier",
+          "inheritance": "AR",
+          "knownInBreed": false
+        },
+        {
+          "name": "Amelogenesis Imperfecta (Discovered in the Lancashire Heeler)",
+          "gene": "Confidential",
+          "variant": "-",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "AR",
+          "knownInBreed": false
+        },
+        {
+          "name": "Hemophilia A (Discovered in the German Shepherd Dog - Variant 1)",
+          "gene": "FVIII",
+          "variant": "G>A",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "XR",
+          "knownInBreed": false
+        },
+        {
+          "name": "Hypophosphatasia",
+          "gene": "Confidential",
+          "variant": "-",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "AR",
+          "knownInBreed": false
+        },
+        {
+          "name": "Sensory Ataxic Neuropathy",
+          "gene": "tRNATyr",
+          "variant": "Deletion",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "MT",
+          "knownInBreed": false
+        },
+        {
+          "name": "von Willebrand's Disease, type 1",
+          "gene": "VWF",
+          "variant": "G>A",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "AD",
+          "knownInBreed": false
+        },
+        {
+          "name": "von Willebrand's Disease, type 3 (Discovered in the Kooiker Hound)",
+          "gene": "VWF",
+          "variant": "G>A",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "AR",
+          "knownInBreed": false
+        }
+      ]
+    },
+    "c": {
+      "format": "current",
+      "name": "Sample C",
+      "sex": "male",
+      "breed": "Spanish Water Dog",
+      "kitIdHash": "5e74ab9d09b9a0ee6bdb3d85b8e4028a3472e7ad09856fa3e6be74c2a5ca13a4",
+      "colour": {
+        "ASIP": {
+          "ay": 0,
+          "a": 0,
+          "at": 2
+        },
+        "CBD103": {
+          "KB": 1
+        },
+        "MC1R": {
+          "Em": 0,
+          "e1": 0,
+          "e2": 0,
+          "e3": 0,
+          "eH": 0,
+          "eA": 0,
+          "eG": 0
+        },
+        "HPS3": {
+          "co": 0
+        },
+        "MFSD12": {
+          "i": 1
+        },
+        "MLPH": {
+          "d1": 0,
+          "d2": 0,
+          "d3": 0
+        },
+        "TYRP1": {
+          "basd": 0,
+          "bc": 1,
+          "bd": 0,
+          "be": 0,
+          "bh": 0,
+          "bs": 1
+        },
+        "MITF": {
+          "sp": 0
+        },
+        "PMEL": {
+          "M": 0
+        },
+        "PSMB7": {
+          "H": 0
+        },
+        "RALY": {
+          "-": 0
+        },
+        "USH2A": {
+          "TRr": 0
+        },
+        "SLC45A2": {
+          "cal": 0
+        }
+      },
+      "missingLoci": [],
+      "shortTail": 0,
+      "health": [
+        {
+          "name": "Chondrodystrophy (CDDY) and Intervertebral Disc Disease (IVDD) Risk",
+          "gene": "FGF4 retrogene",
+          "variant": "Insertion",
+          "copies": 1,
+          "result": "At Risk",
+          "inheritance": "AD",
+          "knownInBreed": true
+        },
+        {
+          "name": "Early-Onset Progressive Retinal Atrophy, (Discovered in the Spanish Water Dog)",
+          "gene": "PDE6B",
+          "variant": "Deletion",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "AR",
+          "knownInBreed": true
+        },
+        {
+          "name": "Amelogenesis Imperfecta (Discovered in the Lancashire Heeler)",
+          "gene": "Confidential",
+          "variant": "-",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "AR",
+          "knownInBreed": false
+        },
+        {
+          "name": "Degenerative Myelopathy",
+          "gene": "SOD1",
+          "variant": "G>A",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "AR",
+          "knownInBreed": false
+        },
+        {
+          "name": "Hemophilia A (Discovered in the German Shepherd Dog - Variant 1)",
+          "gene": "FVIII",
+          "variant": "G>A",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "XR",
+          "knownInBreed": false
+        },
+        {
+          "name": "Hypophosphatasia",
+          "gene": "Confidential",
+          "variant": "-",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "AR",
+          "knownInBreed": false
+        },
+        {
+          "name": "von Willebrand's Disease, type 1",
+          "gene": "VWF",
+          "variant": "G>A",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "AD",
+          "knownInBreed": false
+        },
+        {
+          "name": "von Willebrand's Disease, type 3 (Discovered in the Kooiker Hound)",
+          "gene": "VWF",
+          "variant": "G>A",
+          "copies": 0,
+          "result": "Clear",
+          "inheritance": "AR",
+          "knownInBreed": false
+        }
+      ]
+    },
+    "d": {
+      "format": "mydogdna",
+      "name": "Sample D",
+      "sex": "female",
+      "breed": "Spanish Water Dog",
+      "kitIdHash": "0c0d8eed88329e5ebd856a24bfaa4d2898b96b0cd4cbad916acacf817f04b302",
+      "colour": {
+        "ASIP": {
+          "ay": 0,
+          "a": 0,
+          "at": 2
+        },
+        "CBD103": {
+          "KB": 1
+        },
+        "MC1R": {
+          "eH": 0,
+          "Em": 0,
+          "e1": 1,
+          "e2": 0,
+          "e3": 0,
+          "eA": 0,
+          "eG": 0
+        },
+        "HPS3": {
+          "co": 0
+        },
+        "MFSD12": {
+          "i": 2
+        },
+        "MLPH": {
+          "d1": 0,
+          "d2": 0,
+          "d3": 0
+        },
+        "TYRP1": {
+          "basd": 0,
+          "bc": 1,
+          "bd": 0,
+          "be": 0,
+          "bh": 0,
+          "bs": 1
+        },
+        "MITF": {
+          "sp": 2
+        },
+        "PMEL": {
+          "M": 0
+        },
+        "PSMB7": {
+          "H": 0
+        },
+        "RALY": {
+          "-": 0
+        },
+        "USH2A": {
+          "TRr": 0
+        },
+        "SLC45A2": {
+          "cal": 0
+        }
+      },
+      "missingLoci": [],
+      "shortTail": 0,
+      "health": []
+    },
+    "e": {
+      "format": "mydogdna",
+      "name": "Sample E",
+      "sex": "male",
+      "breed": "Spanish Water Dog",
+      "kitIdHash": "8044ea260897c3ff1e3c2d42ac89f1bf0083ea8904569ad30cb3c83c34a2fa33",
+      "colour": {
+        "ASIP": {
+          "ay": 0,
+          "a": 0,
+          "at": 2
+        },
+        "CBD103": {
+          "KB": 1
+        },
+        "MC1R": {
+          "eH": 0,
+          "Em": 1,
+          "e1": 0,
+          "e2": 0,
+          "e3": 0,
+          "eA": 0,
+          "eG": 0
+        },
+        "HPS3": {
+          "co": 0
+        },
+        "MFSD12": {
+          "i": 0
+        },
+        "MLPH": {
+          "d1": 0,
+          "d2": 0,
+          "d3": 0
+        },
+        "TYRP1": {
+          "basd": 0,
+          "bc": 1,
+          "bd": 0,
+          "be": 0,
+          "bh": 0,
+          "bs": 1
+        },
+        "MITF": {
+          "sp": 0
+        },
+        "PMEL": {
+          "M": 0
+        },
+        "PSMB7": {
+          "H": 0
+        },
+        "RALY": {
+          "-": 0
+        },
+        "USH2A": {
+          "TRr": 0
+        },
+        "SLC45A2": {
+          "cal": 0
+        }
+      },
+      "missingLoci": [],
+      "shortTail": 0,
+      "health": []
+    }
+  }
+}

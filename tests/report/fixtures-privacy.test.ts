@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   assertNoIdentifiers,
@@ -271,6 +272,7 @@ describe('committed fixtures', () => {
 });
 
 const manifest = readManifest(SAMPLES_DIRECTORY);
+const READER_SNAPSHOT_PATH = fileURLToPath(new URL('./__snapshots__/reader-version.json', import.meta.url));
 
 describe.skipIf(manifest === null)('committed fixtures against the local sample reports', () => {
   it.each(FIXTURE_LETTERS)('sample %s holds no identifier of its source PDF', async (letter) => {
@@ -282,7 +284,9 @@ describe.skipIf(manifest === null)('committed fixtures against the local sample 
     if (!extracted.ok) {
       return;
     }
-    const committed = readFileSync(fixturePath(letter), 'utf8');
-    expect(() => assertNoIdentifiers(committed, identifiersOf(extracted.text, path))).not.toThrow();
+    const identifiers = identifiersOf(extracted.text, path);
+    expect(() => assertNoIdentifiers(readFileSync(fixturePath(letter), 'utf8'), identifiers)).not.toThrow();
+    // The reader-version snapshot holds every fixture's parsed report.
+    expect(() => assertNoIdentifiers(readFileSync(READER_SNAPSHOT_PATH, 'utf8'), identifiers)).not.toThrow();
   });
 });

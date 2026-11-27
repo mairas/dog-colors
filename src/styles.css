@@ -300,15 +300,9 @@ summary:focus-visible {
   color: inherit;
   font-weight: 600;
 }
-.card-alert {
-  margin: 0 0 12px;
-}
 .pair .err {
   margin-top: 16px;
   align-items: baseline;
-}
-.pair .err button {
-  margin-left: 8px;
 }
 
 .spin {
@@ -390,13 +384,6 @@ input[type='radio'] {
 }
 .hint {
   margin: 0;
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 12px;
 }
 
 details > summary {
@@ -719,6 +706,223 @@ dialog.dogs figcaption {
 .print-only {
   display: none;
 }
+/* A slot listing the saved dogs: filter, rows, caption, undo line, Add a dog, card body. */
+.find {
+  display: block;
+  margin-top: 14px;
+}
+.find input {
+  width: 100%;
+  min-height: var(--target);
+  padding: 8px 12px;
+  font: 16px 'Source Sans 3', sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.dogs-list {
+  position: relative;
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  /* About six rows on every screen size; the partly shown seventh hints at more. */
+  max-height: calc(6.5 * 49px);
+  overflow-y: auto;
+}
+.dogs-list li {
+  display: flex;
+  gap: 4px;
+  border-top: 1px solid var(--line);
+}
+.dogs-list li:first-child {
+  border-top: 0;
+}
+/* The scrolling list clips anything drawn outside its rows. */
+.dogs-list button:focus-visible {
+  outline-offset: -3px;
+}
+button.dog {
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 48px;
+  padding: 4px 10px;
+  background: transparent;
+  color: var(--ink);
+  border: 0;
+  border-radius: 0;
+  font-weight: 400;
+  text-align: left;
+}
+button.dog:hover {
+  background: var(--panel);
+}
+button.dog[aria-pressed='true'] {
+  background: var(--beige);
+  font-weight: 600;
+}
+button.dog .tick {
+  width: 18px;
+  flex: none;
+}
+button.dog .chip {
+  height: 30px;
+}
+button.dog .nm {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+button.dog .sx {
+  flex: none;
+  width: 18px;
+  color: var(--mute);
+  font-size: 18px;
+  text-align: center;
+}
+button.dog .older {
+  display: block;
+  font-size: 13px;
+  color: var(--mute);
+  font-weight: 400;
+}
+button.dog.unusable {
+  color: var(--mute);
+}
+button.dog.unusable .again {
+  display: block;
+  font-size: 14px;
+  color: var(--acc);
+  font-weight: 600;
+}
+.unusable-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 30px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+}
+button.del {
+  flex: none;
+  width: var(--target);
+  min-height: 48px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--mute);
+}
+button.del:hover {
+  color: var(--warn);
+  background: var(--warn-bg);
+}
+.listnote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 8px 0 0;
+  color: var(--mute);
+  font-size: 15px;
+}
+.listempty {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  margin: 10px 0 0;
+  padding: 14px 12px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  color: var(--mute);
+}
+.listempty div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.undo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 4px 4px 4px 12px;
+  background: var(--beige);
+  border-radius: var(--radius);
+}
+.undo button {
+  margin-left: auto;
+}
+.library-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 14px;
+}
+.library-tools:empty {
+  display: none;
+}
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  background: var(--warn-bg);
+  color: var(--warn);
+  border-radius: var(--radius);
+}
+/* Destructive: the warning colour, with its background as the text so it reads in both schemes. */
+button.danger {
+  background: var(--warn);
+  border-color: var(--warn);
+  color: var(--warn-bg);
+}
+.confirm button.ghost {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+.add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-top: 12px;
+}
+.add .sec {
+  font-size: 15px;
+}
+.add .spin {
+  width: 22px;
+  height: 22px;
+}
+.add .file {
+  overflow-wrap: anywhere;
+}
+.card-body {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.err.info {
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--acc);
+}
+.stale-note {
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0 0 12px;
+}
+
 /* The narrow layout; NARROW_QUERY in src/ui/app.ts matches it. */
 @media (max-width: 700px) {
   .slots {
@@ -756,7 +960,13 @@ dialog.dogs figcaption {
 
 @media print {
   .drop,
-  .actions,
+  .find,
+  .listing,
+  .undo,
+  .library-tools,
+  .storage-alert,
+  .add,
+  .stale-note,
   button,
   .ready,
   .privacy,

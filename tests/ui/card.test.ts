@@ -4,12 +4,11 @@ import { resolveDog } from '../../src/genetics/dog.ts';
 import type { Phenotype } from '../../src/genetics/phenotype.ts';
 import type { ColourGene } from '../../src/report/loci.ts';
 import type { Report } from '../../src/report/types.ts';
-import { renderCard } from '../../src/ui/card.ts';
+import { renderCardBody } from '../../src/ui/card.ts';
 import { coatChip } from '../../src/ui/coat.ts';
 import { syntheticReport } from '../genetics/synthetic.ts';
+import { withNoseQuestion } from '../saved/storage.ts';
 import { sampleReport, shapes } from './app.ts';
-
-const ACTIONS = { answer: () => undefined, replace: () => undefined, remove: () => undefined };
 
 interface Card {
   readonly ownColour: string;
@@ -19,7 +18,7 @@ interface Card {
 }
 
 function card(report: Report): Card {
-  const element = renderCard({ slot: 0, report, dog: resolveDog(report), nose: undefined, replacing: false, alert: null }, ACTIONS);
+  const element = renderCardBody({ slot: 0, name: 'Nina', report, dog: resolveDog(report), nose: undefined }, () => undefined, null);
   const rows = [...element.querySelectorAll('table.geno tbody tr')].map(
     (row): [string, string] => [row.querySelector('th')?.textContent ?? '', row.lastElementChild?.textContent ?? ''],
   );
@@ -184,5 +183,38 @@ describe('a card’s own-colour picture', () => {
     expect(ground).toBe('rect coat coat-white');
     expect(markings.length).toBeGreaterThan(0);
     expect(markings.every((shape) => shape.endsWith(' coat coat-unknown'))).toBe(true);
+  });
+});
+
+describe('a card body under a list', () => {
+  let report: Report;
+  beforeAll(async () => {
+    report = withNoseQuestion(await sampleReport('a'));
+  });
+
+  const body = (readd: ((slot: 0 | 1) => void) | null, nose: 'brown' | undefined = undefined): HTMLElement =>
+    renderCardBody({ slot: 1, name: 'Nina', report, dog: resolveDog(report, nose === undefined ? {} : { nose }), nose }, () => undefined, readd);
+
+  it('has no heading and no Replace or Remove buttons', () => {
+    const element = body(null);
+    expect(element.className).toBe('card-body');
+    expect(element.querySelector('h2')).toBeNull();
+    expect([...element.querySelectorAll('button')].map((button) => button.textContent)).toEqual([]);
+    expect(element.querySelector('table.geno caption')?.textContent).toBe('Nina: colour genotype as read');
+  });
+
+  it('asks the nose question, checked with the saved answer', () => {
+    const element = body(null, 'brown');
+    expect(element.querySelector('fieldset.question legend')?.textContent).toBe('Nose and paw pads: black or brown?');
+    expect(element.querySelector<HTMLInputElement>('[data-key="nose-1-brown"]')?.checked).toBe(true);
+  });
+
+  it('opens with the stale note when the dog was read by an older version', () => {
+    const asked: number[] = [];
+    const element = body((slot) => asked.push(slot));
+    const note = element.firstElementChild;
+    expect(note?.className).toBe('err info stale-note');
+    element.querySelector<HTMLButtonElement>('[data-key="readd-1"]')?.click();
+    expect(asked).toEqual([1]);
   });
 });
