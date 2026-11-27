@@ -75,8 +75,16 @@ export function bulkProgress(status: BulkReading, className: string, slot: Paren
     'div',
     { class: className, 'aria-busy': 'true', ...(slot === null ? {} : { 'data-key': `progress-${slot}`, tabindex: '-1' }) },
     h('span', { class: 'spin', 'aria-hidden': 'true' }),
-    h('span', {}, bulkProgressText(status.current, status.total)),
+    h('span', { class: 'count' }, bulkProgressText(status.current, status.total)),
   );
+}
+
+/** Rewrites a progress line's count in place, so that focus on it stays. */
+export function setBulkProgress(line: Element, status: BulkReading): void {
+  const count = line.querySelector('.count');
+  if (count !== null) {
+    count.textContent = bulkProgressText(status.current, status.total);
+  }
 }
 
 /** Joins a rejected file's name to its reason, which is the rejection text as written: "scan.pdf: The text in this PDF can’t be read…". */

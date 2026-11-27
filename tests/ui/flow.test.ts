@@ -8,6 +8,7 @@ import { REJECTIONS } from '../../src/ui/messages.ts';
 import {
   button,
   fixtureText,
+  focused,
   heading,
   ok,
   openPage,
@@ -612,6 +613,60 @@ describe('adding several reports', () => {
       await adding;
       expect(root.querySelector('[data-slot="0"] .err')).toBeNull();
     }
+  });
+
+  /** Counts focusin events on the page from now on. */
+  function focusins(root: HTMLElement): { readonly keys: (string | null)[] } {
+    const keys: (string | null)[] = [];
+    root.addEventListener('focusin', (event) => keys.push(event.target instanceof Element ? event.target.getAttribute('data-key') : null));
+    return { keys };
+  }
+
+  it('moves no focus while a bulk add’s reads change no layout and no chosen dog', async () => {
+    for (const start of ['pick-1', 'geno-summary-0', 'clear-saved']) {
+      const { slow, files, results: dogReads } = slowDogs(4);
+      const { app, root } = openPage(dogReads, { storage: savedStorage(a, b) });
+      button(root, 'dog-0-dog-1').click();
+      root.querySelector<HTMLElement>(`[data-key="${start}"]`)?.focus();
+      const adding = app.drop(files, 1);
+      const focus = focusins(root);
+      for (const [index, read] of slow.slice(0, 3).entries()) {
+        await read.release();
+        await vi.waitFor(() => expect(progress(root, 1)).toBe(`Reading ${index + 2} of 4 reports…`));
+      }
+      const rows = [...root.querySelectorAll('[data-slot="1"] button.dog')].map((row) => row.getAttribute('data-key'));
+      expect(rows.sort()).toEqual(['dog-1-dog-2', 'dog-1-new-1', 'dog-1-new-2', 'dog-1-new-3']);
+      expect(focus.keys).toEqual([]);
+      expect(focused()).toBe(start === 'pick-1' ? 'progress-1' : start);
+      await slow[3]?.release();
+      await adding;
+      expect(focused()).toBe(start);
+    }
+  });
+
+  it('redraws the slots when a bulk add’s save changes a chosen dog, the filter field or the undo line', async () => {
+    const renamed = slowRead(ok({ ...a, name: 'Sample A2' }));
+    const { slow, files, results: dogReads } = slowDogs(6);
+    const { app, root } = openPage({ ...dogReads, 'renamed.pdf': renamed.read }, { storage: savedStorage(a, c, d) });
+    button(root, 'dog-0-dog-1').click();
+    const adding = app.drop([pdf('renamed.pdf'), ...files], 1);
+    await renamed.release();
+    await vi.waitFor(() => expect(heading(root, 0)).toBe('Parent 1Sample A2'));
+    button(root, 'delete-0-dog-3').click();
+    expect(root.querySelector('.undo')).not.toBeNull();
+    await slow[0]?.release();
+    await vi.waitFor(() => expect(progress(root, 1)).toBe('Reading 3 of 7 reports…'));
+    expect(root.querySelector('.undo')).toBeNull();
+    for (const read of slow.slice(1, 4)) {
+      await read.release();
+    }
+    await vi.waitFor(() => expect(progress(root, 1)).toBe('Reading 6 of 7 reports…'));
+    expect(root.querySelector('.find')).toBeNull();
+    await slow[4]?.release();
+    await vi.waitFor(() => expect(progress(root, 1)).toBe('Reading 7 of 7 reports…'));
+    expect(root.querySelector('.find')).not.toBeNull();
+    await slow[5]?.release();
+    await adding;
   });
 
   it('returns focus from the progress to Add a dog when the summary replaces it', async () => {

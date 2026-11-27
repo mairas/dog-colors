@@ -1,6 +1,8 @@
 // The page's state and its one render path. The saved dogs live in the store;
 // which dog each slot holds, reads in progress and the slots' messages live in
-// memory. Every change re-renders the slots and recomputes the results.
+// memory. Every change re-renders the slots and recomputes the results, but
+// for a bulk add's save that changes no slot's layout and no chosen dog,
+// which redraws only the rows and the progress.
 // Elements with a data-key keep their focus, open disclosures and expanded
 // caveats across renders, so answering a question doesn't lose the keyboard
 // position.
@@ -49,6 +51,7 @@ import {
   bulkSummary,
   bulkSummaryText,
   renderOpenSlot,
+  setBulkProgress,
   slotHeadingId,
   type BulkStatus,
   type BulkSummary,
@@ -127,6 +130,14 @@ interface ViewState {
   readonly scrolled: ReadonlyMap<string, number>;
   /** Per slot, whether its list showed its chosen row in full. */
   readonly chosenShown: readonly boolean[];
+}
+
+/** What only a full render redraws, taken before a bulk add saves a file. */
+interface Shape {
+  /** Each slot's chosen dog, as the store's object, which a save that changes the dog replaces. */
+  readonly chosen: readonly (SavedDog | null)[];
+  readonly filter: boolean;
+  readonly undo: boolean;
 }
 
 export interface App {
@@ -278,6 +289,8 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   let focusKeys: readonly string[] = [];
   /** The store mode the storage warning and the privacy line were last drawn for. */
   let drawnMode: StoreMode | null = null;
+  /** What Clear saved dogs last drew: nothing, its button, or its confirmation with the count. */
+  let drawnTools: string | null = null;
   let renderedLayouts: readonly string[] = [];
   let revealed: readonly (string | null)[] = [null, null];
   let resultsShown = false;
@@ -477,6 +490,9 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     typingTimers[slot] = window.setTimeout(() => announcer.announce(listingStatus(listing(input))), TYPING_PAUSE_MS);
   }
 
+  /** The layout `renderSlot` gives the slot: its list, or the open slot empty or reading. */
+  const layoutOf = (slot: ParentIndex): string => (listMode(slot) ? 'list' : state.slots[slot].reading === null ? 'empty' : 'reading');
+
   function renderSlot(slot: ParentIndex): { element: HTMLElement; layout: string } {
     const current = state.slots[slot];
     if (listMode(slot)) {
@@ -607,10 +623,18 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     }
   }
 
-  /** Clear saved dogs, or its inline confirmation, while any dog is saved and storage may be written. */
+  /**
+   * Clear saved dogs, or its inline confirmation, while any dog is saved and
+   * storage may be written; redrawn only when that changes, so focus on it stays.
+   */
   function drawTools(): void {
     const count = store.dogs().length;
-    if (count === 0 || store.mode() === 'out-of-date') {
+    const shown = count === 0 || store.mode() === 'out-of-date' ? 'none' : state.clearing ? `asking ${count}` : 'button';
+    if (shown === drawnTools) {
+      return;
+    }
+    drawnTools = shown;
+    if (shown === 'none') {
       state = { ...state, clearing: false };
       toolsEl.replaceChildren();
       return;
@@ -673,6 +697,47 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     const collapse = show && !resultsShown && narrow();
     resultsShown = show;
     restore(view, collapse);
+  }
+
+  const shape = (): Shape => ({ chosen: SLOTS.map(chosenDog), filter: showsFilter(store.dogs()), undo: state.undo !== null });
+
+  /** Whether a full render is needed since `before`: a slot's layout, a chosen dog, the filter field or the undo line changed. */
+  const reshaped = (before: Shape): boolean =>
+    before.undo ||
+    before.filter !== showsFilter(store.dogs()) ||
+    SLOTS.some((slot) => chosenDog(slot) !== before.chosen[slot] || layoutOf(slot) !== renderedLayouts[slot]);
+
+  /**
+   * Redraws in place what a bulk add's step changes when `reshaped` says no
+   * full render is needed: the storage warning, Clear saved dogs, each slot's
+   * rows and the progress count. Focus stays, unless it was on a row the
+   * listing replaced, which is focused again by its key.
+   */
+  function refresh(): void {
+    const view = snapshot();
+    drawStorage();
+    drawTools();
+    SLOTS.forEach((slot) => {
+      slotsEl.querySelector(`[data-slot="${slot}"] .listing`)?.replaceWith(renderListing(listInput(slot), actions));
+    });
+    const bulk = state.bulk;
+    if (bulk?.status.kind === 'reading') {
+      const line = bulk.at === null ? pageBulk.firstElementChild : slotsEl.querySelector(`[data-key="progress-${bulk.at}"]`);
+      if (line !== null) {
+        setBulkProgress(line, bulk.status);
+      }
+    }
+    restoreScroll(view);
+    SLOTS.forEach((slot) => {
+      const element = slotsEl.querySelector<HTMLElement>(`[data-slot="${slot}"]`);
+      if (element !== null && view.chosenShown[slot] === true) {
+        revealChosen(element);
+      }
+    });
+    const active = document.activeElement;
+    if (view.active !== undefined && (active === null || active === document.body)) {
+      root.querySelector<HTMLElement>(`[data-key="${CSS.escape(view.active)}"]`)?.focus();
+    }
   }
 
   const resultsStatus = (): string => {
@@ -879,6 +944,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       if (cleared !== clears) {
         return;
       }
+      const before = shape();
       if (result?.ok === true) {
         tally(saved, store.add(result.report).outcome, result.report);
         endUndo();
@@ -888,7 +954,12 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       if (index + 1 < queue.length) {
         showProgress(at, index + 2, queue);
       }
-      render();
+      settle();
+      if (reshaped(before)) {
+        render();
+      } else {
+        refresh();
+      }
     }
     gathering = null;
     const done: BulkSummary = { kind: 'summary', ...saved };
@@ -908,7 +979,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       queue.push(...files);
       const current = state.bulk?.status.kind === 'reading' ? state.bulk.status.current : 1;
       showProgress(state.bulk?.at ?? at, current, queue);
-      render();
+      refresh();
       announcer.announce(bulkProgressText(current, queue.length));
       await done;
       return;
