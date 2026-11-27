@@ -482,17 +482,69 @@ describe('adding one report to a slot', () => {
       expect(notice(root, 0)).toBeNull();
     });
 
-    it('shows its rejection when a second file on the slot was placed first', async () => {
+    it.each([
+      ['choosing another row', async (root: HTMLElement) => button(root, 'dog-0-dog-2').click()],
+      ['a new add in that slot', async (_: HTMLElement, load: (file: File) => Promise<void>) => load(pdf('d.pdf'))],
+    ])('clears its rejection on %s', async (_, act) => {
+      const slow = slowRead({ ok: false, kind: 'not-wisdom-dog' });
+      const { app, root } = openPage({ ...reads, 'slow.pdf': slow.read }, { storage: savedStorage(a, b, c) });
+      const loading = app.load(0, pdf('slow.pdf'));
+      button(root, 'dog-0-dog-1').click();
+      await slow.release();
+      await loading;
+      expect(notice(root, 0)).toBe(REJECTED);
+      await act(root, (file) => app.load(0, file));
+      expect(notice(root, 0)).toBeNull();
+    });
+
+    it.each([
+      ['the list layout', () => savedStorage(a, b)],
+      ['the open layout', () => new MemoryStorage()],
+    ])('shows its rejection above the indicator while a second file on the slot is still reading, in %s, until that file is placed', async (_, storage) => {
+      const first = slowRead({ ok: false, kind: 'not-wisdom-dog' });
+      const second = slowRead(ok(d));
+      const { app, root } = openPage({ 'first.pdf': first.read, 'second.pdf': second.read }, { storage: storage() });
+      const loadingFirst = app.load(0, pdf('first.pdf'));
+      const loadingSecond = app.load(0, pdf('second.pdf'));
+      await first.release();
+      await loadingFirst;
+      expect(notice(root, 0)).toBe(REJECTED);
+      const spinner = root.querySelector('[data-slot="0"] .spin');
+      expect(spinner).not.toBeNull();
+      expect(root.querySelector('[data-slot="0"] .err')?.compareDocumentPosition(spinner ?? root)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(spoken(root)).toBe(`Parent 1: ${REJECTED.slice(1)}`);
+      await second.release();
+      await loadingSecond;
+      expect(notice(root, 0)).toBeNull();
+      expect(heading(root, 0)).toBe('Parent 1Sample D');
+    });
+
+    it('leaves alone, unannounced, a second file on the slot that was placed first', async () => {
       const slow = slowRead({ ok: false, kind: 'not-wisdom-dog' });
       const { app, root } = openPage({ ...reads, 'slow.pdf': slow.read }, { storage: savedStorage(a, b) });
       const loading = app.load(0, pdf('slow.pdf'));
       await app.drop([pdf('d.pdf')], 0);
       expect(heading(root, 0)).toBe('Parent 1Sample D');
+      expect(spoken(root)).toBe('Parent 1: Sample D saved.');
       await slow.release();
       await loading;
-      expect(notice(root, 0)).toBe(REJECTED);
+      expect(notice(root, 0)).toBeNull();
       expect(heading(root, 0)).toBe('Parent 1Sample D');
-      expect(spoken(root)).toBe(`Parent 1: ${REJECTED.slice(1)}`);
+      expect(spoken(root)).toBe('Parent 1: Sample D saved.');
+    });
+
+    it('keeps the notice of a second file on the slot that finished first as the other slot’s dog, unannounced', async () => {
+      const SAME = 'This report is Sample A, already Parent 1; the saved dog was updated.';
+      const slow = slowRead({ ok: false, kind: 'not-wisdom-dog' });
+      const { app, root } = openPage({ ...reads, 'slow.pdf': slow.read }, { storage: savedStorage(a, b) });
+      button(root, 'dog-0-dog-1').click();
+      const loading = app.load(1, pdf('slow.pdf'));
+      await app.load(1, pdf('a.pdf'));
+      expect(notice(root, 1)).toBe(`ⓘ${SAME}`);
+      await slow.release();
+      await loading;
+      expect(notice(root, 1)).toBe(`ⓘ${SAME}`);
+      expect(spoken(root)).toBe(SAME);
     });
   });
 

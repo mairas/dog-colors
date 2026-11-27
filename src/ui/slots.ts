@@ -9,7 +9,7 @@ import { parentLabel } from './names.ts';
 
 export type OpenSlot =
   | { readonly kind: 'empty'; readonly error: Message | null }
-  | { readonly kind: 'reading'; readonly fileName: string };
+  | { readonly kind: 'reading'; readonly fileName: string; readonly error: Message | null };
 
 /** A message tone, shown by its icon and not by colour alone. */
 export type Tone = 'warning' | 'info';
@@ -93,12 +93,18 @@ export function renderOpenSlot(
   const headingId = slotHeadingId(slot);
   const heading = (text: string): HTMLElement => slotHeading(slot, text);
   const undo = extras === undefined || extras.deleted === null ? null : undoLine(slot, extras.deleted, extras.undo);
+  // A rejection, or the note that a report was the other slot's dog: above the picker, or above the spinner while a later file reads.
+  const notices = [
+    state.error === null ? null : alertBox(state.error),
+    extras === undefined || extras.notice === null ? null : alertBox(extras.notice, '', 'info'),
+  ];
 
   if (state.kind === 'reading') {
     return h(
       'section',
       { class: 'slot', 'aria-labelledby': headingId, 'aria-busy': 'true', 'data-slot': String(slot) },
       heading('Reading report…'),
+      ...notices,
       undo,
       h('div', { class: 'drop' }, h('div', { class: 'spin', 'aria-hidden': 'true' }), h('span', { class: 'file' }, state.fileName)),
     );
@@ -114,8 +120,7 @@ export function renderOpenSlot(
     'section',
     { class: 'slot', 'aria-labelledby': headingId, 'data-slot': String(slot) },
     heading(state.error === null ? 'No report yet' : 'Report can’t be read'),
-    state.error === null ? null : alertBox(state.error),
-    extras === undefined || extras.notice === null ? null : alertBox(extras.notice, '', 'info'),
+    ...notices,
     undo,
     h(
       'div',

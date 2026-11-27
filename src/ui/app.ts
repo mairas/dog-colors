@@ -243,6 +243,8 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   let state: AppState = options.initial ?? { slots: [EMPTY_SLOT, EMPTY_SLOT], pageAlert: null, undo: null, clearing: false };
   /** Each slot's latest read: an earlier one still saves its dog, but does not place it. */
   const tokens: [number, number] = [0, 0];
+  /** Each slot's latest-started read that has finished, by token: a rejection finishing after it is out of date. */
+  const finished: [number, number] = [0, 0];
   /** How many times Clear saved dogs was confirmed: a read that began before the latest is discarded. */
   let clears = 0;
   /** The dog Add the report again was pressed for, until the slot's picker gives a file or Add a dog opens it. */
@@ -439,7 +441,8 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     }
     const warning = current.notice?.tone === 'warning' ? current.notice.message : null;
     const info = current.notice?.tone === 'info' ? current.notice.message : null;
-    const open: OpenSlot = current.reading === null ? { kind: 'empty', error: warning } : { kind: 'reading', fileName: current.reading };
+    const open: OpenSlot =
+      current.reading === null ? { kind: 'empty', error: warning } : { kind: 'reading', fileName: current.reading, error: warning };
     return { element: renderOpenSlot(slot, open, pick, { notice: info, deleted: undoLabel(slot), undo: actions.undo }), layout: open.kind };
   }
 
@@ -664,6 +667,8 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       return;
     }
     const placed = token === tokens[slot];
+    const overtaken = finished[slot] > token;
+    finished[slot] = Math.max(finished[slot], token);
     if (placed) {
       setSlot(slot, { reading: null });
     }
@@ -673,6 +678,11 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     }
 
     if (result?.ok !== true) {
+      if (overtaken) {
+        // A file added to the slot later has already finished: its outcome stands.
+        render();
+        return;
+      }
       // A superseded read shows its rejection too, but focus stays where the user has acted since.
       const message = result === null ? READER_FAILED : REJECTIONS[result.kind];
       setSlot(slot, { notice: { tone: 'warning', message } });
