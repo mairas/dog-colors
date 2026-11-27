@@ -22,7 +22,7 @@ import type { Report, Sex } from '../report/types.ts';
 import { READER_VERSION } from '../report/version.ts';
 import { STORED_VERSION } from '../saved/check.ts';
 import { openSavedDogs, SAVED_DOGS_KEY, type SavedDogs, type StoredDog } from '../saved/store.ts';
-import { EMPTY_SLOT, NOTE_HIDDEN_KEY, type AppOptions, type AppState, type NoteStorage, type SlotState } from './app.ts';
+import { EMPTY_SLOT, NOTE_HIDDEN_KEY, type AppOptions, type AppState, type PageStorage, type SlotState } from './app.ts';
 import { DROP_FULL, REJECTIONS, sameDogNotice, type Message } from './messages.ts';
 
 const FIXTURES: Readonly<Record<string, { readonly lines: readonly Line[] }>> = {
@@ -149,7 +149,7 @@ interface Seeder {
   newer(): void;
 }
 
-function seeder(storage: NoteStorage): Seeder {
+function seeder(storage: PageStorage): Seeder {
   let nextId: string | null = null;
   // Dogs the page itself adds to the seeding store get IDs of their own.
   let added = 0;
@@ -157,7 +157,7 @@ function seeder(storage: NoteStorage): Seeder {
   const refuse = (): never => {
     throw new DOMException('refused', 'QuotaExceededError');
   };
-  const access = (): NoteStorage =>
+  const access = (): PageStorage =>
     refused === null
       ? storage
       : {
@@ -339,7 +339,7 @@ const STATES: Readonly<Record<string, (seed: Seeder) => Promise<FixtureStart>>> 
 export const STATE_NAMES = Object.keys(STATES);
 
 /** Saves the state's dogs into the storage and returns what the page starts with. */
-export async function stateFromQuery(params: URLSearchParams, storage: NoteStorage): Promise<FixtureStart> {
+export async function stateFromQuery(params: URLSearchParams, storage: PageStorage): Promise<FixtureStart> {
   const seed = seeder(storage);
   const state = params.get('state');
   if (state !== null) {
@@ -363,7 +363,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * breeding note on the dev origin never reach other states, with the note
  * dismissed from the start with note=hidden.
  */
-function storageFromQuery(params: URLSearchParams): NoteStorage {
+function storageFromQuery(params: URLSearchParams): PageStorage {
   const items = new Map<string, string>();
   if (params.get('note') === 'hidden') {
     items.set(NOTE_HIDDEN_KEY, String(Date.now() + DAY_MS));

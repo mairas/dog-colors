@@ -80,14 +80,14 @@ export interface AppState {
 }
 
 /** Where the saved dogs and the breeding note's dismissal are kept: localStorage in the browser. */
-export type NoteStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+export type PageStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 export interface AppOptions {
   readonly read: ReadFile;
   readonly initial?: AppState;
   /** Whether the viewport is narrow enough to collapse the genotype tables once results exist. */
   readonly narrow?: () => boolean;
-  readonly storage?: NoteStorage;
+  readonly storage?: PageStorage;
   /** The current time in epoch milliseconds. */
   readonly now?: () => number;
   /** IDs for newly saved dogs; random by default. */
@@ -193,7 +193,7 @@ function breedingNote(): HTMLElement {
  * Hides the note while a stored dismissal lasts, and wires its close cross and
  * the results link that brings it back.
  */
-function wireBreedingNote(root: HTMLElement, note: HTMLElement, storage: () => NoteStorage, now: () => number): void {
+function wireBreedingNote(root: HTMLElement, note: HTMLElement, storage: () => PageStorage, now: () => number): void {
   try {
     const stored = storage().getItem(NOTE_HIDDEN_KEY);
     if (stored !== null) {
@@ -235,7 +235,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   const now = options.now ?? Date.now;
   const predict = options.predictPuppies ?? predictPuppies;
   // Even reading window.localStorage throws where storage is disabled.
-  const storage = (): NoteStorage => options.storage ?? window.localStorage;
+  const storage = (): PageStorage => options.storage ?? window.localStorage;
   const store = options.savedDogs ?? openSavedDogs({ storage, now, ...(options.newId === undefined ? {} : { newId: options.newId }) });
   let state: AppState = options.initial ?? { slots: [EMPTY_SLOT, EMPTY_SLOT], pageAlert: null, undo: null, clearing: false };
   /** Each slot's latest read: an earlier one still saves its dog, but does not place it. */

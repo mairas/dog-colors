@@ -7,7 +7,7 @@ import type { Line, PdfText } from '../../src/report/pdfText.ts';
 import type { ReadResult, Report } from '../../src/report/types.ts';
 import { SAVED_DOGS_KEY, openSavedDogs } from '../../src/saved/store.ts';
 import { stateFromQuery } from '../../src/ui/dev.ts';
-import { startApp, type App, type AppOptions, type AppState, type NoteStorage } from '../../src/ui/app.ts';
+import { startApp, type App, type AppOptions, type AppState, type PageStorage } from '../../src/ui/app.ts';
 import { MemoryStorage, sequentialIds } from '../saved/storage.ts';
 
 // happy-dom replaces the global URL, which the shared fixture helpers resolve
@@ -61,7 +61,7 @@ export function ok(report: Report): ReadResult {
 export interface PageOptions {
   readonly initial?: AppState;
   readonly narrow?: boolean;
-  readonly storage?: NoteStorage;
+  readonly storage?: PageStorage;
   /** The clock's fixed reading, in epoch milliseconds. */
   readonly now?: number;
   /** IDs for dogs the page saves; new-1, new-2, … by default. */
