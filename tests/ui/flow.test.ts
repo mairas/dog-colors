@@ -586,6 +586,19 @@ describe('adding several reports', () => {
     expect(document.activeElement?.getAttribute('data-key')).not.toBe('pick-1');
   });
 
+  it('clears the receiving slot’s earlier rejection when a bulk add starts there', async () => {
+    for (const storage of [new MemoryStorage(), savedStorage(d)]) {
+      const { app, root } = openPage(reads, { storage });
+      await app.load(0, pdf('other.pdf'));
+      expect(root.querySelector('[data-slot="0"] .err')).not.toBeNull();
+      const adding = app.drop([pdf('a.pdf'), pdf('b.pdf'), pdf('c.pdf')], 0);
+      expect(root.querySelector('[data-slot="0"] .err')).toBeNull();
+      expect(heading(root, 0)).not.toBe('Parent 1Report can’t be read');
+      await adding;
+      expect(root.querySelector('[data-slot="0"] .err')).toBeNull();
+    }
+  });
+
   it('returns focus from the progress to Add a dog when the summary replaces it', async () => {
     const { app, root } = openPage(reads, { storage: savedStorage(d) });
     button(root, 'pick-0').focus();

@@ -861,6 +861,10 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   async function readUnplaced(queue: File[], at: ParentIndex | null): Promise<void> {
     bulks++;
     const cleared = clears;
+    if (at !== null) {
+      // As a single add does, the slot's new files replace its last message.
+      setSlot(at, { notice: null });
+    }
     showProgress(at, 1, queue);
     render();
     announcer.announce(bulkStartText(queue.length));
