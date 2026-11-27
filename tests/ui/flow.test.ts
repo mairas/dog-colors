@@ -297,7 +297,7 @@ describe('adding several reports', () => {
   const spoken = (root: HTMLElement) => root.querySelector('[aria-live]')?.textContent ?? '';
   const pressed = (root: HTMLElement) => [...root.querySelectorAll('button.dog[aria-pressed="true"]')].map((row) => row.getAttribute('data-key'));
   const saved = (root: HTMLElement) => [...root.querySelectorAll('[data-slot="0"] button.dog')].map((row) => row.getAttribute('data-key'));
-  const NO_TEXT_REASON = 'this PDF contains no text, perhaps a scan or a photo. Download the report from Wisdom Panel instead.';
+  const NO_TEXT_REASON = 'This PDF contains no text, perhaps a scan or a photo. Download the report from Wisdom Panel instead.';
 
   /** Reports Dog 1 … Dog n, without kit IDs, each read slowly from dog-<i>.pdf. */
   function slowDogs(count: number) {
@@ -504,9 +504,9 @@ describe('adding several reports', () => {
   it('names each rejected file with its reason in the summary', async () => {
     const { app, root } = openPage({ ...reads, 'litter.pdf': { ok: false, kind: 'no-text' } });
     await app.drop(['a.pdf', 'litter.pdf', 'b.pdf', 'c.pdf'].map(pdf), null);
-    expect(summary(root, 'page')).toBe(`Added 3 dogs.⚠litter.pdf couldn’t be read: ${NO_TEXT_REASON}`);
+    expect(summary(root, 'page')).toBe(`Added 3 dogs.⚠litter.pdf: ${NO_TEXT_REASON}`);
     expect(root.querySelector('.page-bulk .bulk-summary .err b')?.textContent).toBe('litter.pdf');
-    expect(spoken(root)).toBe(`Added 3 dogs. litter.pdf couldn’t be read: ${NO_TEXT_REASON}`);
+    expect(spoken(root)).toBe(`Added 3 dogs. litter.pdf: ${NO_TEXT_REASON}`);
     expect(root.querySelectorAll('[data-slot] .err')).toHaveLength(0);
   });
 
@@ -514,7 +514,7 @@ describe('adding several reports', () => {
     const { app, root } = openPage({ '1.pdf': { ok: false, kind: 'no-text' }, '2.pdf': { ok: false, kind: 'not-pdf' }, '3.pdf': { ok: false, kind: 'no-text' } });
     await app.drop(['1.pdf', '2.pdf', '3.pdf'].map(pdf), 0);
     expect(summary(root, 0)).toContain('No dogs added.');
-    expect(summary(root, 0)).toContain('2.pdf couldn’t be read: this file isn\'t a PDF.');
+    expect(summary(root, 0)).toContain("2.pdf: This file isn't a PDF.");
     expect(root.querySelector('[data-slot="0"] .bulk-summary + .drop [data-key="pick-0"]')?.textContent).toBe('Choose PDF');
   });
 

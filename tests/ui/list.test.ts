@@ -17,7 +17,8 @@ import {
   type ListActions,
   type ListSlotInput,
 } from '../../src/ui/list.ts';
-import { alertBox, bulkSummary, renderOpenSlot, type BulkReading, type BulkSummary, type OpenSlotExtras } from '../../src/ui/slots.ts';
+import { REJECTIONS } from '../../src/ui/messages.ts';
+import { alertBox, bulkSummary, bulkSummaryText, renderOpenSlot, type BulkReading, type BulkSummary, type OpenSlotExtras } from '../../src/ui/slots.ts';
 
 const READING: BulkReading = { kind: 'reading', current: 3, total: 8 };
 const SUMMARY: BulkSummary = { kind: 'summary', added: ['Aino', 'Bruno'], updated: [], rejected: [] };
@@ -657,9 +658,14 @@ describe('a bulk add’s summary', () => {
       ],
     });
     expect(element.querySelector('img')).toBeNull();
-    expect([...element.querySelectorAll('.err')].map(text)).toEqual(['⚠<b>x</b>.pdf couldn’t be read: this PDF contains no text.', '⚠odd.pdf couldn’t be read: this layout is new. Report it']);
+    expect([...element.querySelectorAll('.err')].map(text)).toEqual(['⚠<b>x</b>.pdf: This PDF contains no text.', '⚠odd.pdf: This layout is new. Report it']);
     expect(element.querySelector('.err a')?.getAttribute('href')).toBe('https://example.org/issues');
     expect(element.querySelector('[role], [aria-live]')).toBeNull();
+  });
+
+  it('speaks the counts, then each rejected file as shown', () => {
+    const rejected = [{ name: 'scan.pdf', message: REJECTIONS['unreadable-text'] }];
+    expect(bulkSummaryText({ kind: 'summary', added: ['Luna'], updated: [], rejected })).toBe(`Added Luna. scan.pdf: ${REJECTIONS['unreadable-text'].text}`);
   });
 });
 

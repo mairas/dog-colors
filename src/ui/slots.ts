@@ -6,7 +6,7 @@
 import type { ParentIndex } from '../health/health.ts';
 import { h, svg } from './dom.ts';
 import { bulkProgressText, bulkSummaryLead, type Message } from './messages.ts';
-import { lowerFirst, parentLabel } from './names.ts';
+import { parentLabel } from './names.ts';
 
 export type OpenSlot =
   | { readonly kind: 'empty'; readonly error: Message | null }
@@ -78,14 +78,14 @@ export function bulkProgress(status: BulkReading, className: string, slot: Paren
   );
 }
 
-/** Joins a rejected file's name to its reason: "photo.pdf couldn’t be read: " and the rejection text. */
-const REJECTED_FILE_JOIN = ' couldn’t be read: ';
+/** Joins a rejected file's name to its reason, which is the rejection text as written: "scan.pdf: The text in this PDF can’t be read…". */
+const REJECTED_FILE_JOIN = ': ';
 
 /** The summary as the announcer speaks it: the counts, then each rejected file by name with its reason. */
 export const bulkSummaryText = (summary: BulkSummary): string =>
   [
     bulkSummaryLead(summary.added, summary.updated),
-    ...summary.rejected.map(({ name, message }) => `${name}${REJECTED_FILE_JOIN}${lowerFirst(message.text)}`),
+    ...summary.rejected.map(({ name, message }) => `${name}${REJECTED_FILE_JOIN}${message.text}`),
   ].join(' ');
 
 /** The counts, then each rejected file by name with its reason. Not a live region; the announcer speaks it. */
@@ -104,7 +104,7 @@ export function bulkSummary(summary: BulkSummary): HTMLElement {
           {},
           h('b', {}, name),
           REJECTED_FILE_JOIN,
-          lowerFirst(message.text),
+          message.text,
           message.link === undefined ? null : ' ',
           message.link === undefined ? null : h('a', { href: message.link.href, rel: 'noopener' }, message.link.label),
         ),
