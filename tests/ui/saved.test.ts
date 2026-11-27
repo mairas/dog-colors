@@ -225,6 +225,28 @@ describe('the filter field', () => {
     await adding;
   });
 
+  it('keeps focus and its text through a bulk add’s summary in the other slot', async () => {
+    const slow = [1, 2, 3].map((index) => slowRead(ok({ ...b, name: `Aada ${index}`, kitIdHash: null })));
+    const files = slow.map((_, index) => `aada-${index + 1}.pdf`);
+    const { app, root } = openPage(Object.fromEntries(files.map((file, index) => [file, slow[index]?.read ?? (() => Promise.reject())])), { storage: many() });
+    const adding = app.drop(files.map(pdf), 1);
+    const field = root.querySelector<HTMLInputElement>('[data-key="find-0"]');
+    if (field === null) {
+      throw new Error('no filter field');
+    }
+    field.focus();
+    field.value = 'a';
+    field.dispatchEvent(new Event('input'));
+    for (const read of slow) {
+      await read.release();
+    }
+    await adding;
+    expect(root.querySelector('[data-slot="1"] .bulk-summary')?.textContent).toBe('Added 3 dogs.');
+    expect(root.querySelector('[data-key="find-0"]')).toBe(field);
+    expect(document.activeElement).toBe(field);
+    expect(field.value).toBe('a');
+  });
+
   it('drops the typing-pause count when files join a bulk add first', async () => {
     vi.useFakeTimers();
     const slow = [1, 2, 3, 4, 5].map((index) => slowRead(ok({ ...b, name: `Aada ${index}`, kitIdHash: null })));
