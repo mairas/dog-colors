@@ -280,8 +280,8 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   let clears = 0;
   /** How many bulk adds began: a placed one shows its summary only if it was the latest. */
   let bulks = 0;
-  /** The unplaced bulk add reading: its queue, which later several-file adds join, and its end. */
-  let gathering: { readonly queue: File[]; readonly done: Promise<void> } | null = null;
+  /** The unplaced bulk add reading: its queue, which later several-file adds join, where it shows, and its end. */
+  let gathering: { readonly queue: File[]; readonly at: ParentIndex | null; readonly done: Promise<void> } | null = null;
   /** The dog Add the report again was pressed for, until the slot's picker gives a file or Add a dog opens it. */
   const readdTargets: [string | null, string | null] = [null, null];
   const typingTimers: [number | undefined, number | undefined] = [undefined, undefined];
@@ -975,10 +975,10 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
    */
   async function addSeveral(files: readonly File[], at: ParentIndex | null): Promise<void> {
     if (gathering !== null) {
-      const { queue, done } = gathering;
+      const { queue, at: shownAt, done } = gathering;
       queue.push(...files);
       const current = state.bulk?.status.kind === 'reading' ? state.bulk.status.current : 1;
-      showProgress(state.bulk?.at ?? at, current, queue);
+      showProgress(shownAt, current, queue);
       refresh();
       announcer.announce(bulkProgressText(current, queue.length));
       await done;
@@ -991,7 +991,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     }
     const queue = [...files];
     const done = readUnplaced(queue, at);
-    gathering = { queue, done };
+    gathering = { queue, at, done };
     await done;
   }
 

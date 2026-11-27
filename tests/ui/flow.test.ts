@@ -840,6 +840,20 @@ describe('adding several reports', () => {
     expect(summary(root, 'page')).toBeNull();
   });
 
+  it('keeps a page-level bulk add’s progress above the slots when more files are dropped on a slot', async () => {
+    const { slow, files, results: dogReads } = slowDogs(3);
+    const { app, root } = openPage({ ...reads, ...dogReads });
+    const first = app.drop(files, null);
+    const later = app.drop([pdf('a.pdf'), pdf('b.pdf')], 1);
+    expect(progress(root, 'page')).toBe('Reading 1 of 5 reports…');
+    expect(progress(root, 1)).toBeNull();
+    for (const read of slow) {
+      await read.release();
+    }
+    await Promise.all([first, later]);
+    expect(summary(root, 'page')).toBe('Added 5 dogs.');
+  });
+
   it('scrolls a page-level progress line into view', async () => {
     const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
     const { app, root } = openPage(reads);
