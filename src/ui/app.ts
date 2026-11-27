@@ -282,8 +282,8 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   let clears = 0;
   /** How many bulk adds began: a placed one shows its summary only if it was the latest. */
   let bulks = 0;
-  /** The unplaced bulk add reading: its queue, which later several-file adds join, where it shows, and its end. */
-  let gathering: { readonly queue: File[]; readonly at: ParentIndex | null; readonly done: Promise<void> } | null = null;
+  /** The unplaced bulk add reading, whose progress `state.bulk` holds: its queue, which later several-file adds join, and its end. */
+  let gathering: { readonly queue: File[]; readonly done: Promise<void> } | null = null;
   /** The dog Add the report again was pressed for, until the slot's picker gives a file or Add a dog opens it. */
   const readdTargets: [string | null, string | null] = [null, null];
   const typingTimers: [number | undefined, number | undefined] = [undefined, undefined];
@@ -1015,11 +1015,12 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
    * queue, its progress and its one summary.
    */
   async function addSeveral(files: readonly File[], at: ParentIndex | null): Promise<void> {
-    if (gathering !== null) {
-      const { queue, at: shownAt, done } = gathering;
+    const { bulk } = state;
+    if (gathering !== null && bulk?.status.kind === 'reading') {
+      const { queue, done } = gathering;
       queue.push(...files);
-      const current = state.bulk?.status.kind === 'reading' ? state.bulk.status.current : 1;
-      showProgress(shownAt, current, queue);
+      const { current } = bulk.status;
+      showProgress(bulk.at, current, queue);
       // As a single add does, the slot's new files replace its last message, which only a render removes.
       if (at !== null && state.slots[at].notice !== null) {
         setSlot(at, { notice: null });
@@ -1038,7 +1039,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     }
     const queue = [...files];
     const done = readUnplaced(queue, at);
-    gathering = { queue, at, done };
+    gathering = { queue, done };
     await done;
   }
 
