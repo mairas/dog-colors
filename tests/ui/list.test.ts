@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import type { ResolvedDog } from '../../src/genetics/dog.ts';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resolveDog } from '../../src/genetics/dog.ts';
 import type { Report, Sex } from '../../src/report/types.ts';
 import { READER_VERSION } from '../../src/report/version.ts';
-import { STORED_VERSION, type SavedDog, type UsableDog } from '../../src/saved/check.ts';
+import { STORED_VERSION, type SavedDog } from '../../src/saved/check.ts';
 import { openSavedDogs, SAVED_DOGS_KEY } from '../../src/saved/store.ts';
 import {
   dogLabel,
@@ -20,6 +20,12 @@ import {
 import { alertBox, renderOpenSlot } from '../../src/ui/slots.ts';
 import { MemoryStorage, sequentialIds, withNoseQuestion } from '../saved/storage.ts';
 import { sampleReport } from './app.ts';
+
+// The real genetics, so that a test can make them throw for one dog.
+vi.mock('../../src/genetics/dog.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/genetics/dog.ts')>();
+  return { ...actual, resolveDog: vi.fn(actual.resolveDog) };
+});
 
 let white: Report;
 let solid: Report;
@@ -83,7 +89,6 @@ function render(input: Partial<ListSlotInput> & Pick<ListSlotInput, 'dogs'>): HT
       notice: null,
       deleted: null,
       reading: null,
-      resolve: resolveSaved,
       ...input,
     },
     ACTIONS,
@@ -204,8 +209,8 @@ describe('two saved dogs with the same name', () => {
       'Delete Luna, brown, solid',
     ]);
     const luna = find(dogs, 'Luna');
-    expect(dogLabel(luna, dogs, resolveSaved)).toEqual({ name: 'Luna', colour: 'white with brown markings' });
-    expect(dogLabel(find(dogs, 'Aino'), dogs, resolveSaved)).toEqual({ name: 'Aino', colour: null });
+    expect(dogLabel(luna, dogs)).toEqual({ name: 'Luna', colour: 'white with brown markings' });
+    expect(dogLabel(find(dogs, 'Aino'), dogs)).toEqual({ name: 'Aino', colour: null });
   });
 
   it('keeps the colour on the deleted dog’s undo line when another dog shares its name', () => {
@@ -213,7 +218,7 @@ describe('two saved dogs with the same name', () => {
     if (luna === undefined) {
       throw new Error('no dog');
     }
-    const label = dogLabel(luna, rest, resolveSaved);
+    const label = dogLabel(luna, rest);
     expect(label).toEqual({ name: 'Luna', colour: 'white with brown markings' });
     const element = render({ dogs: rest, deleted: label });
     const undo = element.querySelector('.undo');
@@ -438,21 +443,29 @@ describe('stale and unusable dogs', () => {
     expect(element.querySelector('[data-key="delete-1-u1"]')?.getAttribute('aria-label')).toBe('Delete Rufo');
   });
 
-  it('shows a dog whose genetics throw as unusable, and the other rows as usual', () => {
+  it('shows a dog whose genetics throw as unusable, and the other rows as usual', async () => {
+    const { resolveDog: real } = await vi.importActual<typeof import('../../src/genetics/dog.ts')>('../../src/genetics/dog.ts');
     const dogs = saved(dog('Aino', 'female'), dog('Bruno', 'male'));
-    const bruno = idOf(dogs, 'Bruno');
-    const resolve = (target: UsableDog): ResolvedDog | null => {
-      if (target.id === bruno) {
+    const bruno = find(dogs, 'Bruno');
+    if (bruno.status === 'unusable') {
+      throw new Error('no usable dog');
+    }
+    vi.mocked(resolveDog).mockImplementation((report, answers) => {
+      if (report === bruno.report) {
         throw new Error('rejected by the genetics');
       }
-      return resolveSaved(target);
-    };
-    const element = render({ dogs, resolve, chosen: bruno });
-    const [aino, broken] = rows(element);
-    expect(aino?.querySelector('svg.chip')).not.toBeNull();
-    expect(broken?.getAttribute('aria-label')).toBe('Bruno, male, add the report again');
-    expect(heading(element)).toBe('Choose a dog');
-    expect(element.querySelector('.card-body')).toBeNull();
+      return real(report, answers);
+    });
+    try {
+      const element = render({ dogs, chosen: bruno.id });
+      const [aino, broken] = rows(element);
+      expect(aino?.querySelector('svg.chip')).not.toBeNull();
+      expect(broken?.getAttribute('aria-label')).toBe('Bruno, male, add the report again');
+      expect(heading(element)).toBe('Choose a dog');
+      expect(element.querySelector('.card-body')).toBeNull();
+    } finally {
+      vi.mocked(resolveDog).mockImplementation(real);
+    }
   });
 
   it('resolves a saved dog once per dog object, with its nose answer', () => {

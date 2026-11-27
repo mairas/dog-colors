@@ -399,7 +399,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
 
   /** The deleted dog the slot's undo line offers back. */
   const undoLabel = (slot: ParentIndex): DogLabel | null =>
-    state.undo === null || state.undo.slot !== slot ? null : dogLabel(state.undo.deleted.dog, store.dogs(), resolveSaved);
+    state.undo === null || state.undo.slot !== slot ? null : dogLabel(state.undo.deleted.dog, store.dogs());
 
   /** Whether the slot lists dogs, rather than today's empty slot. */
   const listMode = (slot: ParentIndex): boolean => listsDogs(store.dogs(), chosenDog(otherSlot(slot)));
@@ -417,7 +417,6 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       notice: current.notice,
       deleted: undoLabel(slot),
       reading: current.reading,
-      resolve: resolveSaved,
     };
   };
 

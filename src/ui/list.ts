@@ -68,8 +68,6 @@ export interface ListSlotInput extends ListingInput {
   readonly deleted: DogLabel | null;
   /** The name of a file being read for this slot. */
   readonly reading: string | null;
-  /** The dog as the genetics read it, or null when they reject its stored data; may also throw. */
-  readonly resolve: (dog: UsableDog) => ResolvedDog | null;
 }
 
 /** Whether a slot lists dogs: any saved dog but the other slot's, stale and unusable ones included. */
@@ -157,23 +155,14 @@ export function resolveSaved(dog: UsableDog): ResolvedDog | null {
   return resolvedDogs.get(dog) ?? null;
 }
 
-function safely(resolve: ListSlotInput['resolve'], dog: SavedDog): ResolvedDog | null {
-  if (dog.status === 'unusable') {
-    return null;
-  }
-  try {
-    return resolve(dog);
-  } catch {
-    return null;
-  }
-}
+const resolveAny = (dog: SavedDog): ResolvedDog | null => (dog.status === 'unusable' ? null : resolveSaved(dog));
 
 /** The dog's name, with its own colour when another of the dogs shares the name. */
-export function dogLabel(dog: SavedDog, dogs: readonly SavedDog[], resolve: ListSlotInput['resolve']): DogLabel {
+export function dogLabel(dog: SavedDog, dogs: readonly SavedDog[]): DogLabel {
   const name = savedName(dog.name);
   const key = name.toLocaleLowerCase();
   const shared = dogs.some((other) => other.id !== dog.id && savedName(other.name).toLocaleLowerCase() === key);
-  const resolved = shared ? safely(resolve, dog) : null;
+  const resolved = shared ? resolveAny(dog) : null;
   return { name, colour: resolved === null ? null : lowerFirst(ownColourText(resolved)) };
 }
 
@@ -216,8 +205,8 @@ const sexSymbol = (sex: Sex | null): HTMLElement | null =>
 
 function row(input: ListSlotInput, dog: SavedDog, actions: ListActions): HTMLLIElement {
   const { slot } = input;
-  const label = dogLabel(dog, input.dogs, input.resolve);
-  const resolved = safely(input.resolve, dog);
+  const label = dogLabel(dog, input.dogs);
+  const resolved = resolveAny(dog);
   const sex = dog.sex === null ? [] : [SEX_WORDS[dog.sex]];
   const colour = label.colour === null ? [] : [label.colour];
   const key = `dog-${slot}-${dog.id}`;
@@ -338,7 +327,7 @@ export function renderListSlot(input: ListSlotInput, actions: ListActions): HTML
   const headingId = slotHeadingId(slot);
   const chosenDog = input.dogs.find((dog) => dog.id === input.chosen && dog.id !== input.other?.id);
   const usable = chosenDog === undefined || chosenDog.status === 'unusable' ? null : chosenDog;
-  const resolved = usable === null ? null : safely(input.resolve, usable);
+  const resolved = usable === null ? null : resolveSaved(usable);
   const chosen = usable !== null && resolved !== null ? { dog: usable, resolved } : null;
 
   if (field.value !== input.filterText) {
