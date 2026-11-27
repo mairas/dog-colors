@@ -741,6 +741,10 @@ dialog.dogs figcaption {
 .dogs-list li:first-child {
   border-top: 0;
 }
+/* The scrolling list clips anything drawn outside its rows. */
+.dogs-list button:focus-visible {
+  outline-offset: -3px;
+}
 button.dog {
   flex: 1;
   min-width: 0;
