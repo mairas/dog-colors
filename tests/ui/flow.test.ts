@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Report } from '../../src/report/types.ts';
-import { hash, MemoryStorage } from '../saved/storage.ts';
+import { hash, MemoryStorage, sequentialIds } from '../saved/storage.ts';
 import { syntheticReport } from '../genetics/synthetic.ts';
 import { openSavedDogs, SAVED_DOGS_KEY } from '../../src/saved/store.ts';
 import { REJECTIONS } from '../../src/ui/messages.ts';
@@ -787,6 +787,61 @@ describe('adding several reports', () => {
     expect(storage.getItem(SAVED_DOGS_KEY)).toBeNull();
     expect(root.querySelector('.bulk, .bulk-summary')).toBeNull();
     expect(spoken(root)).toBe('All saved dogs deleted.');
+  });
+
+  it('reads several files added after Clear saved dogs ended a bulk add whose read is still pending', async () => {
+    const { slow, files, results: dogReads } = slowDogs(3);
+    const { app, root } = openPage({ ...reads, ...dogReads });
+    const first = app.drop(files, null);
+    await slow[0]?.release();
+    await vi.waitFor(() => expect(progress(root, 'page')).toBe('Reading 2 of 3 reports…'));
+    button(root, 'clear-saved').click();
+    button(root, 'clear-delete').click();
+    const later = app.drop([pdf('a.pdf'), pdf('b.pdf'), pdf('c.pdf')], null);
+    await slow[1]?.release();
+    await slow[2]?.release();
+    await Promise.all([first, later]);
+    expect(summary(root, 'page')).toBe('Added 3 dogs.');
+  });
+
+  it('keeps the bulk add that started after a Clear when the cleared one’s pending read finishes', async () => {
+    const { slow, files, results: dogReads } = slowDogs(6);
+    const { app, root } = openPage({ ...reads, ...dogReads });
+    const first = app.drop(files.slice(0, 3), null);
+    await slow[0]?.release();
+    await vi.waitFor(() => expect(progress(root, 'page')).toBe('Reading 2 of 3 reports…'));
+    button(root, 'clear-saved').click();
+    button(root, 'clear-delete').click();
+    const second = app.drop(files.slice(3), null);
+    await slow[1]?.release();
+    await first;
+    const joined = app.drop([pdf('a.pdf'), pdf('c.pdf')], null);
+    expect(progress(root, 'page')).toBe('Reading 1 of 5 reports…');
+    for (const read of slow.slice(2)) {
+      await read.release();
+    }
+    await Promise.all([second, joined]);
+    expect(summary(root, 'page')).toBe('Added 5 dogs.');
+  });
+
+  it('frees the queue when a bulk add throws, so the next several files read', async () => {
+    const storage = new MemoryStorage();
+    const store = openSavedDogs({ storage: () => storage, newId: sequentialIds('new') });
+    let broken = true;
+    const savedDogs = {
+      ...store,
+      add: (...args: Parameters<typeof store.add>) => {
+        if (broken) {
+          broken = false;
+          throw new Error('the store broke');
+        }
+        return store.add(...args);
+      },
+    };
+    const { app, root } = openPage(reads, { storage, savedDogs });
+    await expect(app.drop([pdf('a.pdf'), pdf('b.pdf'), pdf('c.pdf')], null)).rejects.toThrow('the store broke');
+    await app.drop([pdf('b.pdf'), pdf('c.pdf'), pdf('d.pdf')], null);
+    expect(summary(root, 'page')).toBe('Added 3 dogs.');
   });
 
   it('takes one file in the picker Add the report again opens', () => {

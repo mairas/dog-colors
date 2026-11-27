@@ -938,30 +938,36 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     }
 
     const saved: Tally = { added: [], updated: [], rejected: [] };
-    // An array's iterator checks its length at each step, so it reaches files queued meanwhile.
-    for (const [index, file] of queue.entries()) {
-      const result = await readReport(file);
-      if (cleared !== clears) {
-        return;
+    try {
+      // An array's iterator checks its length at each step, so it reaches files queued meanwhile.
+      for (const [index, file] of queue.entries()) {
+        const result = await readReport(file);
+        if (cleared !== clears) {
+          return;
+        }
+        const before = shape();
+        if (result?.ok === true) {
+          tally(saved, store.add(result.report).outcome, result.report);
+          endUndo();
+        } else {
+          saved.rejected.push({ name: file.name, message: rejection(result) });
+        }
+        if (index + 1 < queue.length) {
+          showProgress(at, index + 2, queue);
+        }
+        settle();
+        if (reshaped(before)) {
+          render();
+        } else {
+          refresh();
+        }
       }
-      const before = shape();
-      if (result?.ok === true) {
-        tally(saved, store.add(result.report).outcome, result.report);
-        endUndo();
-      } else {
-        saved.rejected.push({ name: file.name, message: rejection(result) });
-      }
-      if (index + 1 < queue.length) {
-        showProgress(at, index + 2, queue);
-      }
-      settle();
-      if (reshaped(before)) {
-        render();
-      } else {
-        refresh();
+    } finally {
+      // After a Clear, a later bulk add may own the queue by now.
+      if (gathering?.queue === queue) {
+        gathering = null;
       }
     }
-    gathering = null;
     const done: BulkSummary = { kind: 'summary', ...saved };
     state = { ...state, bulk: { at, status: done } };
     render();
