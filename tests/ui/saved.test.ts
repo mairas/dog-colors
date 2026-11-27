@@ -178,6 +178,21 @@ describe('the filter field', () => {
     expect(spoken(root)).toBe('2 dogs listed');
   });
 
+  it('drops the typing-pause count when a choice comes first', () => {
+    vi.useFakeTimers();
+    const { root } = openPage(reads, { storage: many() });
+    const field = root.querySelector<HTMLInputElement>('[data-key="find-0"]');
+    if (field === null) {
+      throw new Error('no filter field');
+    }
+    field.value = 'ai';
+    field.dispatchEvent(new Event('input'));
+    vi.advanceTimersByTime(300);
+    button(root, 'dog-0-dog-1').click();
+    vi.advanceTimersByTime(1000);
+    expect(spoken(root)).toBe('Parent 1: Aino chosen.');
+  });
+
   it('keeps the text after choosing a row, and Clear the filter empties it', async () => {
     const { root } = openPage(reads, { storage: many() });
     const field = root.querySelector<HTMLInputElement>('[data-key="find-0"]');

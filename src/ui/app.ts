@@ -572,6 +572,8 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   }
 
   function render(): void {
+    // A count taken before this action would overwrite what the action announces.
+    SLOTS.forEach((slot) => window.clearTimeout(typingTimers[slot]));
     settle();
     const view = snapshot();
     drawStorage();
