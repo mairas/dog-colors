@@ -576,8 +576,11 @@ describe('adding several reports', () => {
     }
   });
 
-  it('keeps focus on a notice’s link through a bulk add', async () => {
-    const { app, root } = openPage({ ...reads, 'odd.pdf': { ok: false, kind: 'unrecognised-layout' } }, { storage: savedStorage(a, b) });
+  it.each([
+    ['the open layout', () => new MemoryStorage()],
+    ['the list layout', () => savedStorage(a, b)],
+  ])('keeps focus on a notice’s link through a bulk add, in %s', async (_, storage) => {
+    const { app, root } = openPage({ ...reads, 'odd.pdf': { ok: false, kind: 'unrecognised-layout' } }, { storage: storage() });
     await app.load(1, pdf('odd.pdf'));
     root.querySelector<HTMLElement>('[data-slot="1"] .err a')?.focus();
     expect(focused()).toBe('notice-link-1');
