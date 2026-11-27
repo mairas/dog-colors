@@ -200,6 +200,22 @@ describe('the filter field', () => {
     expect(spoken(root)).toBe('Parent 1: Aino chosen.');
   });
 
+  it('empties the filter once its field goes, so a field shown again lists every dog', async () => {
+    const { app, root } = openPage(reads, { storage: many() });
+    const field = root.querySelector<HTMLInputElement>('[data-key="find-0"]');
+    if (field === null) {
+      throw new Error('no filter field');
+    }
+    field.value = 'ai';
+    field.dispatchEvent(new Event('input'));
+    expect(rows(root, 0)).toEqual(['dog-0-dog-1']);
+    button(root, 'delete-1-dog-7').click();
+    expect(root.querySelector('[data-key="find-0"]')).toBeNull();
+    await app.load(0, pdf('c.pdf'));
+    expect(root.querySelector<HTMLInputElement>('[data-key="find-0"]')?.value).toBe('');
+    expect(rows(root, 0)).toHaveLength(7);
+  });
+
   it('keeps the text after choosing a row, and Clear the filter empties it', async () => {
     const { root } = openPage(reads, { storage: many() });
     const field = root.querySelector<HTMLInputElement>('[data-key="find-0"]');
@@ -532,6 +548,28 @@ describe('stored data the page cannot use', () => {
     expect(heading(root, 1)).toBe('Parent 2Sample B');
   });
 
+  it('announces the slot cleared on an Undo after another tab deleted its dog', () => {
+    const storage = savedStorage(a, b, c, d);
+    const { root } = openPage(reads, { storage });
+    button(root, 'dog-0-dog-1').click();
+    button(root, 'delete-1-dog-4').click();
+    openSavedDogs({ storage: () => storage }).remove('dog-1');
+    button(root, 'undo-1').click();
+    expect(heading(root, 0)).toBe('Parent 1Choose a dog');
+    expect(spoken(root)).toBe('Sample D restored. Parent 1 cleared.');
+  });
+
+  it('announces the slot cleared on a nose answer after another tab deleted its dog', () => {
+    const storage = savedStorage(a, withNoseQuestion({ ...b, kitIdHash: null }));
+    const { root } = openPage(reads, { storage });
+    button(root, 'dog-0-dog-1').click();
+    button(root, 'dog-1-dog-2').click();
+    openSavedDogs({ storage: () => storage }).remove('dog-1');
+    root.querySelector<HTMLInputElement>('[data-key="nose-1-brown"]')?.click();
+    expect(heading(root, 0)).toBe('Parent 1No report yet');
+    expect(spoken(root)).toBe('Answer saved. Parent 1 cleared.');
+  });
+
   it('clears and announces a slot whose dog another tab deleted, at this page’s next write', async () => {
     const storage = savedStorage(a, b, d);
     const { app, root } = openPage(reads, { storage });
@@ -855,6 +893,12 @@ describe('Clear saved dogs', () => {
     expect(root.querySelector('.library-tools [role="group"]')).toBeNull();
     expect(focused()).toBe('clear-saved');
     expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('asks about one saved dog in the singular', () => {
+    const { root } = openPage(reads, { storage: savedStorage(a) });
+    clearButton(root)?.click();
+    expect(root.querySelector('.library-tools [role="group"]')?.textContent).toBe('Delete all 1 saved dog?DeleteCancel');
   });
 
   it('deletes every dog on Delete, empties both slots and the undo line, and keeps the breeding note’s dismissal', () => {
