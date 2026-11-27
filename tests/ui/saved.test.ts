@@ -200,6 +200,30 @@ describe('the filter field', () => {
     expect(spoken(root)).toBe('Parent 1: Aino chosen.');
   });
 
+  it('drops the typing-pause count when a bulk add saves first', async () => {
+    vi.useFakeTimers();
+    const slow = [1, 2, 3].map((index) => slowRead(ok({ ...b, name: `Aada ${index}`, kitIdHash: null })));
+    const files = slow.map((_, index) => `aada-${index + 1}.pdf`);
+    const { app, root } = openPage(Object.fromEntries(files.map((file, index) => [file, slow[index]?.read ?? (() => Promise.reject())])), { storage: many() });
+    const adding = app.drop(files.map(pdf), 1);
+    const field = root.querySelector<HTMLInputElement>('[data-key="find-0"]');
+    if (field === null) {
+      throw new Error('no filter field');
+    }
+    field.value = 'a';
+    field.dispatchEvent(new Event('input'));
+    vi.advanceTimersByTime(300);
+    await slow[0]?.release();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(rows(root, 0)).toContain('dog-0-new-1');
+    vi.advanceTimersByTime(1000);
+    expect(spoken(root)).toBe('Reading 3 reports…');
+    for (const read of slow.slice(1)) {
+      await read.release();
+    }
+    await adding;
+  });
+
   it('empties the filter once its field goes, so a field shown again lists every dog', async () => {
     const { app, root } = openPage(reads, { storage: many() });
     const field = root.querySelector<HTMLInputElement>('[data-key="find-0"]');

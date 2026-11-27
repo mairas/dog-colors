@@ -495,6 +495,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
   /** The layout `renderSlot` gives the slot: its list, or the open slot empty or reading. */
   const layoutOf = (slot: ParentIndex): string => (listMode(slot) ? 'list' : state.slots[slot].reading === null ? 'empty' : 'reading');
 
+  /** Anything a slot draws from the saved dogs outside `.listing` must be listed in `reshaped`, or a bulk add's save leaves it stale. */
   function renderSlot(slot: ParentIndex): { element: HTMLElement; layout: string } {
     const current = state.slots[slot];
     if (listMode(slot)) {
@@ -684,11 +685,16 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
     );
   }
 
-  function render(): void {
-    // A count taken before this action would overwrite what the action announces.
+  /** What every update starts with: settles the slots and takes the snapshot to restore. */
+  function beginUpdate(): ViewState {
+    // A count taken before this update would be out of date, or overwrite what the update announces.
     SLOTS.forEach((slot) => window.clearTimeout(typingTimers[slot]));
     settle();
-    const view = snapshot();
+    return snapshot();
+  }
+
+  function render(): void {
+    const view = beginUpdate();
     drawStorage();
     drawTools();
 
@@ -741,7 +747,7 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
    * listing replaced, which is focused again by its key.
    */
   function refresh(): void {
-    const view = snapshot();
+    const view = beginUpdate();
     drawStorage();
     drawTools();
     SLOTS.forEach((slot) => {
@@ -979,7 +985,6 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
         if (index + 1 < queue.length) {
           showProgress(at, index + 2, queue);
         }
-        settle();
         if (reshaped(before)) {
           render();
         } else {

@@ -346,6 +346,11 @@ export function revealChosen(slot: HTMLElement): void {
   }
 }
 
+/**
+ * A slot listing saved dogs. A bulk add's save redraws only `.listing`, so
+ * anything else drawn here from the saved dogs must be listed in the page's
+ * `reshaped` check, which then asks for a full render.
+ */
 export function renderListSlot(input: ListSlotInput, actions: ListActions): HTMLElement {
   const { slot, field } = input;
   const headingId = slotHeadingId(slot);
