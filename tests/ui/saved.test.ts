@@ -934,7 +934,8 @@ describe('deleting a dog', () => {
     const reading = (root: HTMLElement, slot: number) => root.querySelector(`[data-slot="${slot}"] .add[aria-busy="true"]`);
 
     /** Sample A chosen in Parent 1, with Sample C being read there. */
-    function readingOverChosen(storage = savedStorage(a, b, d)) {
+    function readingOverChosen() {
+      const storage = savedStorage(a, b, d);
       const slow = slowRead(ok(c));
       const page = openPage({ 'slow.pdf': slow.read }, { storage });
       button(page.root, 'dog-0-dog-1').click();
