@@ -314,14 +314,20 @@ function chosenRow(slot: HTMLElement): { readonly list: HTMLElement; readonly it
   return list === null || list === undefined || item === null || item === undefined ? null : { list, item };
 }
 
-/** Whether the slot's chosen row lies wholly within its list's visible scroll area. */
+/** The slack, in pixels, on each edge of the visible area: offsets are whole pixels, scrollTop may be fractional. */
+const IN_VIEW_SLACK_PX = 1;
+
+/** Whether the slot's chosen row lies within its list's visible scroll area, to within IN_VIEW_SLACK_PX. */
 export function chosenInView(slot: HTMLElement): boolean {
   const shown = chosenRow(slot);
   if (shown === null) {
     return false;
   }
   const { list, item } = shown;
-  return item.offsetTop >= list.scrollTop && item.offsetTop + item.offsetHeight <= list.scrollTop + list.clientHeight;
+  return (
+    item.offsetTop >= list.scrollTop - IN_VIEW_SLACK_PX &&
+    item.offsetTop + item.offsetHeight <= list.scrollTop + list.clientHeight + IN_VIEW_SLACK_PX
+  );
 }
 
 /** Scrolls the slot's capped list, and only the list, to show its chosen row. Call once the slot is in the page. */

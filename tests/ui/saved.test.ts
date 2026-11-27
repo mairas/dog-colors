@@ -270,9 +270,10 @@ describe('a long list', () => {
     /**
      * The layout happy-dom does not compute: each list row ROW tall, stacked
      * from the list's top, the list VISIBLE tall, and its scrollTop held
-     * within its rows as a browser holds it.
+     * within its rows as a browser holds it. A list's scrollTop reads `readOff`
+     * pixels below what was set, as at a fractional device pixel ratio.
      */
-    function stubLayout(): void {
+    function stubLayout(readOff = 0): void {
       const isList = (element: Element): boolean => element.classList.contains('dogs-list');
       const inList = (element: Element): boolean => element.tagName === 'LI' && element.parentElement !== null && isList(element.parentElement);
       const scrolls = new WeakMap<Element, number>();
@@ -293,7 +294,8 @@ describe('a long list', () => {
       });
       stub(Element.prototype, 'scrollTop', {
         get(this: Element) {
-          return scrolls.get(this) ?? 0;
+          const set = scrolls.get(this) ?? 0;
+          return isList(this) ? Math.max(0, set - readOff) : set;
         },
         set(this: Element, value: number) {
           const most = isList(this) ? Math.max(0, this.children.length * ROW - VISIBLE) : value;
@@ -314,14 +316,14 @@ describe('a long list', () => {
       return found;
     };
 
-    /** Whether the slot's chosen row lies wholly within its list's visible area. */
-    function inView(root: HTMLElement, slot: number): boolean {
+    /** Whether the slot's chosen row lies wholly within its list's visible area, to within `slack` pixels. */
+    function inView(root: HTMLElement, slot: number, slack = 0): boolean {
       const shown = list(root, slot);
       const item = shown.querySelector('[aria-pressed="true"]')?.closest('li');
       if (item === null || item === undefined) {
         throw new Error('no chosen row');
       }
-      return item.offsetTop >= shown.scrollTop && item.offsetTop + item.offsetHeight <= shown.scrollTop + shown.clientHeight;
+      return item.offsetTop >= shown.scrollTop - slack && item.offsetTop + item.offsetHeight <= shown.scrollTop + shown.clientHeight + slack;
     }
 
     /** Four males before three females: Zelda (dog-7), a female, sorts last. */
@@ -350,6 +352,17 @@ describe('a long list', () => {
       await app.load(0, pdf('zoe.pdf'));
       expect(pressed(root, 0)).toEqual(['dog-0-new-1']);
       expect(inView(root, 0)).toBe(true);
+    });
+
+    it('stays in view as rows come and go above it when its scroll reads half a pixel off', () => {
+      const HALF = 0.5;
+      stubLayout(HALF);
+      const { root } = openPage(reads, { storage: mixed() });
+      button(root, 'dog-0-dog-7').click();
+      button(root, 'dog-1-dog-1').click();
+      button(root, 'dog-1-dog-1').click();
+      expect(rows(root, 0)).toHaveLength(7);
+      expect(inView(root, 0, HALF)).toBe(true);
     });
 
     it('stays in view while a letter is typed in the filter and erased', () => {
