@@ -126,7 +126,7 @@ function genotypeTable(input: CardContent): HTMLElement {
     { class: 'gd', open: true, 'data-key': `geno-${slot}` },
     h(
       'summary',
-      { class: 'sec' },
+      { class: 'sec', 'data-key': `geno-summary-${slot}` },
       'Colour genotype as read',
       missingCount > 0 ? h('span', { class: 'flag' }, ` · ${missingCount === 1 ? '1 locus' : `${missingCount} loci`} missing`) : null,
     ),
@@ -155,7 +155,7 @@ function mismatchHelp(input: CardContent): HTMLElement {
   return h(
     'details',
     { class: 'why', 'data-key': `why-${slot}` },
-    h('summary', {}, "Doesn't match your dog?"),
+    h('summary', { 'data-key': `why-summary-${slot}` }, "Doesn't match your dog?"),
     h(
       'ul',
       {},

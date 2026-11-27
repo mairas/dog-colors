@@ -119,7 +119,7 @@ export interface AppOptions {
 
 interface ViewState {
   readonly active: string | undefined;
-  /** The slot holding focus: when its focused element is replaced, focus goes to the slot's picker or the bulk progress in its place. */
+  /** The slot holding focus: when its focused keyed element is gone, focus goes to the slot's picker or the bulk progress in its place. */
   readonly activeSlot: ParentIndex | null;
   readonly open: ReadonlyMap<string, boolean>;
   readonly expanded: ReadonlySet<string>;
@@ -581,7 +581,8 @@ export function startApp(root: HTMLElement, options: AppOptions): App {
       }
     });
     const keyed = (key: string): HTMLElement | null => root.querySelector<HTMLElement>(`[data-key="${CSS.escape(key)}"]`);
-    const replaced = view.activeSlot === null ? [] : [`pick-${view.activeSlot}`, `progress-${view.activeSlot}`];
+    // Only a keyed element the render removed sends focus to the slot's picker or progress.
+    const replaced = view.activeSlot === null || view.active === undefined ? [] : [`pick-${view.activeSlot}`, `progress-${view.activeSlot}`];
     const target = [...focusKeys, view.active, ...replaced].find((key) => key !== undefined && keyed(key) !== null);
     focusKeys = [];
     if (target !== undefined) {

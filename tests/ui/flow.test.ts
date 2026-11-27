@@ -557,6 +557,35 @@ describe('adding several reports', () => {
     expect(heading(root, 1)).toBe('Parent 2Sample B');
   });
 
+  it('keeps focus on a card’s disclosure while a bulk add renders the slots', async () => {
+    for (const key of ['geno-summary-0', 'why-summary-0']) {
+      const { slow, files, results: dogReads } = slowDogs(3);
+      const { app, root } = openPage(dogReads, { storage: savedStorage(a, b) });
+      button(root, 'dog-0-dog-1').click();
+      root.querySelector<HTMLElement>(`summary[data-key="${key}"]`)?.focus();
+      expect(document.activeElement?.getAttribute('data-key')).toBe(key);
+      const adding = app.drop(files, 1);
+      expect(progress(root, 1)).toBe('Reading 1 of 3 reports…');
+      for (const read of slow) {
+        await read.release();
+        expect(document.activeElement?.getAttribute('data-key')).toBe(key);
+      }
+      await adding;
+      expect(document.activeElement?.getAttribute('data-key')).toBe(key);
+    }
+  });
+
+  it('moves focus to a slot’s picker only off a keyed element a render removed, not off a notice’s link', async () => {
+    const { app, root } = openPage({ ...reads, 'odd.pdf': { ok: false, kind: 'unrecognised-layout' } }, { storage: savedStorage(a, b) });
+    await app.load(1, pdf('odd.pdf'));
+    root.querySelector<HTMLElement>('[data-slot="1"] .err a')?.focus();
+    expect(document.activeElement?.tagName).toBe('A');
+    const adding = app.drop([pdf('c.pdf'), pdf('d.pdf'), pdf('other.pdf')], 0);
+    expect(document.activeElement?.getAttribute('data-key')).not.toBe('pick-1');
+    await adding;
+    expect(document.activeElement?.getAttribute('data-key')).not.toBe('pick-1');
+  });
+
   it('returns focus from the progress to Add a dog when the summary replaces it', async () => {
     const { app, root } = openPage(reads, { storage: savedStorage(d) });
     button(root, 'pick-0').focus();
